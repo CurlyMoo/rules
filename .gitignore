@@ -1,0 +1,13 @@
+#Make and build files
+build/
+
+#Eclipse project files
+.project
+.settings/
+.cproject
+
+#Libraries and executables
+*.a
+*.so
+*.sh
+start

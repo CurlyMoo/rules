@@ -1,0 +1,21 @@
+language: cpp
+dist: trusty
+sudo: true
+
+cache: ccache
+
+matrix:
+  fast_finish: true
+  include:
+
+    - env: PLATFORM=Unix COMPILER=gcc COVERAGE=1
+      compiler: gcc
+      os: linux
+
+before_install: ./ci/travis-before-install.sh
+
+before_script: ./ci/travis-before-script.sh
+
+script: ./ci/travis-script.sh
+
+after_success: ./ci/travis-after-success.sh
