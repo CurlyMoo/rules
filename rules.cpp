@@ -1193,34 +1193,29 @@ static int rule_parse(struct rules_t *obj) {
                * Predict how many go slots we need to
                * reserve for the TRUE / FALSE nodes.
                */
-              int y = pos, nroperations = 0, nrif = 0;
+              int y = pos, nrexpressions = 0;
               while(lexer_peek(obj, y++, &type) == 0) {
                 if(type == TEOF) {
                   break;
                 }
                 if(type == TIF) {
-                  nrif++;
+                  struct vm_cache_t *cache = vm_cache_get(TIF, -1, y-1);
+                  nrexpressions++;
+                  y = cache->end + 1;
+                  continue;
                 }
                 if(type == TEND) {
-                  if(nrif == 1) {
-                    nroperations++;
-                  }
-                  nrif--;
-                  if(nrif == -1) {
-                    break;
-                  }
+                  break;
                 }
-                if(nrif == 0) {
-                  if(type == TSEMICOLON) {
-                    nroperations++;
-                  }
-                  if(t == TTRUE && type == TELSE) {
-                    break;
-                  }
+                if(type == TSEMICOLON) {
+                  nrexpressions++;
+                }
+                if(t == TTRUE && type == TELSE) {
+                  break;
                 }
               }
 #ifdef DEBUG
-              printf("nroperations: %d\n", nroperations);/*LCOV_EXCL_LINE*/
+              printf("nrexpressions: %d\n", nrexpressions);/*LCOV_EXCL_LINE*/
 #endif
 
               /*
@@ -1235,7 +1230,7 @@ static int rule_parse(struct rules_t *obj) {
                * for the number of operations the
                * TRUE of FALSE will forward to.
                */
-              step = vm_parent(obj, t, nroperations);
+              step = vm_parent(obj, t, nrexpressions);
               struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->bytecode[step];
               struct vm_tif_t *b = (struct vm_tif_t *)&obj->bytecode[step_out];
 
