@@ -63,6 +63,16 @@ typedef struct rules_t {
   unsigned int nrbytes;
 } rules_t;
 
+typedef struct rule_options_t {
+  int (*is_token_cb)(struct rules_t *obj, int *pos, int size);
+  unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
+  void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
+  void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
+  void (*prt_token_val_cb)(struct rules_t *obj, char *out, int size);
+} rule_options_t;
+
+extern struct rule_options_t rule_options;
+
 /*
  * Each position field is the closest
  * aligned width of 11 bits.

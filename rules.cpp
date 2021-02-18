@@ -91,7 +91,6 @@ void rule_gc(void) {
 #endif
 }
 
-
 static int alignedbytes(int v) {
 #ifdef ESP8266
   while((v++ % 4) != 0);
@@ -355,7 +354,7 @@ static int rule_prepare(struct rules_t *obj) {
         obj->bytecode[obj->nrbytes++] = TOPERATOR;
         obj->bytecode[obj->nrbytes++] = len1;
         pos += b;
-      } else if((len1 = is_variable(obj, &pos, b)) > -1) {
+      } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb(obj, &pos, b)) > -1) {
         if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+len1+2)) == NULL) {
           OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
         }
@@ -750,13 +749,10 @@ static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *
         (*pos) = x->end;
         right = x->step;
         vm_cache_del(oldpos);
-      /*
-       * Vars as separate steps
-       */
-      } /*else if(c == TVAR) {
+      } else if(c == TVAR) {
         right = vm_parent(obj, c, (*pos)+2);
         (*pos) += 2;
-      } */else if(c == TNUMBER || c == TVAR) {
+      } else if(c == TNUMBER) {
         lexer_bytecode_pos(obj, (*pos) + 2, &val);
         right = val;
         (*pos) += 2;
@@ -787,6 +783,10 @@ static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *
         } break;
         case TOPERATOR: {
           struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[*step_out];
+          node->ret = step;
+        } break;
+        case TVAR: {
+          struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[*step_out];
           node->ret = step;
         } break;
         case TFUNCTION: {
@@ -1281,15 +1281,11 @@ static int rule_parse(struct rules_t *obj) {
               pos = x->end;
               step_out = x->step;
               vm_cache_del(oldpos);
-            /*
-             * Vars as separate steps
-             */
-            } /*else if(a == TVAR) {
+            } else if(a == TVAR) {
               step_out = vm_parent(obj, a, pos);
-            } */else if(a == TNUMBER || a == TVAR) {
+            } else if(a == TNUMBER) {
               lexer_bytecode_pos(obj, pos, &val);
               step_out = val;
-              // step_out = vm_parent(obj, a, pos);
             } else {
               printf("err: %s %d\n", __FUNCTION__, __LINE__);
               exit(-1);
@@ -1582,17 +1578,13 @@ static int rule_parse(struct rules_t *obj) {
               pos = x->end;
               step_out = x->step;
               vm_cache_del(has_paren+1);
-            /*
-             * Vars as separate steps
-             */
-            } /*else if(a == TVAR) {
+            } else if(a == TVAR) {
               step_out = vm_parent(obj, a, has_paren+1);
               pos = has_paren + 1;
-            } */else if(a == TNUMBER || a == TVAR) {
+            } else if(a == TNUMBER) {
               lexer_bytecode_pos(obj, has_paren + 1, &val);
               step_out = val;
 
-              // step_out = vm_parent(obj, a, has_paren+1);
               pos = has_paren + 1;
             } else {
               printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -1813,6 +1805,13 @@ static int rule_parse(struct rules_t *obj) {
                   lexer_bytecode_pos(obj, pos++, &val);
                   node->go[arg++] = val;
                 } break;
+                case TVAR: {
+                  int a = vm_parent(obj, TVAR, pos++);
+                  node = (struct vm_tfunction_t *)&obj->bytecode[step];
+                  node->go[arg++] = a;
+                  struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[a];
+                  tmp->ret = step;
+                } break;
                 default: {
                   printf("err: %s %d\n", __FUNCTION__, __LINE__);
                   exit(-1);
@@ -1886,7 +1885,6 @@ static int rule_parse(struct rules_t *obj) {
         has_if = pos-1;
       } else if(type == LPAREN && lexer_peek(obj, pos-2, &type1) == 0 && type1 != TFUNCTION) {
         has_paren = pos-1;
-        lexer_peek(obj, has_paren, &type);
       }
       if(has_function != -1 || has_paren != -1 || has_if != -1) {
         if(type == TEOF || r_rewind > -1) {
@@ -2112,6 +2110,20 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%p-1\" -> \"%p-2\"\n", node, node);
         i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*node->nrgo);
       } break;
+      case TFUNCTION: {
+        int x = 0;
+        struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[i];
+        printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
+        printf("\"%p-2\"[label=\"%s\"]\n", node, event_functions[obj->bytecode[node->token+1]].name);
+        for(x=0;x<node->nrgo;x++) {
+          printf("\"%p-2\" -> \"%p-%d\"\n", node, node, x+3);
+          printf("\"%p-%d\"[label=\"%d\" shape=square]\n", node, x+3, node->go[x]);
+        }
+        printf("\"%p-2\" -> \"%p-%d\"\n", node, node, x+4);
+        printf("\"%p-%d\"[label=\"%d\" shape=diamond]\n", node, x+4, node->ret);
+        printf("\"%p-1\" -> \"%p-2\"\n", node, node);
+        i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo);
+      } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[i];
         printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
@@ -2263,6 +2275,40 @@ static int vm_value_src(struct rules_t *obj, int *start, int type) {
   return -1;
 }
 
+static int vm_value_clone(struct rules_t *obj, unsigned char *val) {
+  int ret = obj->nrbytes;
+
+  switch(val[0]) {
+    case VINTEGER: {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&val[0];
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
+      value->type = VINTEGER;
+      value->ret = 0;
+      value->value = (int)cpy->value;
+      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vinteger_t);
+    } break;
+    case VFLOAT: {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&val[0];
+      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
+      value->type = VFLOAT;
+      value->ret = 0;
+      value->value = cpy->value;
+      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vfloat_t);
+    } break;
+    default: {
+      printf("err: %s %d\n", __FUNCTION__, __LINE__);
+      exit(-1);
+    } break;
+  }
+  return ret;
+}
+
 static int vm_value_del(struct rules_t *obj, int idx) {
   int x = 0, ret = 0;
 
@@ -2382,6 +2428,9 @@ void valprint(struct rules_t *obj, char *out, int size) {
         } break;
       }
     }
+  }
+  if(rule_options.prt_token_val_cb != NULL) {
+    rule_options.prt_token_val_cb(obj, out, size);
   }
 }
 
@@ -2525,7 +2574,7 @@ int rule_run(struct rules_t *obj, int validate) {
                 values[i] = vm_value_set(obj, node->go[i], 0);
 
                 /*
-                 * Reassign node due to (unsigned char *)REALLOC's
+                 * Reassign node due to possible reallocs
                  */
                 node = (struct vm_tfunction_t *)&obj->bytecode[go];
               } break;
@@ -2550,6 +2599,24 @@ int rule_run(struct rules_t *obj, int validate) {
                 tmp->value = 0;
                 val->ret = 0;
               } break;
+              case TVAR: {
+                if(rule_options.get_token_val_cb != NULL) {
+                  unsigned char *val = rule_options.get_token_val_cb(obj, node->go[i]);
+                  if(val == NULL) {
+                    printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                    exit(-1);
+                  }
+                  values[i] = vm_value_clone(obj, val);
+
+                  /*
+                   * Reassign node due to possible reallocs
+                   */
+                  node = (struct vm_tfunction_t *)&obj->bytecode[go];
+                } else {
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
+                }
+              } break;
               default: {
                 printf("err: %s %d\n", __FUNCTION__, __LINE__);
                 exit(-1);
@@ -2563,7 +2630,7 @@ int rule_run(struct rules_t *obj, int validate) {
           }
 
           /*
-           * Reassign node due to (unsigned char *)REALLOC's
+           * Reassign node due to possible reallocs
            */
           node = (struct vm_tfunction_t *)&obj->bytecode[go];
           switch(obj->bytecode[c]) {
@@ -2589,7 +2656,7 @@ int rule_run(struct rules_t *obj, int validate) {
                 shift += vm_value_del(obj, values[i] - shift);
 
                 /*
-                 * Reassign node due to (unsigned char *)REALLOC's
+                 * Reassign node due to possible reallocs
                  */
                 node = (struct vm_tfunction_t *)&obj->bytecode[go];
               } break;
@@ -2616,7 +2683,7 @@ int rule_run(struct rules_t *obj, int validate) {
             case TNUMBER: {
               a = vm_value_set(obj, step, step);
               /*
-               * Reassign node due to (unsigned char *)REALLOC's
+               * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->bytecode[go];
             } break;
@@ -2642,14 +2709,20 @@ int rule_run(struct rules_t *obj, int validate) {
               // struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[step];
               // a = tmp->value;
 
-              int pos = 0, start = end + 1;
-              while((pos = vm_value_src(obj, &start, TVAR)) > -1) {
-                struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&obj->bytecode[pos];
-                struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-                if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[step+1]) == 0) {
-                  a = foo->value;
-                  break;
+              if(rule_options.get_token_val_cb != NULL) {
+                unsigned char *val = rule_options.get_token_val_cb(obj, step);
+                if(val == NULL) {
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
                 }
+                a = vm_value_clone(obj, val);
+                /*
+                 * Reassign node due to possible reallocs
+                 */
+                node = (struct vm_toperator_t *)&obj->bytecode[go];
+              } else {
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                exit(-1);
               }
             } break;
             default: {
@@ -2663,7 +2736,7 @@ int rule_run(struct rules_t *obj, int validate) {
             case TNUMBER: {
               b = vm_value_set(obj, step, step);
               /*
-               * Reassign node due to (unsigned char *)REALLOC's
+               * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->bytecode[go];
             } break;
@@ -2686,17 +2759,20 @@ int rule_run(struct rules_t *obj, int validate) {
               /*
                * If vars are seperate steps
                */
-              // struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[step];
-              // b = tmp->value;
-
-              int pos = 0, start = end + 1;
-              while((pos = vm_value_src(obj, &start, TVAR)) > -1) {
-                struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&obj->bytecode[pos];
-                struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-                if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[step+1]) == 0) {
-                  b = foo->value;
-                  break;
+              if(rule_options.get_token_val_cb != NULL) {
+                unsigned char *val = rule_options.get_token_val_cb(obj, step);
+                if(val == NULL) {
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
                 }
+                b = vm_value_clone(obj, val);
+                /*
+                 * Reassign node due to possible reallocs
+                 */
+                node = (struct vm_toperator_t *)&obj->bytecode[go];
+              } else {
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                exit(-1);
               }
             } break;
             default: {
@@ -2726,7 +2802,7 @@ int rule_run(struct rules_t *obj, int validate) {
             case VINTEGER: {
               struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->bytecode[c];
               /*
-               * Reassign node due to (unsigned char *)REALLOC's
+               * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->bytecode[go];
               tmp->ret = go;
@@ -2736,7 +2812,7 @@ int rule_run(struct rules_t *obj, int validate) {
             case VFLOAT: {
               struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->bytecode[c];
               /*
-               * Reassign node due to (unsigned char *)REALLOC's
+               * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->bytecode[go];
               tmp->ret = go;
@@ -2750,24 +2826,17 @@ int rule_run(struct rules_t *obj, int validate) {
             } break;
           }
 
+          vm_value_del(obj, max(a, b));
+
           /*
-           * If the left or right hand factors where
-           * where variables, don't remove them.
-           */
-          if(((obj->bytecode[node->left]) != TVAR && max(a, b) == a) ||
-            ((obj->bytecode[node->right]) != TVAR && max(a, b) == b)) {
-            vm_value_del(obj, max(a, b));
-          }
-          /*
-           * Reassign node due to (unsigned char *)REALLOC's
+           * Reassign node due to possible reallocs
            */
           node = (struct vm_toperator_t *)&obj->bytecode[go];
-          if(((obj->bytecode[node->left]) != TVAR && min(a, b) == a) ||
-            ((obj->bytecode[node->right]) != TVAR && min(a, b) == b)) {
-            vm_value_del(obj, min(a, b));
-          }
+
+          vm_value_del(obj, min(a, b));
+
           /*
-           * Reassign node due to (unsigned char *)REALLOC's
+           * Reassign node due to possible reallocs
            */
           node = (struct vm_toperator_t *)&obj->bytecode[go];
 
@@ -2865,30 +2934,21 @@ int rule_run(struct rules_t *obj, int validate) {
       } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[go];
-        if(node->go == 0) {
+
+        if(go < obj->pos.parsed) {
+          int tmp = ret;
+          ret = go;
+          go = tmp;
+        } else if(node->go == 0) {
+          if(rule_options.cpy_token_val_cb != NULL) {
+            rule_options.cpy_token_val_cb(obj, go);
+          }
+
+          node = (struct vm_tvar_t *)&obj->bytecode[go];
+
           ret = go;
           go = node->ret;
-          int start = end+1, pos = 0;
-          /*
-           * Attach variable value to new variable occurance
-           */
-          if((obj->bytecode[ret]) == TVAR) {
-            while((pos = vm_value_src(obj, &start, TVAR)) > -1) {
-              struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&obj->bytecode[pos];
-              struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[node->token+1]) == 0) {
-                node->value = foo->value;
-                val->ret = ret;
-                foo->value = 0;
-                break;
-              }
-            }
-          }
-          if(node->value <= 0) {
-            printf("err: %s %d\n", __FUNCTION__, __LINE__);
-            exit(-1);
-          }
-        } else {
+        } else if(go > obj->pos.parsed) {
           /*
            * When we can find the value in the
            * prepared rule and not as a separate
@@ -2896,22 +2956,6 @@ int rule_run(struct rules_t *obj, int validate) {
            */
           if(node->go < obj->pos.parsed || node->go == ret) {
             int idx = 0, start = end+1, shift = 0;
-
-            /*
-             * Remove previous value linked to this variable
-             */
-            while((idx = vm_value_src(obj, &start, TVAR)) > -1) {
-              struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&obj->bytecode[idx];
-              struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[node->token+1]) == 0) {
-                node->value = 0;
-                foo->value = 0;
-                shift = vm_value_del(obj, idx);
-
-                node = (struct vm_tvar_t *)&obj->bytecode[go];
-                break;
-              }
-            }
 
             switch(obj->bytecode[node->go]) {
               case TOPERATOR: {
@@ -2940,40 +2984,19 @@ int rule_run(struct rules_t *obj, int validate) {
                * Clone variable value to new variable
                */
               case TVAR: {
-                struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[ret];
-                idx = obj->nrbytes;
-                switch(obj->bytecode[tmp->value]) {
-                  case VINTEGER: {
-                    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
-                      OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-                    }
-                    tmp = (struct vm_tvar_t *)&obj->bytecode[ret];
-                    struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->bytecode[tmp->value];
-                    struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
-                    value->type = VINTEGER;
-                    value->ret = go;
-                    value->value = (int)cpy->value;
-                    obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vinteger_t);
-                  } break;
-                  case VFLOAT: {
-                    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
-                      OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-                    }
-                    tmp = (struct vm_tvar_t *)&obj->bytecode[ret];
-                    struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->bytecode[tmp->value];
-                    struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
-                    value->type = VFLOAT;
-                    value->ret = go;
-                    value->value = cpy->value;
-                    obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vfloat_t);
-                  } break;
-                  default: {
+                if(rule_options.get_token_val_cb != NULL) {
+                  unsigned char *val = rule_options.get_token_val_cb(obj, ret);
+                  if(val == NULL) {
                     printf("err: %s %d\n", __FUNCTION__, __LINE__);
                     exit(-1);
-                  } break;
+                  }
+                  idx = vm_value_clone(obj, val);
+                } else {
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
                 }
                 /*
-                 * Reassign node due to (unsigned char *)REALLOC's
+                 * Reassign node due to possible reallocs
                  */
                 node = (struct vm_tvar_t *)&obj->bytecode[go];
               } break;
@@ -2991,18 +3014,18 @@ int rule_run(struct rules_t *obj, int validate) {
             }
 
             if(idx > -1) {
-              if(node->value > 0 && idx != node->value) {
-                shift = vm_value_del(obj, node->value);
-                if(shift > 0) {
-                  idx -= shift;
-                }
-                /*
-                 * Reassign node due to various (unsigned char *)REALLOC's
-                 */
-                node = (struct vm_tvar_t *)&obj->bytecode[go];
+              if(rule_options.set_token_val_cb == NULL) {
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                exit(-1);
               }
 
-              node->value = idx;
+              rule_options.set_token_val_cb(obj, go, idx);
+
+              vm_value_del(obj, idx);
+              /*
+               * Reassign node due to various (unsigned char *)REALLOC's
+               */
+              node = (struct vm_tvar_t *)&obj->bytecode[go];
             } else {
               node->value = 0;
             }

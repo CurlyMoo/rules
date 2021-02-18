@@ -51,7 +51,7 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
     if((obj->bytecode[a]) == VFLOAT) {
       struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
       f = na->value;
-    } else if((obj->bytecode[a]) == VINTEGER) {  
+    } else if((obj->bytecode[a]) == VINTEGER) {
       struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
       i = na->value;
     }
