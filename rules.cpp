@@ -2011,8 +2011,9 @@ static void print_ast(struct rules_t *obj) {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[i];
 
         printf("\"%d\"[label=\"%s\"]\n", i, event_operators[obj->bytecode[node->token+1]].name);
-        printf("\"%d\" -> \"%d\"\n", i, node->left);
         printf("\"%d\" -> \"%d\"\n", i, node->right);
+        printf("\"%d\" -> \"%d\"\n", i, node->left);
+        printf("{ rank=same edge[style=invis] \"%d\" -> \"%d\" rankdir = LR}\n", node->left, node->right);
         // printf("\"%d\" -> \"%d\"\n", i, node->ret);
         i+=sizeof(struct vm_toperator_t)-1;
       } break;
