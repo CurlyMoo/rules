@@ -2596,7 +2596,8 @@ int rule_run(struct rules_t *obj, int validate) {
                 val->ret = 0;
               } break;
               case TVAR: {
-                if(rule_options.get_token_val_cb != NULL) {
+                if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
+                  rule_options.cpy_token_val_cb(obj, node->go[i]); // TESTME
                   unsigned char *val = rule_options.get_token_val_cb(obj, node->go[i]);
                   if(val == NULL) {
                     printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -2705,7 +2706,8 @@ int rule_run(struct rules_t *obj, int validate) {
               // struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[step];
               // a = tmp->value;
 
-              if(rule_options.get_token_val_cb != NULL) {
+              if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
+                rule_options.cpy_token_val_cb(obj, step); // TESTME
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
                 if(val == NULL) {
                   printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -2755,7 +2757,8 @@ int rule_run(struct rules_t *obj, int validate) {
               /*
                * If vars are seperate steps
                */
-              if(rule_options.get_token_val_cb != NULL) {
+              if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
+                rule_options.cpy_token_val_cb(obj, step); // TESTME
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
                 if(val == NULL) {
                   printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -2980,7 +2983,8 @@ int rule_run(struct rules_t *obj, int validate) {
                * Clone variable value to new variable
                */
               case TVAR: {
-                if(rule_options.get_token_val_cb != NULL) {
+                if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
+                  rule_options.cpy_token_val_cb(obj, ret); // TESTME
                   unsigned char *val = rule_options.get_token_val_cb(obj, ret);
                   if(val == NULL) {
                     printf("err: %s %d\n", __FUNCTION__, __LINE__);
