@@ -61,6 +61,8 @@ typedef struct rules_t {
 
   unsigned char *bytecode;
   unsigned int nrbytes;
+
+  void *userdata;
 } rules_t;
 
 typedef struct rule_options_t {
