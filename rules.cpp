@@ -60,13 +60,13 @@ static unsigned int nrcache = 0;
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
 static void print_tree(struct rules_t *obj);
+static void print_bytecode(struct rules_t *obj);
 #endif
 /*LCOV_EXCL_STOP*/
 
 static int lexer_peek(struct rules_t *obj, int skip, int *type);
 
 static int strnicmp(char const *a, char const *b, size_t len) {
-
   int i = 0;
 
   if(a == NULL || b == NULL) {
@@ -445,7 +445,6 @@ static int lexer_bytecode_pos(struct rules_t *obj, int skip, int *pos) {
               obj->bytecode[i] == TNUMBER ||
               obj->bytecode[i] == TCEVENT ||
               obj->bytecode[i] == TEVENT) {
-
       *pos = i;
       while(obj->bytecode[++i] != 0);
       nr++;
@@ -700,6 +699,14 @@ static int vm_rewind2(struct rules_t *obj, int step, int type, int type2) {
         } break;
         case TIF: {
           struct vm_tif_t *node = (struct vm_tif_t *)&obj->bytecode[tmp];
+          tmp = node->ret;
+        } break;
+        case TEVENT: {
+          struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[tmp];
+          tmp = node->ret;
+        } break;
+        case TCEVENT: {
+          struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[tmp];
           tmp = node->ret;
         } break;
         case LPAREN: {
@@ -1011,7 +1018,7 @@ static int rule_parse(struct rules_t *obj) {
         case TSTART: {
           loop = 0;
         } break;
-case TEVENT: {
+        case TEVENT: {
           if(lexer_peek(obj, pos, &type) < 0) {
             printf("err: %s %d\n", __FUNCTION__, __LINE__);
             exit(-1);

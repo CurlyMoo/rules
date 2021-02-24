@@ -379,10 +379,11 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       value->type = VINTEGER;
       value->ret = token;
       value->value = (int)cpy->value;
-      varstack->nrbytes = alignedbytes(varstack->nrbytes ) + sizeof(struct vm_vinteger_t);
+      varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vinteger_t);
     } break;
     case VFLOAT: {
-      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->bytecode[val];
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&varstack->stack[ret];
