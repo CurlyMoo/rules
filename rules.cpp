@@ -297,6 +297,15 @@ static int rule_prepare(const char *text, int *pos, struct rules_t *obj) {
       obj->bytecode[obj->nrbytes++] = TIF;
       (*pos)+=2;
       nrblocks++;
+    } else if(strnicmp(&text[*pos], "on", 2) == 0) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      obj->bytecode[obj->nrbytes++] = TEVENT;
+      *pos+=2;
+      lexer_parse_skip_characters(text, len, pos);
+      ret = lexer_parse_string(obj, text, pos);
+      nrblocks++;
     } else if(strnicmp((char *)&text[*pos], "else", 4) == 0) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -379,6 +388,16 @@ static int rule_prepare(const char *text, int *pos, struct rules_t *obj) {
         obj->nrbytes += len1;
         obj->bytecode[obj->nrbytes++] = 0;
         *pos += len1;
+      } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb(obj, text, pos, b)) > -1) {
+        if((*pos)+b < len && text[(*pos)+b] == '(' && (*pos)+b+1 < len && text[(*pos)+b+1] == ')') {
+          if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+2)) == NULL) {
+            OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+          }
+          obj->bytecode[obj->nrbytes++] = TCEVENT;
+          lexer_parse_skip_characters(text, len, pos);
+          ret = lexer_parse_string(obj, text, pos);
+          *pos += 2;
+        }
       }
     }
 
@@ -421,7 +440,12 @@ static int lexer_bytecode_pos(struct rules_t *obj, int skip, int *pos) {
       *pos = i;
       i++;
       nr++;
-    } else if(obj->bytecode[i] == TVAR || obj->bytecode[i] == TNUMBER) {
+    } else if(obj->bytecode[i] == TVAR ||
+              obj->bytecode[i] == TSTRING ||
+              obj->bytecode[i] == TNUMBER ||
+              obj->bytecode[i] == TCEVENT ||
+              obj->bytecode[i] == TEVENT) {
+
       *pos = i;
       while(obj->bytecode[++i] != 0);
       nr++;
@@ -549,6 +573,21 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
 
       obj->nrbytes = size;
     } break;
+    case TCEVENT: {
+      size = alignedbytes(ret+sizeof(struct vm_tcevent_t)+(sizeof(uint16_t)*val)+1);
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+
+      lexer_bytecode_pos(obj, val, &pos);
+
+      struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[ret];
+      node->token = pos;
+      node->type = type;
+      node->ret = 0;
+
+      obj->nrbytes = size;
+    } break;
     case TVAR: {
       size = alignedbytes(ret+sizeof(struct vm_tvar_t));
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
@@ -563,6 +602,22 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       node->token = pos;
       node->go = 0;
       node->value = 0;
+
+      obj->nrbytes = size;
+    } break;
+    case TEVENT: {
+      size = alignedbytes(ret+sizeof(struct vm_tevent_t));
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+
+      lexer_bytecode_pos(obj, val, &pos);
+
+      struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[ret];
+      node->type = type;
+      node->ret = 0;
+      node->token = pos;
+      node->go = 0;
 
       obj->nrbytes = size;
     } break;
@@ -604,7 +659,11 @@ static int lexer_peek(struct rules_t *obj, int skip, int *type) {
     } else if(obj->bytecode[i] == TFUNCTION) {
       tmp = obj->bytecode[i];
       i++;
-    } else if(obj->bytecode[i] == TVAR || obj->bytecode[i] == TNUMBER) {
+    } else if(obj->bytecode[i] == TVAR ||
+              obj->bytecode[i] == TNUMBER ||
+              obj->bytecode[i] == TSTRING ||
+              obj->bytecode[i] == TCEVENT ||
+              obj->bytecode[i] == TEVENT) {
       tmp = obj->bytecode[i];
       while(obj->bytecode[i] != 0) {
         i++;
@@ -645,6 +704,14 @@ static int vm_rewind2(struct rules_t *obj, int step, int type, int type2) {
         } break;
         case LPAREN: {
           struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[tmp];
+          tmp = node->ret;
+        } break;
+        case TEVENT: {
+          struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[tmp];
+          tmp = node->ret;
+        } break;
+        case TCEVENT: {
+          struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[tmp];
           tmp = node->ret;
         } break;
         case TNUMBER: {
@@ -931,7 +998,7 @@ static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *
 
 static int rule_parse(struct rules_t *obj) {
   int type = 0, type1 = 0, go = -1, step_out = -1, step = 0, pos = 0;
-  int has_paren = -1, has_function = -1, has_if = -1;
+  int has_paren = -1, has_function = -1, has_if = -1, has_on = -1;
   int loop = 1, start = 0;
 
   int r_rewind = -1;
@@ -944,6 +1011,193 @@ static int rule_parse(struct rules_t *obj) {
         case TSTART: {
           loop = 0;
         } break;
+case TEVENT: {
+          if(lexer_peek(obj, pos, &type) < 0) {
+            printf("err: %s %d\n", __FUNCTION__, __LINE__);
+            exit(-1);
+          }
+
+          if((step_out == -1 || (obj->bytecode[step_out]) == TTRUE) && type != TTHEN) {
+            if(type == TEVENT) {
+              step_out = vm_parent(obj, TEVENT, pos);
+              struct vm_tevent_t *a = (struct vm_tevent_t *)&obj->bytecode[step_out];
+
+              if(pos == 0) {
+                struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[start];
+                b->go = step_out;
+                a->ret = start;
+              }
+
+              pos++;
+
+              lexer_peek(obj, pos, &type);
+
+              if(lexer_peek(obj, pos, &type) == 0 && type == TTHEN) {
+                /*
+                 * Predict how many go slots we need to
+                 * reserve for the TRUE / FALSE nodes.
+                 */
+                int y = pos, nrexpressions = 0;
+                while(lexer_peek(obj, y++, &type) == 0) {
+                  if(type == TEOF) {
+                    break;
+                  }
+                  if(type == TIF) {
+                    struct vm_cache_t *cache = vm_cache_get(TIF, -1, y-1);
+                    nrexpressions++;
+                    y = cache->end + 1;
+                    continue;
+                  }
+                  if(type == TEND) {
+                    break;
+                  }
+                  if(type == TSEMICOLON) {
+                    nrexpressions++;
+                  }
+                }
+#ifdef DEBUG
+                printf("nrexpressions: %d\n", nrexpressions);/*LCOV_EXCL_LINE*/
+#endif
+
+                /*
+                 * The last parameter is used for
+                 * for the number of operations the
+                 * TRUE of FALSE will forward to.
+                 */
+                step = vm_parent(obj, TTRUE, nrexpressions);
+                struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->bytecode[step];
+                struct vm_tevent_t *b = (struct vm_tevent_t *)&obj->bytecode[step_out];
+
+                b->go = step;
+                a->ret = step_out;
+
+                go = TEVENT;
+
+                step_out = step;
+                pos++;
+              } else {
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                exit(-1);
+              }
+            } else {
+              switch(type) {
+                case TVAR: {
+                  go = TVAR;
+                  continue;
+                } break;
+                case TIF: {
+                  struct vm_cache_t *cache = vm_cache_get(TIF, -1, pos);
+                  if(cache == NULL) {
+                    printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                    exit(-1);
+                  }
+                  step = cache->step;
+
+                  if(lexer_peek(obj, cache->end + 1, &type) < 0) {
+                    printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                    exit(-1);
+                  }
+
+                  struct vm_tif_t *i = (struct vm_tif_t *)&obj->bytecode[step];
+
+                  /*
+                   * Attach IF block to TRUE / FALSE node
+                   */
+                  int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
+
+                  i->ret = step_out;
+                  pos = cache->end + 1;
+
+                  /*
+                   * After an cached IF block has been linked
+                   * it can be removed from cache
+                   */
+                  vm_cache_del(cache->start);
+
+                  switch(obj->bytecode[step_out]) {
+                    case TFALSE:
+                    case TTRUE: {
+                      int x = 0;
+                      struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->bytecode[step_out];
+                      /*
+                       * Attach the IF block to an empty
+                       * TRUE / FALSE go slot.
+                       */
+                      for(x=0;x<t->nrgo;x++) {
+                        if(t->go[x] == 0) {
+                          t->go[x] = step;
+                          break;
+                        }
+                      }
+                      if(x == t->nrgo) {
+                        printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                        exit(-1);
+                      }
+                      continue;
+                    } break;
+                    default: {
+                      go = type;
+                      step_out = tmp;
+                      continue;
+                    } break;
+                  }
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
+                } break;
+                case TEOF:
+                case TEND: {
+                  go = -1;
+
+                  int tmp = vm_rewind(obj, step_out, TEVENT);
+                  if(has_on > 0) {
+                    struct vm_cache_t *cache = vm_cache_get(TIF, tmp, -1);
+                    if(cache == NULL) {
+                      printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                      exit(-1);
+                    }
+
+                    cache->end = pos;
+
+                    r_rewind = cache->start;
+                  }
+                  if(has_on == 0) {
+                    step = vm_parent(obj, TEOF, -1);
+#ifdef DEBUG
+                    printf("nr steps: %d\n", step);/*LCOV_EXCL_LINE*/
+#endif
+                    tmp = vm_rewind(obj, tmp, TSTART);
+
+                    struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->bytecode[tmp];
+                    node->ret = step;
+                  }
+
+                  /*
+                   * If we are the root IF block
+                   */
+                  if(has_on == 0) {
+                    loop = 0;
+                    obj->pos.vars = obj->nrbytes;
+                  }
+
+                  pos = 0;
+                  has_paren = -1;
+                  has_function = -1;
+                  has_if = -1;
+                  has_on = -1;
+                  step_out = -1;
+
+                  continue;
+                } break;
+                default: {
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                  exit(-1);
+                } break;
+              }
+            }
+          } else {
+            printf("goed\n");
+          }
+        } break;
         case TIF: {
           if(lexer_peek(obj, pos, &type) < 0) {
             printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -951,12 +1205,12 @@ static int rule_parse(struct rules_t *obj) {
           }
 
           if(
-            (
-              step_out == -1 ||
-              (obj->bytecode[step_out]) == TTRUE ||
-              (obj->bytecode[step_out]) == TFALSE
-            ) && (type != TTHEN && type != TELSE)
-          ) {
+              (
+                step_out == -1 ||
+                (obj->bytecode[step_out]) == TTRUE ||
+                (obj->bytecode[step_out]) == TFALSE
+              ) && (type != TTHEN && type != TELSE)
+            ) {
             /*
              * Link cached IF blocks together
              */
@@ -1032,6 +1286,7 @@ static int rule_parse(struct rules_t *obj) {
                   has_paren = -1;
                   has_function = -1;
                   has_if = -1;
+                  has_on = -1;
                   step_out = -1;
                   continue;
                 } break;
@@ -1150,6 +1405,10 @@ static int rule_parse(struct rules_t *obj) {
                   go = TVAR;
                   continue;
                 } break;
+                case TCEVENT: {
+                  go = TCEVENT;
+                  continue;
+                } break;
                 case TEOF:
                 case TEND: {
                   go = -1;
@@ -1189,6 +1448,7 @@ static int rule_parse(struct rules_t *obj) {
                   has_paren = -1;
                   has_function = -1;
                   has_if = -1;
+                  has_on = -1;
                   step_out = -1;
 
                   continue;
@@ -1564,12 +1824,53 @@ static int rule_parse(struct rules_t *obj) {
                 struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->bytecode[tmp];
                 tmp = node->ret;
               } else {
-                go = TIF;
+                int tmp1 = vm_rewind2(obj, tmp, TIF, TEVENT);
+                go = obj->bytecode[tmp1];
                 step_out = tmp;
                 break;
               }
             }
           }
+        } break;
+        case TCEVENT: {
+          struct vm_tcevent_t *node = NULL;
+          if(lexer_peek(obj, pos, &type) < 0 || type != TCEVENT) {
+            printf("err: %s %d\n", __FUNCTION__, __LINE__);
+            exit(-1);
+          }
+
+          step = vm_parent(obj, TCEVENT, pos);
+
+          node = (struct vm_tcevent_t *)&obj->bytecode[step];
+
+          pos++;
+
+          if(lexer_peek(obj, pos, &type) == 0 && type != TSEMICOLON) {
+            printf("err: %s %d\n", __FUNCTION__, __LINE__);
+            exit(-1);
+          }
+
+          pos++;
+
+          int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
+          struct vm_ttrue_t *node1 = (struct vm_ttrue_t *)&obj->bytecode[tmp];
+
+          int x = 0;
+          for(x=0;x<node1->nrgo;x++) {
+            if(node1->go[x] == 0) {
+              node1->go[x] = step;
+              break;
+            }
+          }
+
+          if(x == node1->nrgo) {
+            printf("err: %s %d\n", __FUNCTION__, __LINE__);
+            exit(-1);
+          }
+          node->ret = step_out;
+
+          go = TIF;
+          step_out = tmp;
         } break;
         case LPAREN: {
           int a = -1, b = -1, val = 0;
@@ -1662,6 +1963,7 @@ static int rule_parse(struct rules_t *obj) {
           has_paren = -1;
           has_function = -1;
           has_if = -1;
+          has_on = -1;
           step_out = -1;
 
         } break;
@@ -1869,6 +2171,7 @@ static int rule_parse(struct rules_t *obj) {
             has_paren = -1;
             has_function = -1;
             has_if = -1;
+            has_on = -1;
             step_out = -1;
           }
 
@@ -1898,18 +2201,24 @@ static int rule_parse(struct rules_t *obj) {
         has_function = pos-1;
       } else if(type == TIF) {
         has_if = pos-1;
+      } else if(type == TEVENT) {
+        has_on = pos-1;
       } else if(type == LPAREN && lexer_peek(obj, pos-2, &type1) == 0 && type1 != TFUNCTION) {
         has_paren = pos-1;
       }
-      if(has_function != -1 || has_paren != -1 || has_if != -1) {
+      if(has_function != -1 || has_paren != -1 || has_if != -1 || has_on != -1) {
         if(type == TEOF || r_rewind > -1) {
-          if(max(has_function, max(has_paren, has_if)) == has_function) {
+          if(max(has_function, max(has_paren, max(has_if, has_on))) == has_function) {
             pos = has_function;
             go = TFUNCTION;
             continue;
-          } else if(max(has_function, max(has_paren, has_if)) == has_if) {
+          } else if(max(has_function, max(has_paren, max(has_if, has_on))) == has_if) {
             pos = has_if;
             go = TIF;
+            continue;
+          } else if(max(has_function, max(has_paren, max(has_if, has_on))) == has_on) {
+            pos = has_on;
+            go = TEVENT;
             continue;
           } else {
             pos = has_paren;
@@ -1918,6 +2227,7 @@ static int rule_parse(struct rules_t *obj) {
           }
           has_paren = -1;
           has_if = -1;
+          has_on = -1;
           has_function = -1;
           step_out = -1;
           pos = 0;
@@ -2026,6 +2336,21 @@ static void print_ast(struct rules_t *obj) {
         }
         // printf("\"%d\" -> \"%d\"\n", i, node->ret);
         i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+        printf("\"%d\"[label=\"%s\"]\n", i, &obj->bytecode[node->token+1]);
+        // printf("\"%i\" -> \"%i\"\n", i, node->ret);
+        if(node->go > 0) {
+          printf("\"%d\" -> \"%d\"\n", i, node->go);
+        }
+        i+=sizeof(struct vm_tevent_t)-1;
+      } break;
+      case TCEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+        printf("\"%d\"[label=\"%s\"]\n", i, &obj->bytecode[node->token+1]);
+        // printf("\"%i\" -> \"%i\"\n", i, node->ret);
+        i+=sizeof(struct vm_tevent_t)-1;
       } break;
       case TOPERATOR: {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[i];
@@ -2140,6 +2465,16 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%p-1\" -> \"%p-2\"\n", node, node);
         i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo);
       } break;
+      case TCEVENT: {
+        int x = 0;
+        struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[i];
+        printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
+        printf("\"%p-2\"[label=\"%s()\"]\n", node, &obj->bytecode[node->token+1]);
+        printf("\"%p-2\" -> \"%p-%d\"\n", node, node, x+4);
+        printf("\"%p-%d\"[label=\"%d\" shape=diamond]\n", node, x+4, node->ret);
+        printf("\"%p-1\" -> \"%p-2\"\n", node, node);
+        i+=sizeof(struct vm_tcevent_t);
+      } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[i];
         printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
@@ -2154,6 +2489,21 @@ static void print_steps(struct rules_t *obj) {
         }
         printf("\"%p-1\" -> \"%p-2\"\n", node, node);
         i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+        printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
+        printf("\"%p-2\"[label=\"%s\"]\n", node, &obj->bytecode[node->token+1]);
+        if(node->go > 0) {
+          printf("\"%p-2\" -> \"%p-4\"\n", node, node);
+        }
+        printf("\"%p-2\" -> \"%p-3\"\n", node, node);
+        printf("\"%p-3\"[label=\"%d\" shape=diamond]\n", node, node->ret);
+        if(node->go > 0) {
+          printf("\"%p-4\"[label=\"%d\" shape=square]\n", node, node->go);
+        }
+        printf("\"%p-1\" -> \"%p-2\"\n", node, node);
+        i+=sizeof(struct vm_tevent_t)-1;
       } break;
       case TNUMBER: {
         struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->bytecode[i];
@@ -2451,6 +2801,12 @@ void valprint(struct rules_t *obj, char *out, int size) {
 }
 
 int rule_run(struct rules_t *obj, int validate) {
+#ifdef DEBUG
+  printf("----------\n");
+  printf("%s %d\n", __FUNCTION__, obj->nr);
+  printf("----------\n");
+#endif
+
   int go = 0, ret = -1, i = -1, end = -1, start = -1;
   go = start = obj->pos.parsed;
 
@@ -2478,7 +2834,24 @@ int rule_run(struct rules_t *obj, int validate) {
           go = -1;
         } else {
           end = node->ret;
+          if(obj->cont.go > 0) {
+            go = obj->cont.go;
+            ret = obj->cont.ret;
+            obj->cont.go = 0;
+            obj->cont.ret = 0;
+          } else {
+            go = node->go;
+          }
+        }
+      } break;
+      case TEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[go];
+        if(node->go == ret) {
+          ret = go;
+          go = node->ret;
+        } else {
           go = node->go;
+          ret = go;
         }
       } break;
       case TIF: {
@@ -2501,9 +2874,10 @@ int rule_run(struct rules_t *obj, int validate) {
             case TTRUE:
             case TFALSE:
             case TIF:
+            case TEVENT:
             break;
             default: {
-              printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->bytecode[ret]);
+              printf("err: %s %d\n", __FUNCTION__, __LINE__);
               exit(-1);
             } break;
           }
@@ -2534,6 +2908,22 @@ int rule_run(struct rules_t *obj, int validate) {
         } else {
           go = node->go;
         }
+      } break;
+      case TCEVENT: {
+        struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[go];
+
+        if(rule_options.event_cb == NULL) {
+          printf("err: %s %d\n", __FUNCTION__, __LINE__);
+          exit(-1);
+        }
+
+        obj->cont.ret = go;
+        obj->cont.go = node->ret;
+
+        /*
+         * Tail recursive
+         */
+        return rule_options.event_cb(obj, (const char *)&obj->bytecode[node->token+1]);
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[go];
@@ -2908,8 +3298,10 @@ int rule_run(struct rules_t *obj, int validate) {
             // idx = node->value;
             // node->value = 0;
           // } break;
-          case TTRUE:
           case TIF:
+          case TEVENT:
+          case TCEVENT:
+          case TTRUE:
           case TFALSE: {
           } break;
           default: {
@@ -3061,6 +3453,13 @@ int rule_run(struct rules_t *obj, int validate) {
     }
   }
 
+  /*
+   * Tail recursive
+   */
+  if(obj->caller > 0) {
+    return rule_options.event_cb(obj, NULL);
+  }
+
   return 0;
 }
 
@@ -3073,6 +3472,9 @@ void print_bytecode(struct rules_t *obj) {
       printf(". . ");
       i+=2;
       step = 1;
+    }
+    if(i == obj->nrbytes) {
+      printf("\n");
     }
     if(step == 0) {
       if(obj->bytecode[i] == TIF || obj->bytecode[i] == TTHEN ||
@@ -3088,7 +3490,11 @@ void print_bytecode(struct rules_t *obj) {
       } else if(obj->bytecode[i] == TFUNCTION) {
         printf("%d ", obj->bytecode[i]);
         printf("%d ", obj->bytecode[++i]);
-      } else if(obj->bytecode[i] == TVAR || obj->bytecode[i] == TNUMBER) {
+      } else if(obj->bytecode[i] == TVAR ||
+                obj->bytecode[i] == TNUMBER ||
+                obj->bytecode[i] == TSTRING ||
+                obj->bytecode[i] == TCEVENT ||
+                obj->bytecode[i] == TEVENT) {
         printf("%d ", obj->bytecode[i]);
         while(obj->bytecode[i] != 0) {
           printf("%c", obj->bytecode[++i]);
@@ -3124,6 +3530,21 @@ void print_bytecode(struct rules_t *obj) {
           printf("%d ", node->go);
           printf("%d ", node->value);
           i += sizeof(struct vm_tvar_t)-1;
+        } break;
+        case TEVENT: {
+          struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+          printf("%d ", node->type);
+          printf("%d ", node->ret);
+          printf("%d ", node->token);
+          printf("%d ", node->go);
+          i += sizeof(struct vm_tevent_t)-1;
+        } break;
+        case TCEVENT: {
+          struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+          printf("%d ", node->type);
+          printf("%d ", node->ret);
+          printf("%d ", node->token);
+          i += sizeof(struct vm_tevent_t)-1;
         } break;
         case TSTART: {
           struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->bytecode[i];

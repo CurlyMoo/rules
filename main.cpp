@@ -140,6 +140,14 @@ struct unittest_t {
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 368 }, { "$a = 4$b = 3", 368 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 532 }, { "$a = 4$b = 52@c = 5", 532 } },
   { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 78 }, { "$b = 3" , 78 } },  { { "$a = 6", 78 }, { "$b = 3" , 78 } } },
+  { "on foo then $a = 6; end", { "$a = 6", 60 }, { "$a = 6", 60 } },
+  { "on foo then $a = 6; $b = 3; end", { "$a = 6$b = 3", 89 }, { "$a = 6$b = 3", 89 } },
+  { "on foo then @a = 6; end", { { "@a = 6", 60 } }, { { "@a = 6", 60 } } },
+  { "on foo then $a = 1 + 2; end", { { "$a = 3", 77 } }, { { "$a = 3", 77 } } },
+  { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 123 }, { "$a = 2", 123 } },
+  { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$b = 3$a = 2", 194 } },
+  { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
+  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } }
 };
 
 static int alignedbytes(int v) {
@@ -151,6 +159,25 @@ static int alignedbytes(int v) {
 #endif
 }
 
+static int strnicmp(char const *a, char const *b, size_t len) {
+  int i = 0;
+
+  if(a == NULL || b == NULL) {
+    return -1;
+  }
+  if(len == 0) {
+    return 0;
+  }
+
+  for(;i++<len; a++, b++) {
+    int d = tolower(*a) - tolower(*b);
+    if(d != 0 || !*a || i == len) {
+      return d;
+    }
+  }
+  return -1;
+}
+
 static int is_variable(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 1;
   if(text[*pos] == '$' || text[*pos] == '@') {
@@ -158,6 +185,14 @@ static int is_variable(struct rules_t *obj, const char *text, int *pos, int size
       i++;
     }
     return i;
+  }
+  return -1;
+}
+
+static int is_event(struct rules_t *obj, const char *text, int *pos, int size) {
+  int i = 0, len = 0;
+  if(size == 3 && strnicmp(&text[*pos], "foo", len) == 0) {
+    return 0;
   }
   return -1;
 }
@@ -408,13 +443,56 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
   }
 }
 
+static int event_cb(struct rules_t *obj, const char *name) {
+  struct rules_t *called = NULL;
+  char out[1024];
+
+  if(obj->caller > 0) {
+    called = rules[obj->caller-1];
+
+#ifdef ESP8266
+    memset(&out, 0, 1024);
+    snprintf((char *)&out, 1024, "- continuing with caller #%d at step #%d", obj->caller, called->cont.go);
+    Serial.println(out);
+#else
+    printf("- continuing with caller #%d at step #%d\n", obj->caller, called->cont.go);
+#endif
+
+    obj->caller = 0;
+
+    return rule_run(called, 0);
+  } else {
+    int i = 0;
+    for(i=0;i<nrrules;i++) {
+      if(rules[i] == obj) {
+        called = rules[i-1];
+        break;
+      }
+    }
+
+    called->caller = obj->nr;
+
+#ifdef ESP8266
+    memset(&out, 0, 1024);
+    snprintf((char *)&out, 1024, "- running event \"%s\" called from caller #%d", name, obj->nr);
+    Serial.println(out);
+#else
+    printf("- running event \"%s\" called from caller #%d\n", name, obj->nr);
+#endif
+
+    return rule_run(called, 0);
+  }
+}
+
 void run_test(int *i) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_token_cb = is_variable;
+  rule_options.is_event_cb = is_event;
   rule_options.set_token_val_cb = vm_value_set;
   rule_options.get_token_val_cb = vm_value_get;
   rule_options.prt_token_val_cb = vm_value_prt;
   rule_options.cpy_token_val_cb = vm_value_cpy;
+  rule_options.event_cb = event_cb;
 
   char out[1024];
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), x = 0;

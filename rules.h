@@ -26,16 +26,18 @@ typedef enum {
   TIF = 9,
   TELSE = 10,
   TTHEN = 11,
-  TEND = 12,
-  TVAR = 13,
-  TASSIGN = 14,
-  TSEMICOLON = 15,
-  TTRUE = 16,
-  TFALSE = 17,
-  TSTART = 18,
-  VCHAR = 19,
-  VINTEGER = 20,
-  VFLOAT = 21
+  TEVENT = 12,
+  TCEVENT = 13,
+  TEND = 14,
+  TVAR = 15,
+  TASSIGN = 16,
+  TSEMICOLON = 17,
+  TTRUE = 18,
+  TFALSE = 19,
+  TSTART = 20,
+  VCHAR = 21,
+  VINTEGER = 22,
+  VFLOAT = 23
 } token_types;
 
 typedef struct rules_t {
@@ -58,6 +60,19 @@ typedef struct rules_t {
     int vars;
   } pos;
 
+  /* Continue here after we processed
+   * after we processed another function
+   * first.
+   */
+  struct {
+    uint16_t go;
+    uint16_t ret;
+  } cont;
+  /* To which rule do we return after
+   * being called from another rule.
+   */
+  int caller;
+
   unsigned char *bytecode;
   unsigned int nrbytes;
 
@@ -69,11 +84,20 @@ typedef struct rule_options_t {
    * Identifying callbacks
    */
   int (*is_token_cb)(struct rules_t *obj, const char *text, int *pos, int size);
+  int (*is_event_cb)(struct rules_t *obj, const char *text, int *pos, int size);
 
+  /*
+   * Variables
+   */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, int size);
+
+  /*
+   * Events
+   */
+  int (*event_cb)(struct rules_t *obj, const char *name);
 } rule_options_t;
 
 extern struct rule_options_t rule_options;
@@ -148,6 +172,17 @@ typedef struct vm_tvar_t {
   uint16_t go;
   uint16_t value;
 } vm_tvar_t;
+
+typedef struct vm_tevent_t {
+  VM_GENERIC_FIELDS
+  uint16_t token;
+  uint16_t go;
+} vm_tevent_t;
+
+typedef struct vm_tcevent_t {
+  VM_GENERIC_FIELDS
+  uint16_t token;
+} vm_tcevent_t;
 
 typedef struct vm_toperator_t {
   VM_GENERIC_FIELDS
