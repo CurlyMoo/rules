@@ -644,7 +644,7 @@ static int vm_rewind2(struct rules_t *obj, int step, int type, int type2) {
           tmp = node->ret;
         } break;
         case LPAREN: {
-          struct vm_tif_t *node = (struct vm_tif_t *)&obj->bytecode[tmp];
+          struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[tmp];
           tmp = node->ret;
         } break;
         case TNUMBER: {
