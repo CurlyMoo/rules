@@ -713,14 +713,6 @@ static int vm_rewind2(struct rules_t *obj, int step, int type, int type2) {
           struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[tmp];
           tmp = node->ret;
         } break;
-        case TEVENT: {
-          struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[tmp];
-          tmp = node->ret;
-        } break;
-        case TCEVENT: {
-          struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[tmp];
-          tmp = node->ret;
-        } break;
         case TNUMBER: {
           struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->bytecode[tmp];
           tmp = node->ret;
