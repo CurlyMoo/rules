@@ -28,8 +28,10 @@ struct rules_t **rules = NULL;
 
 struct rule_options_t rule_options;
 
-static unsigned char *varstack = NULL;
-static int nrvarstackbytes = 4;
+typedef struct varstack_t {
+  unsigned char *stack = NULL;
+  int nrbytes;
+} varstack_t;
 
 static struct vm_vinteger_t vinteger;
 static struct vm_vfloat_t vfloat;
@@ -149,6 +151,7 @@ static int is_variable(struct rules_t *obj, int *pos, int size) {
 }
 
 static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
+  struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->bytecode[token];
 
   if(obj->bytecode[var->token + 1] == '@') {
@@ -158,20 +161,21 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
     return (unsigned char *)&vinteger;
   } else {
 
-    return &varstack[var->value];
+    return &varstack->stack[var->value];
   }
   return NULL;
 }
 
 static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
+  struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->bytecode[token];
 
   int x = 0;
-  for(x=4;alignedbytes(x)<nrvarstackbytes;x++) {
+  for(x=4;alignedbytes(x)<varstack->nrbytes;x++) {
     x = alignedbytes(x);
-    switch(varstack[x]) {
+    switch(varstack->stack[x]) {
       case VINTEGER: {
-        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack[x];
+        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->stack[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
         if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
           var->value = foo->value;
@@ -182,7 +186,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         x += sizeof(struct vm_vinteger_t)-1;
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack[x];
+        struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack->stack[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
         if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
           var->value = foo->value;
@@ -201,28 +205,29 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
 }
 
 static int vm_value_del(struct rules_t *obj, uint16_t idx) {
+  struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   int x = 0, ret = 0;
 
-  if(idx == nrvarstackbytes) {
+  if(idx == varstack->nrbytes) {
     return -1;
   }
 
-  switch(varstack[idx]) {
+  switch(varstack->stack[idx]) {
     case VINTEGER: {
       ret = sizeof(struct vm_vinteger_t);
-      memmove(&varstack[idx], &varstack[idx+ret], nrvarstackbytes-idx-ret);
-      if((varstack = (unsigned char *)REALLOC(varstack, nrvarstackbytes-ret)) == NULL) {
+      memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      nrvarstackbytes -= ret;
+      varstack->nrbytes -= ret;
     } break;
     case VFLOAT: {
       ret = sizeof(struct vm_vfloat_t);
-      memmove(&varstack[idx], &varstack[idx+ret], nrvarstackbytes-idx-ret);
-      if((varstack = (unsigned char *)REALLOC(varstack, nrvarstackbytes-ret)) == NULL) {
+      memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      nrvarstackbytes -= ret;
+      varstack->nrbytes -= ret;
     } break;
     default: {
       printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -236,11 +241,11 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
    * If a value is deleted, these positions changes,
    * so we need to update all nodes.
    */
-  for(x=idx;alignedbytes(x)<nrvarstackbytes;x++) {
+  for(x=idx;alignedbytes(x)<varstack->nrbytes;x++) {
     x = alignedbytes(x);
-    switch(varstack[x]) {
+    switch(varstack->stack[x]) {
       case VINTEGER: {
-        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack[x];
+        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->stack[x];
         if(node->ret > 0) {
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
           tmp->value = x;
@@ -248,7 +253,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
         x += sizeof(struct vm_vinteger_t)-1;
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack[x];
+        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->stack[x];
         if(node->ret > 0) {
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
           tmp->value = x;
@@ -266,6 +271,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
 }
 
 static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
+  struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->bytecode[token];
   int ret = 0, x = 0, loop = 1;
 
@@ -274,11 +280,11 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
    * the variable being set.
    */
 
-  for(x=4;alignedbytes(x)<nrvarstackbytes && loop == 1;x++) {
+  for(x=4;alignedbytes(x)<varstack->nrbytes && loop == 1;x++) {
     x = alignedbytes(x);
-    switch(varstack[x]) {
+    switch(varstack->stack[x]) {
       case VINTEGER: {
-        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack[x];
+        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->stack[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
         if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
           var->value = 0;
@@ -289,7 +295,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
         x += sizeof(struct vm_vinteger_t)-1;
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack[x];
+        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->stack[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
         if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
           var->value = 0;
@@ -312,32 +318,31 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   }
   var = (struct vm_tvar_t *)&obj->bytecode[token];
 
-  ret = nrvarstackbytes;
+  ret = varstack->nrbytes;
 
   var->value = ret;
 
   switch(obj->bytecode[val]) {
     case VINTEGER: {
-      if((varstack = (unsigned char *)REALLOC(varstack, alignedbytes(nrvarstackbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->bytecode[val];
-      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&varstack[ret];
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&varstack->stack[ret];
       value->type = VINTEGER;
       value->ret = token;
       value->value = (int)cpy->value;
-      nrvarstackbytes = alignedbytes(nrvarstackbytes) + sizeof(struct vm_vinteger_t);
+      varstack->nrbytes = alignedbytes(varstack->nrbytes ) + sizeof(struct vm_vinteger_t);
     } break;
     case VFLOAT: {
-      if((varstack = (unsigned char *)REALLOC(varstack, alignedbytes(nrvarstackbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->bytecode[val];
-      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&varstack[ret];
+      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&varstack->stack[ret];
       value->type = VFLOAT;
       value->ret = token;
       value->value = cpy->value;
-      nrvarstackbytes = alignedbytes(nrvarstackbytes) + sizeof(struct vm_vfloat_t);
+      varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vfloat_t);
     } break;
     default: {
       printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -349,14 +354,15 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 }
 
 static void vm_value_prt(struct rules_t *obj, char *out, int size) {
+  struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   int x = 0, pos = 0;
 
-  for(x=4;alignedbytes(x)<nrvarstackbytes;x++) {
-    if(alignedbytes(x) < nrvarstackbytes) {
+  for(x=4;alignedbytes(x)<varstack->nrbytes;x++) {
+    if(alignedbytes(x) < varstack->nrbytes) {
       x = alignedbytes(x);
-      switch(varstack[x]) {
+      switch(varstack->stack[x]) {
         case VINTEGER: {
-          struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack[x];
+          struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->stack[x];
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
@@ -370,7 +376,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
           x += sizeof(struct vm_vinteger_t)-1;
         } break;
         case VFLOAT: {
-          struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack[x];
+          struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack->stack[x];
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
@@ -416,6 +422,15 @@ void run_test(int *i) {
   rule.text = STRDUP(unittests[(*i)].rule);
   rule.nr = (*i)+1;
 
+  struct varstack_t *varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
+  if(varstack == NULL) {
+    OUT_OF_MEMORY
+  }
+  varstack->stack = NULL;
+  varstack->nrbytes = 4;
+
+  rule.userdata = varstack;
+
 #ifdef ESP8266
   memset(&out, 0, 1024);
   if(strlen(rule.text) > 50) {
@@ -435,7 +450,7 @@ void run_test(int *i) {
   rule_initialize(rule.text, &rule, 0, 1);
 
 #ifdef DEBUG
-  printf("bytecode is %d bytes\n", rule.nrbytes + (nrvarstackbytes - 1));
+  printf("bytecode is %d bytes\n", rule.nrbytes + (varstack->nrbytes - 1));
 #endif
   valprint(&rule, (char *)&out, 1024);
 
@@ -451,13 +466,13 @@ void run_test(int *i) {
     exit(-1);
   }
 #ifndef ESP8266
-  if((rule.nrbytes + (nrvarstackbytes - 4)) != unittests[(*i)].validate.bytes) {
+  if((rule.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].validate.bytes) {
     // memset(&out, 0, 1024);
     // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
     // Serial.println(out);
 // #else
     printf("Expected: %d\n", unittests[(*i)].validate.bytes);
-    printf("Was: %d\n", rule.nrbytes + (nrvarstackbytes - 4));
+    printf("Was: %d\n", rule.nrbytes + (varstack->nrbytes - 4));
 
     exit(-1);
   }
@@ -480,13 +495,13 @@ void run_test(int *i) {
 #endif
 
 #ifndef ESP8266
-    if((rule.nrbytes + (nrvarstackbytes - 4)) != unittests[(*i)].run.bytes) {
+    if((rule.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run.bytes) {
       // memset(&out, 0, 1024);
       // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
       // Serial.println(out);
 // #else
       printf("Expected: %d\n", unittests[(*i)].run.bytes);
-      printf("Was: %d\n", rule.nrbytes + (nrvarstackbytes - 1));
+      printf("Was: %d\n", rule.nrbytes + (varstack->nrbytes - 1));
 
       exit(-1);
     }
@@ -506,11 +521,12 @@ void run_test(int *i) {
     }
     fflush(stdout);
   }
-  FREE(varstack);
+  struct varstack_t *node = (struct varstack_t *)rule.userdata;
+  FREE(node->stack);
+  FREE(node);
+
   FREE(rule.text);
   FREE(rule.bytecode);
-  nrvarstackbytes = 4;
-  varstack = NULL;
   rule_gc();
 }
 
