@@ -40,7 +40,6 @@ typedef enum {
 
 typedef struct rules_t {
   unsigned short nr;
-  char *text;
 
   struct {
 #if defined(DEBUG) or defined(ESP8266)
@@ -66,7 +65,11 @@ typedef struct rules_t {
 } rules_t;
 
 typedef struct rule_options_t {
-  int (*is_token_cb)(struct rules_t *obj, int *pos, int size);
+  /*
+   * Identifying callbacks
+   */
+  int (*is_token_cb)(struct rules_t *obj, const char *text, int *pos, int size);
+
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
@@ -158,8 +161,8 @@ typedef struct vm_teof_t {
   uint8_t type;
 } vm_teof_t;
 
-int rule_initialize(char *rule, struct rules_t *obj, int depth, unsigned short validate);
-void rule_gc(void);
+int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nrrules, void *userdata);
+void rules_gc(struct rules_t ***obj, int nrrules);
 int rule_run(struct rules_t *obj, int validate);
 void valprint(struct rules_t *obj, char *out, int size);
 

@@ -85,7 +85,15 @@ static int strnicmp(char const *a, char const *b, size_t len) {
   return -1;
 }
 
-void rule_gc(void) {
+void rules_gc(struct rules_t ***rules, int nrrules) {
+  int i = 0;
+  for(i=0;i<nrrules;i++) {
+    FREE((*rules)[i]->bytecode);
+    FREE((*rules)[i]);
+  }
+  FREE((*rules));
+  (*rules) = NULL;
+
 #ifndef ESP8266
   assert(nrcache == 0);
 #endif
@@ -100,11 +108,11 @@ static int alignedbytes(int v) {
 #endif
 }
 
-static int is_function(struct rules_t *obj, int *pos, int size) {
+static int is_function(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 0, len = 0;
   for(i=0;i<nr_event_functions;i++) {
     len = strlen(event_functions[i].name);
-    if(size == len && strnicmp(&obj->text[*pos], event_functions[i].name, len) == 0) {
+    if(size == len && strnicmp(&text[*pos], event_functions[i].name, len) == 0) {
       return i;
     }
   }
@@ -112,11 +120,11 @@ static int is_function(struct rules_t *obj, int *pos, int size) {
   return -1;
 }
 
-static int is_operator(struct rules_t *obj, int *pos, int size) {
+static int is_operator(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 0, len = 0;
   for(i=0;i<nr_event_operators;i++) {
     len = strlen(event_operators[i].name);
-    if(size == len && strnicmp(&obj->text[*pos], event_operators[i].name, len) == 0) {
+    if(size == len && strnicmp(&text[*pos], event_operators[i].name, len) == 0) {
       return i;
     }
   }
@@ -124,10 +132,10 @@ static int is_operator(struct rules_t *obj, int *pos, int size) {
   return -1;
 }
 
-static int is_variable(struct rules_t *obj, int *pos, int size) {
+static int is_variable(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 1;
-  if(obj->text[*pos] == '$' || obj->text[*pos] == '_' || obj->text[*pos] == '@') {
-    while(isalpha(obj->text[*pos+i])) {
+  if(text[*pos] == '$' || text[*pos] == '_' || text[*pos] == '@') {
+    while(isalpha(text[*pos+i])) {
       i++;
     }
     return i;
@@ -135,23 +143,23 @@ static int is_variable(struct rules_t *obj, int *pos, int size) {
   return -1;
 }
 
-static int lexer_parse_number(struct rules_t *obj, int *pos) {
+static int lexer_parse_number(struct rules_t *obj, const char *text, int *pos) {
 
-  int i = 0, nrdot = 0, len = strlen(obj->text), start = *pos;
+  int i = 0, nrdot = 0, len = strlen(text), start = *pos;
 
-  if(isdigit(obj->text[*pos]) || obj->text[*pos] == '-') {
+  if(isdigit(text[*pos]) || text[*pos] == '-') {
     /*
      * The dot cannot be the first character
      * and we cannot have more than 1 dot
      */
     while(*pos <= len &&
         (
-          isdigit(obj->text[*pos]) ||
-          (i == 0 && obj->text[*pos] == '-') ||
-          (i > 0 && nrdot == 0 && obj->text[*pos] == '.')
+          isdigit(text[*pos]) ||
+          (i == 0 && text[*pos] == '-') ||
+          (i > 0 && nrdot == 0 && text[*pos] == '.')
         )
       ) {
-      if(obj->text[*pos] == '.') {
+      if(text[*pos] == '.') {
         nrdot++;
       }
       (*pos)++;
@@ -161,13 +169,33 @@ static int lexer_parse_number(struct rules_t *obj, int *pos) {
     if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+(*pos - start)+1)) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
-    memcpy(&obj->bytecode[obj->nrbytes], &obj->text[start], *pos - start);
+    memcpy(&obj->bytecode[obj->nrbytes], &text[start], *pos - start);
     obj->nrbytes += (*pos - start);
     obj->bytecode[obj->nrbytes++] = 0;
     return 0;
   } else {
     return -1;
   }
+}
+
+static int lexer_parse_string(struct rules_t *obj, const char *text, int *pos) {
+  int len = strlen(text), start = *pos;
+
+  while(*pos <= len &&
+        text[*pos] != ' ' &&
+        text[*pos] != ',' &&
+        text[*pos] != ';' &&
+        text[*pos] != '(' &&
+        text[*pos] != ')') {
+    (*pos)++;
+  }
+  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+(*pos - start)+1)) == NULL) {
+    OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+  }
+  memcpy(&obj->bytecode[obj->nrbytes], &text[start], *pos - start);
+  obj->nrbytes += (*pos - start);
+  obj->bytecode[obj->nrbytes++] = 0;
+  return 0;
 }
 
 // static int lexer_parse_quoted_string(struct rules_t *obj, struct lexer_t *lexer, int *start) {
@@ -184,7 +212,7 @@ static int lexer_parse_number(struct rules_t *obj, int *pos) {
         // /*
          // * Skip escape
          // */
-        // lexer->current_char = &lexer->text[lexer->pos++];
+        // lexer->current_char = &lexer->text[lexer->(*pos)++];
       // } else if(x == '\'' && lexer->pos > 0 && lexer->text[lexer->pos] == '\\' && lexer->text[lexer->pos+1] == '\'') {
         // /*
          // * Remove escape
@@ -192,7 +220,7 @@ static int lexer_parse_number(struct rules_t *obj, int *pos) {
         // memmove(&lexer->text[lexer->pos], &lexer->text[lexer->pos+1], lexer->len-lexer->pos-1);
         // lexer->text[lexer->len-1] = '\0';
 
-        // lexer->current_char = &lexer->text[lexer->pos++];
+        // lexer->current_char = &lexer->text[lexer->(*pos)++];
         // lexer->len--;
       // } else if(x == '"' && lexer->pos > 0 && lexer->text[lexer->pos] == '\\' && lexer->text[lexer->pos+1] == '"') {
         // /*
@@ -201,17 +229,17 @@ static int lexer_parse_number(struct rules_t *obj, int *pos) {
         // memmove(&lexer->text[lexer->pos], &lexer->text[lexer->pos+1], lexer->len-lexer->pos-1);
         // lexer->text[lexer->len-1] = '\0';
 
-        // lexer->current_char = &lexer->text[lexer->pos++];
+        // lexer->current_char = &lexer->text[lexer->(*pos)++];
         // lexer->len--;
       // } else if(x != '"' && lexer->pos > 0 && lexer->text[lexer->pos] == '"') {
         // /*
          // * Skip escape
          // */
-        // lexer->current_char = &lexer->text[lexer->pos++];
+        // lexer->current_char = &lexer->text[lexer->(*pos)++];
       // } else if(lexer->text[lexer->pos] == x) {
         // break;
       // } else {
-        // lexer->pos++;
+        // lexer->(*pos)++;
       // }
     // }
 
@@ -228,22 +256,7 @@ static int lexer_parse_number(struct rules_t *obj, int *pos) {
   // return -1;
 // }
 
-// static int lexer_parse_string(struct rules_t *obj, struct lexer_t *lexer, int *start) {
-
-  // *start = lexer->pos;
-  // while(lexer->pos <= lexer->len &&
-        // lexer->current_char[0] != ' ' &&
-        // lexer->current_char[0] != ',' &&
-        // lexer->current_char[0] != ';' &&
-        // lexer->current_char[0] != ')') {
-    // lexer->current_char = &lexer->text[lexer->pos++];
-  // }
-  // lexer->pos--;
-  // lexer_isolate_token(obj, lexer, -1, lexer->current_char[0]);
-  // return 0;
-// }
-
-static int lexer_parse_skip_characters(char *text, int len, int *pos) {
+static int lexer_parse_skip_characters(const char *text, int len, int *pos) {
   while(*pos <= len &&
       (text[*pos] == ' ' ||
       text[*pos] == '\n' ||
@@ -254,15 +267,16 @@ static int lexer_parse_skip_characters(char *text, int len, int *pos) {
   return 0;
 }
 
-static int rule_prepare(struct rules_t *obj) {
-  int pos = 0, ret = 0, len = strlen(obj->text);
-  while(pos < len) {
-    lexer_parse_skip_characters(obj->text, len, &pos);
+static int rule_prepare(const char *text, int *pos, struct rules_t *obj) {
+  int ret = 0, len = strlen(text);
+  int nrblocks = 0;
+  while(*pos < len) {
+    lexer_parse_skip_characters(text, len, pos);
 
     // if(lexer->current_char[0] == '\'' || lexer->current_char[0] == '"') {
       // ret = lexer_parse_quoted_string(obj, lexer, &tpos);
       // type = TSTRING;
-      // lexer->pos++;
+      // lexer->(*pos)++;
       // if(lexer->text[lexer->pos] == ' ') {
         // lexer->text[lexer->pos] = '\0';
       // } else {
@@ -270,103 +284,109 @@ static int rule_prepare(struct rules_t *obj) {
         // exit(-1);
       // }
     // } else
-    if(isdigit(obj->text[pos]) || (obj->text[pos] == '-' && pos < len && isdigit(obj->text[pos+1]))) {
+    if(isdigit(text[*pos]) || (text[*pos] == '-' && *pos < len && isdigit(text[(*pos)+1]))) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TNUMBER;
-      ret = lexer_parse_number(obj, &pos);
-    } else if(strnicmp(&obj->text[pos], "if", 2) == 0) {
+      ret = lexer_parse_number(obj, text, pos);
+    } else if(strnicmp((char *)&text[*pos], "if", 2) == 0) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TIF;
-      pos+=2;
-    } else if(strnicmp(&obj->text[pos], "else", 4) == 0) {
+      (*pos)+=2;
+      nrblocks++;
+    } else if(strnicmp((char *)&text[*pos], "else", 4) == 0) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TELSE;
-      pos+=4;
-    } else if(strnicmp(&obj->text[pos], "then", 4) == 0) {
+      (*pos)+=4;
+    } else if(strnicmp((char *)&text[*pos], "then", 4) == 0) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TTHEN;
-      pos+=4;
-    } else if(strnicmp(&obj->text[pos], "end", 3) == 0) {
+      (*pos)+=4;
+    } else if(strnicmp((char *)&text[*pos], "end", 3) == 0) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TEND;
-      pos+=3;
-    } else if(obj->text[pos] == ',') {
+      (*pos)+=3;
+      nrblocks--;
+    } else if(text[*pos] == ',') {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TCOMMA;
-      pos++;
-    } else if(obj->text[pos] == '(') {
+      (*pos)++;
+    } else if(text[*pos] == '(') {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = LPAREN;
-      pos++;
-    } else if(obj->text[pos] == ')') {
+      (*pos)++;
+    } else if(text[*pos] == ')') {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = RPAREN;
-      pos++;
-    } else if(obj->text[pos] == '=' && pos < len && obj->text[pos+1] != '=') {
+      (*pos)++;
+    } else if(text[*pos] == '=' && *pos < len && text[(*pos)+1] != '=') {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TASSIGN;
-      pos++;
-    } else if(obj->text[pos] == ';') {
+      (*pos)++;
+    } else if(text[*pos] == ';') {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+1)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       obj->bytecode[obj->nrbytes++] = TSEMICOLON;
-      pos++;
+      (*pos)++;
     } else {
       int a = 0;
-      int b = len-pos-1, len1 = 0;
-      for(a=pos;a<len;a++) {
-        if(obj->text[a] == ' ' || obj->text[a] == '(' || obj->text[a] == ',') {
-          b = a-pos;
+      int b = len-(*pos)-1, len1 = 0;
+      for(a=(*pos);a<len;a++) {
+        if(text[a] == ' ' || text[a] == '(' || text[a] == ',') {
+          b = a-(*pos);
           break;
         }
       }
 
-      if((len1 = is_function(obj, &pos, b)) > -1) {
+      if((len1 = is_function(obj, text, pos, b)) > -1) {
         if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+2)) == NULL) {
           OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
         }
         obj->bytecode[obj->nrbytes++] = TFUNCTION;
         obj->bytecode[obj->nrbytes++] = len1;
-        pos += b;
-      } else if((len1 = is_operator(obj, &pos, b)) > -1) {
+        *pos += b;
+      } else if((len1 = is_operator(obj, text, pos, b)) > -1) {
         if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+2)) == NULL) {
           OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
         }
         obj->bytecode[obj->nrbytes++] = TOPERATOR;
         obj->bytecode[obj->nrbytes++] = len1;
-        pos += b;
-      } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb(obj, &pos, b)) > -1) {
+        *pos += b;
+      } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb(obj, text, pos, b)) > -1) {
         if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+len1+2)) == NULL) {
           OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
         }
         obj->bytecode[obj->nrbytes++] = TVAR;
-        memcpy(&obj->bytecode[obj->nrbytes], &obj->text[pos], len1);
+        memcpy(&obj->bytecode[obj->nrbytes], &text[*pos], len1);
         obj->nrbytes += len1;
         obj->bytecode[obj->nrbytes++] = 0;
-        pos += len1;
+        *pos += len1;
       }
     }
 
-    lexer_parse_skip_characters(obj->text, len, &pos);
+    lexer_parse_skip_characters(text, len, pos);
+
+    if(nrblocks == 0) {
+      break;
+    }
   }
 
   if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+2)) == NULL) {
@@ -3155,10 +3175,27 @@ void print_bytecode(struct rules_t *obj) {
 #endif
 /*LCOV_EXCL_STOP*/
 
-int rule_initialize(char *rule, struct rules_t *obj, int depth, unsigned short parse) {
-  if(parse == 1) {    
-    obj->nrbytes = 0;
+int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nrrules, void *userdata) {
+  int len = strlen(text);
+  if(*pos >= len) {
+    return 1;
+  }
 
+  *rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t *)*((*nrrules)+1));
+  if(*rules == NULL) {
+    OUT_OF_MEMORY
+  }
+  if(((*rules)[*nrrules] = (struct rules_t *)MALLOC(sizeof(struct rules_t))) == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
+  (*rules)[*nrrules]->userdata = userdata;
+
+  struct rules_t *obj = (*rules)[*nrrules];
+  obj->nr = (*nrrules)+1;
+  (*nrrules)++;
+
+  obj->nrbytes = 0;
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
   #ifdef ESP8266
@@ -3169,60 +3206,61 @@ int rule_initialize(char *rule, struct rules_t *obj, int depth, unsigned short p
 #endif
 /*LCOV_EXCL_STOP*/
 
-    rule_prepare(obj);
+  rule_prepare(text, pos, obj);
 
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
   #ifdef ESP8266
-    obj->timestamp.second = micros();
+  obj->timestamp.second = micros();
 
-    memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "rule #%d was prepared in %d microseconds", obj->nr, obj->timestamp.second - obj->timestamp.first);
-    Serial.println(out);
+  memset(&out, 0, 1024);
+  snprintf((char *)&out, 1024, "rule #%d was prepared in %d microseconds", obj->nr, obj->timestamp.second - obj->timestamp.first);
+  Serial.println(out);
   #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.second);
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.second);
 
-    printf("rule #%d was prepared in %.6f seconds\n", obj->nr,
-      ((double)obj->timestamp.second.tv_sec + 1.0e-9*obj->timestamp.second.tv_nsec) -
-      ((double)obj->timestamp.first.tv_sec + 1.0e-9*obj->timestamp.first.tv_nsec));
+  printf("rule #%d was prepared in %.6f seconds\n", obj->nr,
+    ((double)obj->timestamp.second.tv_sec + 1.0e-9*obj->timestamp.second.tv_nsec) -
+    ((double)obj->timestamp.first.tv_sec + 1.0e-9*obj->timestamp.first.tv_nsec));
   #endif
 #endif
 /*LCOV_EXCL_STOP*/
 
+
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
   #ifdef ESP8266
-    obj->timestamp.first = micros();
+  obj->timestamp.first = micros();
   #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.first);
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.first);
   #endif
 #endif
 /*LCOV_EXCL_STOP*/
 
-    if(rule_parse(obj) == -1) {
-      return -1;
-    }
+  if(rule_parse(obj) == -1) {
+    return -1;
+  }
 
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
   #ifdef ESP8266
-    obj->timestamp.second = micros();
+  obj->timestamp.second = micros();
 
-    memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "rule #%d was parsed in %d microseconds", obj->nr, obj->timestamp.second - obj->timestamp.first);
-    Serial.println(out);
+  memset(&out, 0, 1024);
+  snprintf((char *)&out, 1024, "rule #%d was parsed in %d microseconds", obj->nr, obj->timestamp.second - obj->timestamp.first);
+  Serial.println(out);
 
-    memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "bytecode is %d bytes", obj->nrbytes);
-    Serial.println(out);
+  memset(&out, 0, 1024);
+  snprintf((char *)&out, 1024, "bytecode is %d bytes", obj->nrbytes);
+  Serial.println(out);
   #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.second);
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.second);
 
-    printf("rule #%d was parsed in %.6f seconds\n", obj->nr,
-      ((double)obj->timestamp.second.tv_sec + 1.0e-9*obj->timestamp.second.tv_nsec) -
-      ((double)obj->timestamp.first.tv_sec + 1.0e-9*obj->timestamp.first.tv_nsec));
+  printf("rule #%d was parsed in %.6f seconds\n", obj->nr,
+    ((double)obj->timestamp.second.tv_sec + 1.0e-9*obj->timestamp.second.tv_nsec) -
+    ((double)obj->timestamp.first.tv_sec + 1.0e-9*obj->timestamp.first.tv_nsec));
 
-    printf("bytecode is %d bytes\n", obj->nrbytes);
+  printf("bytecode is %d bytes\n", obj->nrbytes);
   #endif
 #endif
 /*LCOV_EXCL_STOP*/
@@ -3230,13 +3268,12 @@ int rule_initialize(char *rule, struct rules_t *obj, int depth, unsigned short p
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
   #ifndef ESP8266
-    print_bytecode(obj);
-    printf("\n");
-    print_tree(obj);
+  print_bytecode(obj);
+  printf("\n");
+  print_tree(obj);
   #endif
 #endif
 /*LCOV_EXCL_STOP*/
-  }
 
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)

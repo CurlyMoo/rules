@@ -24,7 +24,18 @@
 #include <Arduino.h>
 #endif
 
-struct rules_t **rules = NULL;
+#define max(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a > _b ? _a : _b; })
+
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
+
+static struct rules_t **rules = NULL;
+static int nrrules = 0;
 
 struct rule_options_t rule_options;
 
@@ -41,30 +52,30 @@ struct unittest_t {
   struct {
     const char *output;
     int bytes;
-  } validate;
+  } validate[12];
   struct {
     const char *output;
     int bytes;
-  } run;
+  } run[12];
 } unittests[] = {
   /*
    * Valid rules
    */
-  { "if 3 == 3 then $a = 6; end", { "$a = 6", 78 }, { "$a = 6", 78 } },
-  { "if @a == 3 then $a = 6; end", { "$a = 6", 89 }, { "$a = 6", 89 } },
-  { "if 3 == 3 then @a = 6; end", { "@a = 6", 78 }, { "@a = 6", 78 } },
-  { "if 3 == 3 then $a = -6; end", { "$a = -6", 79 }, { "$a = -6", 79 } },
-  { "if 3 == 3 then $a = 1 + 2; end", { "$a = 3", 95 }, { "$a = 3", 95 } },
-  { "if 1 == 1 then $a = 1 + 2 + 3; end", { "$a = 6", 112 }, { "$a = 6", 112 } },
-  { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { "$a = 10", 172 }, { "$a = 10", 172 } },
-  { "if 12 == 1 then $a = 1 + 2 * 3; end", { "$a = 7", 113 }, { "$a = 7", 113 } },
-  { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { "$a = 9", 129 }, { "$a = 9", 129 } },
-  { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { "$a = 9", 139 }, { "$a = 9", 139 } },
-  { "if 1 == 1 then $a = 1 * 2 + 3; end", { "$a = 5", 112 }, { "$a = 5", 112 } },
-  { "if 1 == 1 then $a = 1 + 2 * 3 / 4; end", { "$a = 2.5", 129 }, { "$a = 2.5", 129 } },
-  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2; end", { "$a = 1.375", 146 }, { "$a = 1.375", 146 } },
-  { "if 1 == 1 then $a = 1 + 4 ^ 2 ^ 1; end", { "$a = 17", 129 }, { "$a = 17", 129 } },
-  { "if 1 == 1 then $a = (1 + 4 ^ 2 ^ 1); end", { "$a = 17", 139 }, { "$a = 17", 139 } },
+  { "if 3 == 3 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
+  { "if @a == 3 then $a = 6; end", { { "$a = 6", 89 } }, { { "$a = 6", 89 } } },
+  { "if 3 == 3 then @a = 6; end", { { "@a = 6", 78 } }, { { "@a = 6", 78 } } },
+  { "if 3 == 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
+  { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 95 } }, { { "$a = 3", 95 } } },
+  { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 112 } }, { { "$a = 6", 112 } } },
+  { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 172 } }, { { "$a = 10", 172 } } },
+  { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 113 } }, { { "$a = 7", 113 } } },
+  { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 129 } }, { { "$a = 9", 129 } } },
+  { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { { "$a = 9", 139 } }, { { "$a = 9", 139 } } },
+  { "if 1 == 1 then $a = 1 * 2 + 3; end", { { "$a = 5", 112 } }, { { "$a = 5", 112 } } },
+  { "if 1 == 1 then $a = 1 + 2 * 3 / 4; end", { { "$a = 2.5", 129 } }, { { "$a = 2.5", 129 } } },
+  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2; end", { { "$a = 1.375", 146 } }, { { "$a = 1.375", 146 } } },
+  { "if 1 == 1 then $a = 1 + 4 ^ 2 ^ 1; end", { { "$a = 17", 129 } }, { { "$a = 17", 129 } } },
+  { "if 1 == 1 then $a = (1 + 4 ^ 2 ^ 1); end", { { "$a = 17", 139 } }, { { "$a = 17", 139 } } },
   { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2); end", { "$a = 1.375", 156 }, { "$a = 1.375", 156 } },
   { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3); end", { "$a = 2.125", 190 }, { "$a = 2.125", 190 } },
   { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3 ^ 4); end", { "$a = 31.375", 207 }, { "$a = 31.375", 207 } },
@@ -128,6 +139,7 @@ struct unittest_t {
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 347 }, { "$a = 4$b = 14", 347 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 368 }, { "$a = 4$b = 3", 368 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 532 }, { "$a = 4$b = 52@c = 5", 532 } },
+  { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 78 }, { "$b = 3" , 78 } },  { { "$a = 6", 78 }, { "$b = 3" , 78 } } },
 };
 
 static int alignedbytes(int v) {
@@ -139,10 +151,10 @@ static int alignedbytes(int v) {
 #endif
 }
 
-static int is_variable(struct rules_t *obj, int *pos, int size) {
+static int is_variable(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 1;
-  if(obj->text[*pos] == '$' || obj->text[*pos] == '@') {
-    while(isalpha(obj->text[*pos+i])) {
+  if(text[*pos] == '$' || text[*pos] == '@') {
+    while(isalpha(text[*pos+i])) {
       i++;
     }
     return i;
@@ -349,8 +361,6 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       exit(-1);
     } break;
   }
-
-
 }
 
 static void vm_value_prt(struct rules_t *obj, char *out, int size) {
@@ -398,7 +408,6 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
   }
 }
 
-
 void run_test(int *i) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_token_cb = is_variable;
@@ -417,11 +426,7 @@ void run_test(int *i) {
   }
 #endif
 
-  struct rules_t rule;
-  memset(&rule, 0, sizeof(struct rules_t));
-  rule.text = STRDUP(unittests[(*i)].rule);
-  rule.nr = (*i)+1;
-
+  int pos = 0, ppos = 0, len = strlen(unittests[(*i)].rule);
   struct varstack_t *varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
   if(varstack == NULL) {
     OUT_OF_MEMORY
@@ -429,105 +434,124 @@ void run_test(int *i) {
   varstack->stack = NULL;
   varstack->nrbytes = 4;
 
-  rule.userdata = varstack;
-
-#ifdef ESP8266
-  memset(&out, 0, 1024);
-  if(strlen(rule.text) > 50) {
-    snprintf((char *)&out, 1024, "Rule %.2d / %d: [ %.46s ... ]", rule.nr, nrtests, rule.text);
-  } else {
-    snprintf((char *)&out, 1024, "Rule %.2d / %d: [ %-50s ]", rule.nr, nrtests, rule.text);
-  }
-  Serial.println(out);
-#else
-  if(strlen(rule.text) > 50) {
-    printf("Rule %.2d / %d: [ %.46s ... ]\n", rule.nr, nrtests, rule.text);
-  } else {
-    printf("Rule %.2d / %d: [ %-50s ]\n", rule.nr, nrtests, rule.text);
-  }
-#endif
-
-  rule_initialize(rule.text, &rule, 0, 1);
-
-#ifdef DEBUG
-  printf("bytecode is %d bytes\n", rule.nrbytes + (varstack->nrbytes - 1));
-#endif
-  valprint(&rule, (char *)&out, 1024);
-
-  if(strcmp(out, unittests[(*i)].validate.output) != 0) {
+  while(rule_initialize(unittests[(*i)].rule, &pos, &rules, &nrrules, varstack) == 0) {
+    const char *rule = &unittests[(*i)].rule[ppos];
+    int size = (pos-ppos);
 #ifdef ESP8266
     memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].validate.output, out);
+    if(size > 49) {
+      size = min(size, 45);
+      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+    } else {
+      size = min(size, 50);
+      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+    }
     Serial.println(out);
 #else
-    printf("Expected: %s\n", unittests[(*i)].validate.output);
-    printf("Was: %s\n", out);
-#endif
-    exit(-1);
-  }
-#ifndef ESP8266
-  if((rule.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].validate.bytes) {
-    // memset(&out, 0, 1024);
-    // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
-    // Serial.println(out);
-// #else
-    printf("Expected: %d\n", unittests[(*i)].validate.bytes);
-    printf("Was: %d\n", rule.nrbytes + (varstack->nrbytes - 4));
-
-    exit(-1);
-  }
-#endif
-
-  for(x=0;x<5;x++) {
-#ifdef DEBUG
-    clock_gettime(CLOCK_MONOTONIC, &rule.timestamp.first);
-    printf("bytecode is %d bytes\n", rule.nrbytes);
-#endif
-    rule_run(&rule, 0);
-#ifdef DEBUG
-    clock_gettime(CLOCK_MONOTONIC, &rule.timestamp.second);
-
-    printf("rule #%d was executed in %.6f seconds\n", rule.nr,
-      ((double)rule.timestamp.second.tv_sec + 1.0e-9*rule.timestamp.second.tv_nsec) -
-      ((double)rule.timestamp.first.tv_sec + 1.0e-9*rule.timestamp.first.tv_nsec));
-
-    printf("bytecode is %d bytes\n", rule.nrbytes);
-#endif
-
-#ifndef ESP8266
-    if((rule.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run.bytes) {
-      // memset(&out, 0, 1024);
-      // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
-      // Serial.println(out);
-// #else
-      printf("Expected: %d\n", unittests[(*i)].run.bytes);
-      printf("Was: %d\n", rule.nrbytes + (varstack->nrbytes - 1));
-
-      exit(-1);
+    if(size > 49) {
+      size = min(size, 45);
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+    } else {
+      size = min(size, 50);
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
     }
 #endif
 
-    valprint(&rule, (char *)&out, 1024);
-    if(strcmp(out, unittests[(*i)].run.output) != 0) {
+#ifdef DEBUG
+    printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 1));
+#endif
+    valprint(rules[nrrules-1], (char *)&out, 1024);
+
+    if(strcmp(out, unittests[(*i)].validate[rules[nrrules-1]->nr-1].output) != 0) {
 #ifdef ESP8266
       memset(&out, 0, 1024);
-      snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].run.output, out);
+      snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output, out);
       Serial.println(out);
 #else
-      printf("Expected: %s\n", unittests[(*i)].run.output);
+      printf("Expected: %s\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output);
       printf("Was: %s\n", out);
 #endif
       exit(-1);
     }
-    fflush(stdout);
-  }
-  struct varstack_t *node = (struct varstack_t *)rule.userdata;
-  FREE(node->stack);
-  FREE(node);
 
-  FREE(rule.text);
-  FREE(rule.bytecode);
-  rule_gc();
+#ifndef ESP8266
+    if((rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes) {
+      // memset(&out, 0, 1024);
+      // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
+      // Serial.println(out);
+  // #else
+      printf("Expected: %d\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes);
+      printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4));
+
+      exit(-1);
+    }
+#endif
+
+    for(x=0;x<5;x++) {
+#ifdef DEBUG
+      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
+      printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes);
+#endif
+      rule_run(rules[nrrules-1], 0);
+#ifdef DEBUG
+      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
+
+      printf("rule #%d was executed in %.6f seconds\n", rules[nrrules-1]->nr,
+        ((double)rules[nrrules-1]->timestamp.second.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp.second.tv_nsec) -
+        ((double)rules[nrrules-1]->timestamp.first.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp.first.tv_nsec));
+
+      printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes);
+#endif
+
+      if((rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes) {
+#ifndef ESP8266
+        // memset(&out, 0, 1024);
+        // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
+        // Serial.println(out);
+#else
+        printf("Expected: %d\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes);
+        printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 1));
+
+        exit(-1);
+#endif
+      }
+
+      valprint(rules[nrrules-1], (char *)&out, 1024);
+      if(strcmp(out, unittests[(*i)].run[rules[nrrules-1]->nr-1].output) != 0) {
+#ifdef ESP8266
+        memset(&out, 0, 1024);
+        snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].run[rules[nrrules-1]->nr-1].output, out);
+        Serial.println(out);
+#else
+        printf("Expected: %s\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].output);
+        printf("Was: %s\n", out);
+#endif
+        exit(-1);
+      }
+      fflush(stdout);
+    }
+
+    ppos = pos;
+
+    varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
+    if(varstack == NULL) {
+      OUT_OF_MEMORY
+    }
+    varstack->stack = NULL;
+    varstack->nrbytes = 4;
+  }
+
+  if(nrrules > 0) {
+    for(x=0;x<nrrules;x++) {
+      struct varstack_t *node = (struct varstack_t *)rules[x]->userdata;
+      FREE(node->stack);
+      FREE(node);
+    }
+    rules_gc(&rules, nrrules);
+  }
+  nrrules = 0;
+
+  FREE(varstack);
 }
 
 #ifndef ESP8266
