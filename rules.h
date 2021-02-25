@@ -61,13 +61,13 @@ typedef struct rules_t {
   } pos;
 
   /* Continue here after we processed
-   * after we processed another function
-   * first.
+   * another rule call.
    */
   struct {
     uint16_t go;
     uint16_t ret;
   } cont;
+
   /* To which rule do we return after
    * being called from another rule.
    */
