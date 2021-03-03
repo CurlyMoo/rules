@@ -1084,6 +1084,10 @@ static int rule_parse(struct rules_t *obj) {
                   go = TVAR;
                   continue;
                 } break;
+                case TCEVENT: {
+                  go = TCEVENT;
+                  continue;
+                } break;
                 case TIF: {
                   struct vm_cache_t *cache = vm_cache_get(TIF, -1, pos);
                   if(cache == NULL) {
@@ -2390,10 +2394,10 @@ static void print_ast(struct rules_t *obj) {
         i+=sizeof(struct vm_tevent_t)-1;
       } break;
       case TCEVENT: {
-        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+        struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[i];
         printf("\"%d\"[label=\"%s\"]\n", i, &obj->bytecode[node->token+1]);
         // printf("\"%i\" -> \"%i\"\n", i, node->ret);
-        i+=sizeof(struct vm_tevent_t)-1;
+        i+=sizeof(struct vm_tcevent_t)-1;
       } break;
       case TOPERATOR: {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[i];
@@ -2509,14 +2513,13 @@ static void print_steps(struct rules_t *obj) {
         i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo);
       } break;
       case TCEVENT: {
-        int x = 0;
         struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[i];
         printf("\"%p-1\"[label=\"%d\" shape=square]\n", node, i);
         printf("\"%p-2\"[label=\"%s()\"]\n", node, &obj->bytecode[node->token+1]);
-        printf("\"%p-2\" -> \"%p-%d\"\n", node, node, x+4);
-        printf("\"%p-%d\"[label=\"%d\" shape=diamond]\n", node, x+4, node->ret);
+        printf("\"%p-2\" -> \"%p-3\"\n", node, node);
+        printf("\"%p-3\"[label=\"%d\" shape=diamond]\n", node, node->ret);
         printf("\"%p-1\" -> \"%p-2\"\n", node, node);
-        i+=sizeof(struct vm_tcevent_t);
+        i+=sizeof(struct vm_tcevent_t)-1;
       } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[i];
