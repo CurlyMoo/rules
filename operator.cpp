@@ -27,17 +27,22 @@
 #include "operator.h"
 
 #include "eq.h"
+#include "ne.h"
 #include "plus.h"
 #include "multiply.h"
 #include "and.h"
 #include "or.h"
 #include "divide.h"
 #include "ge.h"
+#include "gt.h"
+#include "lt.h"
+#include "le.h"
 #include "power.h"
 #include "minus.h"
 
 struct event_operator_t event_operators[] = {
   { "==", 30, 1, event_operator_eq_callback },
+  { "!=", 30, 1, event_operator_ne_callback },
   { "+", 60, 1, event_operator_plus_callback },
   { "-", 60, 1, event_operator_minus_callback },
   { "*", 70, 1, event_operator_multiply_callback },
@@ -45,6 +50,9 @@ struct event_operator_t event_operators[] = {
   { "||", 10, 1, event_operator_or_callback },
   { "/", 70, 1, event_operator_divide_callback },
   { ">=", 30, 1, event_operator_ge_callback },
+  { "<=", 30, 1, event_operator_le_callback },
+  { "<", 30, 1, event_operator_lt_callback },
+  { ">", 30, 1, event_operator_gt_callback },
   { "^", 80, 2, event_operator_power_callback },
 };
 
