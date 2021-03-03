@@ -1426,7 +1426,7 @@ static int rule_parse(struct rules_t *obj) {
                         int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->bytecode[x->step];
                         struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->bytecode[step_out];
-                        f->ret = step;
+                        f->ret = tmp;
 
                         int i = 0;
                         for(i=0;i<t->nrgo;i++) {
@@ -3346,7 +3346,9 @@ int rule_run(struct rules_t *obj, int validate) {
           // } break;
           case TFUNCTION: {
             struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->bytecode[ret];
-            vm_value_del(obj, tmp->value);
+            if(tmp->value > 0) {
+              vm_value_del(obj, tmp->value);
+            }
           } break;
           case TIF:
           case TEVENT:
