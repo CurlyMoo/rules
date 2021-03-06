@@ -3354,6 +3354,7 @@ int rule_run(struct rules_t *obj, int validate) {
             if(tmp->value > 0) {
               vm_value_del(obj, tmp->value);
             }
+            node = (struct vm_ttrue_t *)&obj->bytecode[go];
           } break;
           case TIF:
           case TEVENT:
