@@ -1088,6 +1088,50 @@ static int rule_parse(struct rules_t *obj) {
                   go = TCEVENT;
                   continue;
                 } break;
+                case TFUNCTION: {
+                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
+                  if(x == NULL) {
+                    printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                    exit(-1);
+                  }
+                  if(lexer_peek(obj, x->end + 1, &type) == 0) {
+                    switch(type) {
+                      case TSEMICOLON: {
+                        pos = x->end + 2;
+
+                        int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
+                        struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->bytecode[x->step];
+                        struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->bytecode[step_out];
+                        f->ret = tmp;
+
+                        int i = 0;
+                        for(i=0;i<t->nrgo;i++) {
+                          if(t->go[i] == 0) {
+                            t->go[i] = x->step;
+                            break;
+                          }
+                        }
+
+                        if(i == t->nrgo) {
+                          printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                          exit(-1);
+                        }
+
+                        go = TEVENT;
+                        step_out = tmp;
+                        vm_cache_del(x->start);
+                      } break;
+                      case TOPERATOR: {
+                        go = type;
+                      } break;
+                      default: {
+                        printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                        exit(-1);
+                      } break;
+                    }
+                  }
+                  continue;
+                } break;
                 case TIF: {
                   struct vm_cache_t *cache = vm_cache_get(TIF, -1, pos);
                   if(cache == NULL) {
