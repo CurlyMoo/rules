@@ -3087,21 +3087,25 @@ int rule_run(struct rules_t *obj, int validate) {
            * Reassign node due to possible reallocs
            */
           node = (struct vm_tfunction_t *)&obj->bytecode[go];
-          switch(obj->bytecode[c]) {
-            case VINTEGER: {
-              struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->bytecode[c];
-              tmp->ret = go;
-              node->value = c;
-            } break;
-            case VFLOAT: {
-              struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->bytecode[c];
-              tmp->ret = go;
-              node->value = c;
-            } break;
-            default: {
-              printf("err: %s %d\n", __FUNCTION__, __LINE__);
-              exit(-1);
-            } break;
+          if(c > 0) {
+            switch(obj->bytecode[c]) {
+              case VINTEGER: {
+                struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->bytecode[c];
+                tmp->ret = go;
+                node->value = c;
+              } break;
+              case VFLOAT: {
+                struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->bytecode[c];
+                tmp->ret = go;
+                node->value = c;
+              } break;
+              default: {
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
+                exit(-1);
+              } break;
+            }
+          } else {
+            node->value = 0;
           }
 
           for(i=0;i<node->nrgo;i++) {
