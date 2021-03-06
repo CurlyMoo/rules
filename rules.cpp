@@ -2240,7 +2240,7 @@ static int rule_parse(struct rules_t *obj) {
        * by step until we are at the beginning again.
        */
       } else {
-        if(r_rewind >= 0 && lexer_peek(obj, --r_rewind, &type) < 0) {
+        if(r_rewind > 0 && lexer_peek(obj, --r_rewind, &type) < 0) {
           go = -1;
         }
         pos = r_rewind+1;
