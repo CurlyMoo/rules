@@ -1390,7 +1390,7 @@ static int rule_parse(struct rules_t *obj) {
                   step_out = step;
                   continue;
                 } else {
-                  printf("err: %s %d %d\n", __FUNCTION__, __LINE__, type);
+                  printf("err: %s %d\n", __FUNCTION__, __LINE__);
                   exit(-1);
                 }
 
@@ -1399,7 +1399,7 @@ static int rule_parse(struct rules_t *obj) {
                 vm_cache_del(oldpos);
                 continue;
               } else {
-                printf("err: %s %d %d\n", __FUNCTION__, __LINE__, type);
+                printf("err: %s %d\n", __FUNCTION__, __LINE__);
                 exit(-1);
               }
             } else {
