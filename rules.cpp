@@ -1916,7 +1916,8 @@ static int rule_parse(struct rules_t *obj) {
           }
           node->ret = step_out;
 
-          go = TIF;
+          int tmp1 = vm_rewind2(obj, step_out, TIF, TEVENT);
+          go = obj->bytecode[tmp1];
           step_out = tmp;
         } break;
         case LPAREN: {

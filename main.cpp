@@ -147,6 +147,7 @@ struct unittest_t {
   { "on foo then $a = 1 + 2; end", { { "$a = 3", 77 } }, { { "$a = 3", 77 } } },
   { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 123 }, { "$a = 2", 123 } },
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$b = 3$a = 2", 194 } },
+  { "on foo then bar(); end  ", { { "", 50 } },  { { "", 50 } } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } }
 };
@@ -192,7 +193,8 @@ static int is_variable(struct rules_t *obj, const char *text, int *pos, int size
 
 static int is_event(struct rules_t *obj, const char *text, int *pos, int size) {
   int i = 0, len = 0;
-  if(size == 3 && strnicmp(&text[*pos], "foo", len) == 0) {
+  if(size == 3 &&
+    (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
     return 0;
   }
   return -1;
@@ -464,6 +466,9 @@ static int event_cb(struct rules_t *obj, const char *name) {
 
     return rule_run(called, 0);
   } else {
+    if(strcmp(name, "bar") == 0) {
+      return rule_run(obj, 0);
+    }
     int i = 0;
     for(i=0;i<nrrules;i++) {
       if(rules[i] == obj) {
