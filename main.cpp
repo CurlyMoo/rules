@@ -63,13 +63,13 @@ struct unittest_t {
    * Valid rules
    */
   { "if 3 == 3 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if @a == 3 then $a = 6; end", { { "$a = 6", 89 } }, { { "$a = 6", 89 } } },
+  { "if @a == 3 then $a = 6; end", { { "$a = 6", 89 } }, { { "", 81 } } },
   { "if 3 == 3 then @a = 6; end", { { "@a = 6", 78 } }, { { "@a = 6", 78 } } },
   { "if 3 == 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
   { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 95 } }, { { "$a = 3", 95 } } },
   { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 112 } }, { { "$a = 6", 112 } } },
   { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 172 } }, { { "$a = 10", 172 } } },
-  { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 113 } }, { { "$a = 7", 113 } } },
+  { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 113 } }, { { "", 105 } } },
   { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 129 } }, { { "$a = 9", 129 } } },
   { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { { "$a = 9", 139 } }, { { "$a = 9", 139 } } },
   { "if 1 == 1 then $a = 1 * 2 + 3; end", { { "$a = 5", 112 } }, { { "$a = 5", 112 } } },
@@ -100,15 +100,15 @@ struct unittest_t {
   { "if 1 == 2 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 4", 107 } },
   { "if 1 == 1 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 3", 107 } },
   { "if (1 + 1) == 1 then $a = 3; else $a = 4; end", { "$a = 4", 134 }, { "$a = 4", 134 } },
-  { "if 1 == 2 || 3 >= 4 then $a = max(1, 2); end", { "$a = 2", 135 }, { "$a = 2", 135 } },
-  { "if 1 == 2 || 3 >= 4 then $a = min(3, 1, 2); end", { "$a = 1", 141 }, { "$a = 1", 141 } },
-  { "if 1 == 2 || 3 >= 4 then $a = 1; end", { "$a = 1", 112 }, { "$a = 1", 112 } },
-  { "if 1 == 2 || 3 >= 4 || 5 == 6 then $a = max(1, 3, 2); else $b = 9; end", { "$a = 3$b = 9", 212 }, { "$a = 3$b = 9", 212 } },
+  { "if 1 == 2 || 3 >= 4 then $a = max(1, 2); end", { "$a = 2", 135 }, { "", 127 } },
+  { "if 1 == 2 || 3 >= 4 then $a = min(3, 1, 2); end", { "$a = 1", 141 }, { "", 133 } },
+  { "if 1 == 2 || 3 >= 4 then $a = 1; end", { "$a = 1", 112 }, { "", 104 } },
+  { "if 1 == 2 || 3 >= 4 || 5 == 6 then $a = max(1, 3, 2); else $b = 9; end", { "$a = 3$b = 9", 212 }, { "$b = 9", 204 } },
   { "if 1 == 1 then $a = 1; $b = 2; end", { "$a = 1$b = 2", 107 }, { "$a = 1$b = 2", 107 } },
   { "if 1 == 1 then $a = 1; $b = ($a + 3) * 3; end", { "$a = 1$b = 12", 162 }, { "$a = 1$b = 12", 162 } },
   { "if 1 == 1 then $a = 1; $b = $a + 3 * 3; end", { "$a = 1$b = 10", 152 }, { "$a = 1$b = 10", 152 } },
   { "if 1 == 1 then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 141 }, { "$a = 2", 141 } },
-  { "if 1 == 1 then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 212 }, { "$b = 3$a = 2", 212 } },
+  { "if 1 == 1 then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 212 }, { "$a = 2", 204 } },
   { "if 1 == 1 then $a = 1; $b = $a; end", { "$a = 1$b = 1", 118 }, { "$a = 1$b = 1", 118 } },
   { "if 1 == 1 then $a = 1; if 5 >= 4 then $a = 3; end $b = $a; end", { "$a = 3$b = 3", 181 }, { "$a = 3$b = 3", 181 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; end", { "$a = 1", 156 }, { "$a = 1", 156 } },
@@ -147,7 +147,7 @@ struct unittest_t {
   { "on foo then @a = 6; end", { { "@a = 6", 60 } }, { { "@a = 6", 60 } } },
   { "on foo then $a = 1 + 2; end", { { "$a = 3", 77 } }, { { "$a = 3", 77 } } },
   { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 123 }, { "$a = 2", 123 } },
-  { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$b = 3$a = 2", 194 } },
+  { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$a = 2", 186 } },
   { "on foo then bar(); end  ", { { "", 50 } },  { { "", 50 } } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } }
@@ -572,6 +572,10 @@ void run_test(int *i) {
 #endif
 
     for(x=0;x<5;x++) {
+      varstack->nrbytes = 4;
+      varstack->stack = (unsigned char *)REALLOC(varstack->stack, 4);
+      memset(varstack->stack, 0, 4);
+
 #ifdef DEBUG
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
       printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes);
@@ -594,7 +598,7 @@ void run_test(int *i) {
         // Serial.println(out);
 #else
         printf("Expected: %d\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes);
-        printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 1));
+        printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4));
 
         exit(-1);
 #endif

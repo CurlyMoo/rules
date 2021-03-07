@@ -2891,6 +2891,71 @@ void valprint(struct rules_t *obj, char *out, int size) {
   }
 }
 
+void vm_clear_values(struct rules_t *obj) {
+  int i = 0, x = 0;
+  for(i=0;i<obj->nrbytes;i++) {
+    if(obj->bytecode[i] == 0 && obj->bytecode[i+1] == 0) {
+      x = i+2;
+      break;
+    }
+  }
+  for(i=x;alignedbytes(i)<obj->nrbytes;i++) {
+    i = alignedbytes(i);
+    switch(obj->bytecode[i]) {
+      case TSTART: {
+        i+=sizeof(struct vm_tstart_t)-1;
+      } break;
+      case TEOF: {
+        i+=sizeof(struct vm_teof_t)-1;
+      } break;
+      case VNULL: {
+        i+=sizeof(struct vm_vnull_t)-1;
+      } break;
+      case TIF: {
+        i+=sizeof(struct vm_tif_t)-1;
+      } break;
+      case LPAREN: {
+        struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[i];
+        node->value = 0;
+        i+=sizeof(struct vm_lparen_t)-1;
+      } break;
+      case TFALSE:
+      case TTRUE: {
+        struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->bytecode[i];
+        i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*node->nrgo);
+      } break;
+      case TFUNCTION: {
+        struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[i];
+        node->value = 0;
+        i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo);
+      } break;
+      case TCEVENT: {
+        i+=sizeof(struct vm_tcevent_t)-1;
+      } break;
+      case TVAR: {
+        struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[i];
+        node->value = 0;
+        i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[i];
+        i+=sizeof(struct vm_tevent_t)-1;
+      } break;
+      case TNUMBER: {
+        struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->bytecode[i];
+        i+=sizeof(struct vm_tnumber_t)-1;
+      } break;
+      case TOPERATOR: {
+        struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[i];
+        node->value = 0;
+        i+=sizeof(struct vm_toperator_t)-1;
+      } break;
+      default: {
+      } break;
+    }
+  }
+}
+
 int rule_run(struct rules_t *obj, int validate) {
 #ifdef DEBUG
   printf("----------\n");
@@ -2931,6 +2996,7 @@ int rule_run(struct rules_t *obj, int validate) {
             obj->cont.go = 0;
             obj->cont.ret = 0;
           } else {
+            vm_clear_values(obj);
             go = node->go;
           }
         }
