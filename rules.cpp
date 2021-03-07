@@ -1282,7 +1282,8 @@ static int rule_parse(struct rules_t *obj) {
               }
             }
           } else {
-            printf("goed\n");
+            printf("err: %s %d\n", __FUNCTION__, __LINE__);
+            exit(-1);
           }
         } break;
         case TIF: {
