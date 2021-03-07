@@ -97,6 +97,12 @@ struct unittest_t {
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 5 >= 4; end", { "$a = 1", 173 }, { "$a = 1", 173 } },
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 3 >= 4; end", { "$a = 0", 173 }, { "$a = 0", 173 } },
   { "if 1 == 1 then $a = 3; end", { "$a = 3", 78 }, { "$a = 3", 78 } },
+  { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 102 }, { "$a = NULL", 102 } },
+  { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 129 }, { "$a = 1", 129 } },
+  { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 182 }, { "$a = 1", 182 } },
+  { "if 1 == 1 then $a = 1; if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 203 }, { "$a = 2", 203 } },
+  { "if 1 == 1 then $a = 1; if $a == 1 then $a = NULL; end end", { "$a = NULL", 150 }, { "$a = NULL", 150 } },
+  { "if 1 == 1 then $a = 1; $a = NULL; end", { "$a = NULL", 97 }, { "$a = NULL", 97 } },
   { "if 1 == 2 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 4", 107 } },
   { "if 1 == 1 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 3", 107 } },
   { "if (1 + 1) == 1 then $a = 3; else $a = 4; end", { "$a = 4", 134 }, { "$a = 4", 134 } },
@@ -211,7 +217,17 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
     vinteger.value = 5;
     return (unsigned char *)&vinteger;
   } else {
-
+    if(var->value == 0) {
+      int ret = varstack->nrbytes;
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vnull_t))) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&varstack->stack[ret];
+      value->type = VNULL;
+      value->ret = token;
+      var->value = ret;
+      varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vnull_t);
+    }
     return &varstack->stack[var->value];
   }
   return NULL;
@@ -247,6 +263,17 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         }
         x += sizeof(struct vm_vfloat_t)-1;
       } break;
+      case VNULL: {
+        struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->stack[x];
+        struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
+        if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
+          var->value = foo->value;
+          val->ret = token;
+          foo->value = 0;
+          return;
+        }
+        x += sizeof(struct vm_vnull_t)-1;
+      } break;
       default: {
         printf("err: %s %d\n", __FUNCTION__, __LINE__);
         exit(-1);
@@ -274,6 +301,14 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
     } break;
     case VFLOAT: {
       ret = sizeof(struct vm_vfloat_t);
+      memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      varstack->nrbytes -= ret;
+    } break;
+    case VNULL: {
+      ret = sizeof(struct vm_vnull_t);
       memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
       if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -310,6 +345,14 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
           tmp->value = x;
         }
         x += sizeof(struct vm_vfloat_t)-1;
+      } break;
+      case VNULL: {
+        struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->stack[x];
+        if(node->ret > 0) {
+          struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
+          tmp->value = x;
+        }
+        x += sizeof(struct vm_vnull_t)-1;
       } break;
       default: {
         printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -356,6 +399,17 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
         }
         x += sizeof(struct vm_vfloat_t)-1;
       } break;
+      case VNULL: {
+        struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->stack[x];
+        struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
+        if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
+          var->value = 0;
+          vm_value_del(obj, x);
+          loop = 0;
+          break;
+        }
+        x += sizeof(struct vm_vnull_t)-1;
+      } break;
       default: {
         printf("err: %s %d\n", __FUNCTION__, __LINE__);
         exit(-1);
@@ -396,6 +450,15 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       value->value = cpy->value;
       varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vfloat_t);
     } break;
+    case VNULL: {
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vnull_t))) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->stack[ret];
+      value->type = VNULL;
+      value->ret = token;
+      varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vnull_t);
+    } break;
     default: {
       printf("err: %s %d\n", __FUNCTION__, __LINE__);
       exit(-1);
@@ -431,6 +494,20 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
               pos += snprintf(&out[pos], size - pos, "%s = %g", &obj->bytecode[node->token+1], val->value);
+            } break;
+            default: {
+              // printf("err: %s %d\n", __FUNCTION__, __LINE__);
+              // exit(-1);
+            } break;
+          }
+          x += sizeof(struct vm_vfloat_t)-1;
+        } break;
+        case VNULL: {
+          struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->stack[x];
+          switch(obj->bytecode[val->ret]) {
+            case TVAR: {
+              struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", &obj->bytecode[node->token+1]);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);

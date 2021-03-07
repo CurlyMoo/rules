@@ -34,6 +34,9 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
    * Values can only be equal when the type matches
    */
   switch(obj->bytecode[a]) {
+    case VNULL: {
+      out->value = 0;
+    } break;
     case VINTEGER: {
       struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[a];
       if(n->value > 0) {
@@ -62,6 +65,9 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
     } break;
   }
   switch(obj->bytecode[b]) {
+    case VNULL: {
+      out->value = 0;
+    } break;
     case VINTEGER: {
       struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[b];
       if(n->value > 0 && out->value == 1) {

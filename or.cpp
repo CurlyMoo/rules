@@ -30,61 +30,70 @@ int event_operator_or_callback(struct rules_t *obj, int a, int b, int *ret) {
   out->ret = 0;
   out->type = VINTEGER;
 
-  /*
-   * Values can only be equal when the type matches
-   */
-  switch(obj->bytecode[a]) {
-    case VINTEGER: {
-      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[a];
-      if(n->value > 0) {
-        out->value = 1;
-      } else {
-        out->value = 0;
-      }
+  if(obj->bytecode[a] == VNULL && obj->bytecode[b] == VNULL) {
+    out->value = 0;
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-      printf("%s %d\n", __FUNCTION__, n->value);
+        printf("%s NULL\n", __FUNCTION__);
+#endif
+/* LCOV_EXCL_STOP*/
+  } else {
+    /*
+     * Values can only be equal when the type matches
+     */
+    switch(obj->bytecode[a]) {
+      case VINTEGER: {
+        struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[a];
+        if(n->value > 0) {
+          out->value = 1;
+        } else {
+          out->value = 0;
+        }
+/* LCOV_EXCL_START*/
+#ifdef DEBUG
+        printf("%s %d\n", __FUNCTION__, n->value);
 #endif
 /* LCOV_EXCL_STOP*/
 
-    } break;
-    case VFLOAT: {
-      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[a];
-      if(n->value > 0) {
+      } break;
+      case VFLOAT: {
+        struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[a];
+        if(n->value > 0) {
+          out->value = 1;
+        } else {
+          out->value = 0;
+        }
+      } break;
+      case VCHAR: {
         out->value = 1;
-      } else {
-        out->value = 0;
-      }
-    } break;
-    case VCHAR: {
-      out->value = 1;
-    } break;
-  }
-  switch(obj->bytecode[b]) {
-    case VINTEGER: {
-      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[b];
-      if(n->value > 0 || out->value == 1) {
-        out->value = 1;
-      } else {
-        out->value = 0;
-      }
+      } break;
+    }
+    switch(obj->bytecode[b]) {
+      case VINTEGER: {
+        struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[b];
+        if(n->value > 0 || out->value == 1) {
+          out->value = 1;
+        } else {
+          out->value = 0;
+        }
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-      printf("%s %d\n", __FUNCTION__, n->value);
+        printf("%s %d\n", __FUNCTION__, n->value);
 #endif
 /* LCOV_EXCL_STOP*/
-    } break;
-    case VFLOAT: {
-      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[b];
-      if(n->value > 0 || out->value == 1) {
+      } break;
+      case VFLOAT: {
+        struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[b];
+        if(n->value > 0 || out->value == 1) {
+          out->value = 1;
+        } else {
+          out->value = 0;
+        }
+      } break;
+      case VCHAR: {
         out->value = 1;
-      } else {
-        out->value = 0;
-      }
-    } break;
-    case VCHAR: {
-      out->value = 1;
-    } break;
+      } break;
+    }
   }
 
   obj->nrbytes += sizeof(struct vm_vinteger_t);

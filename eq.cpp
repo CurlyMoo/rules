@@ -36,6 +36,15 @@ int event_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
     out->value = 0;
   } else {
     switch(obj->bytecode[a]) {
+      case VNULL: {
+        out->value = 1;
+
+/* LCOV_EXCL_START*/
+#ifdef DEBUG
+        printf("%s NULL\n", __FUNCTION__);
+#endif
+/* LCOV_EXCL_STOP*/
+      } break;
       case VINTEGER: {
         struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
         struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];

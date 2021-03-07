@@ -37,7 +37,8 @@ typedef enum {
   TSTART = 20,
   VCHAR = 21,
   VINTEGER = 22,
-  VFLOAT = 23
+  VFLOAT = 23,
+  VNULL = 24
 } token_types;
 
 typedef struct rules_t {
@@ -114,6 +115,10 @@ typedef struct vm_vchar_t {
   VM_GENERIC_FIELDS
   char value[];
 } vm_char_t;
+
+typedef struct vm_vnull_t {
+  VM_GENERIC_FIELDS
+} vm_vnull_t;
 
 typedef struct vm_vinteger_t {
   VM_GENERIC_FIELDS
