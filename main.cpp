@@ -36,6 +36,7 @@
 
 static struct rules_t **rules = NULL;
 static int nrrules = 0;
+static char out[1024];
 
 struct rule_options_t rule_options;
 
@@ -449,7 +450,6 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
 
 static int event_cb(struct rules_t *obj, const char *name) {
   struct rules_t *called = NULL;
-  char out[1024];
 
   if(obj->caller > 0) {
     called = rules[obj->caller-1];
@@ -501,7 +501,6 @@ void run_test(int *i) {
   rule_options.cpy_token_val_cb = vm_value_cpy;
   rule_options.event_cb = event_cb;
 
-  char out[1024];
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), x = 0;
 
 #ifdef ESP8266
@@ -589,7 +588,7 @@ void run_test(int *i) {
 #endif
 
       if((rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes) {
-#ifndef ESP8266
+#ifdef ESP8266
         // memset(&out, 0, 1024);
         // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
         // Serial.println(out);
