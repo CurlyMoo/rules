@@ -473,6 +473,8 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tstart_t));
+
       struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->bytecode[ret];
       node->type = type;
       node->go = 0;
@@ -485,6 +487,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_teof_t));
 
       struct vm_teof_t *node = (struct vm_teof_t *)&obj->bytecode[ret];
       node->type = type;
@@ -496,6 +499,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tif_t));
 
       struct vm_tif_t *node = (struct vm_tif_t *)&obj->bytecode[ret];
       node->type = type;
@@ -511,6 +515,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_lparen_t));
 
       struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[ret];
       node->type = type;
@@ -526,6 +531,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tnumber_t));
 
       lexer_bytecode_pos(obj, val, &pos);
 
@@ -543,6 +549,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*val)+1);
 
       struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->bytecode[ret];
       node->type = type;
@@ -559,6 +566,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*val)+1);
 
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[ret];
       node->token = 0;
@@ -577,6 +585,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tcevent_t)+(sizeof(uint16_t)*val)+1);
 
       lexer_bytecode_pos(obj, val, &pos);
 
@@ -592,6 +601,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tvar_t));
 
       lexer_bytecode_pos(obj, val, &pos);
 
@@ -609,6 +619,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tevent_t));
 
       lexer_bytecode_pos(obj, val, &pos);
 
@@ -625,6 +636,7 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_toperator_t));
 
       lexer_bytecode_pos(obj, val, &pos);
 
