@@ -1497,6 +1497,10 @@ static int rule_parse(struct rules_t *obj) {
                   go = TCEVENT;
                   continue;
                 } break;
+                case TELSE: {
+                  go = TIF;
+                  continue;
+                } break;
                 case TFUNCTION: {
                   struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
                   if(x == NULL) {

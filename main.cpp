@@ -144,6 +144,7 @@ struct unittest_t {
   { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 229 }, { "$a = 2$b = 15", 229 } },
   { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 107 }, { "$a = 1", 107 } },
   { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 177 }, { "$a = 3", 177 } },
+  { "if 1 == 1 then if 2 == 2 then $a = 1; end else $a = 2; end", { "$a = 2", 149 }, { "$a = 1", 149 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 347 }, { "$a = 4$b = 14", 347 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 368 }, { "$a = 4$b = 3", 368 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 532 }, { "$a = 4$b = 52@c = 5", 532 } },
