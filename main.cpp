@@ -223,7 +223,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
       if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes)+sizeof(struct vm_vnull_t))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&varstack->stack[ret];
+      struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->stack[ret];
       value->type = VNULL;
       value->ret = token;
       var->value = ret;
