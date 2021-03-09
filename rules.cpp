@@ -1904,8 +1904,9 @@ static int rule_parse(struct rules_t *obj) {
                         v->go = x->step;
 
                         int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
+                        int tmp1 = vm_rewind2(obj, tmp, TIF, TEVENT);
 
-                        go = TIF;
+                        go = obj->bytecode[tmp1];
                         step_out = tmp;
                         vm_cache_del(x->start);
                       } break;

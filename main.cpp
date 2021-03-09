@@ -133,6 +133,7 @@ struct unittest_t {
   { "if max(1, 3) == max(1, 3) then $a = 1; end", { "$a = 1", 124 }, { "$a = 1", 124 } },
   { "if 3 == 3 then max(1, 2); end", { "", 78 }, { "", 78 } },
   { "if 3 == 3 then $a = max(1 + 1, 2 + 2); end", { "$a = 4", 135 }, { "$a = 4", 135 } },
+  { "if 1 == 1 then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 116 } },  { { "$b = NULL$a = 0", 116 } } }, // FIXME
   { "if 3 == 3 then $a = max((1 + 3), 2); end", { "$a = 4", 128 }, { "$a = 4", 128 } },
   { "if 3 == 3 then $a = max((1 + (3 * 3)), 2); end", { "$a = 10", 155 }, { "$a = 10", 155 } },
   { "if 3 == 3 then $a = max(1 + 3 * 3, 3 * 4); end", { "$a = 12", 152 }, { "$a = 12", 152 } },
@@ -157,7 +158,8 @@ struct unittest_t {
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$a = 2", 186 } },
   { "on foo then bar(); end  ", { { "", 50 } },  { { "", 50 } } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
-  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } }
+  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } },
+  { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 98 } },  { { "$b = NULL$a = 0", 98 } } }, // FIXME
 };
 
 static int alignedbytes(int v) {
@@ -438,6 +440,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       value->type = VINTEGER;
       value->ret = token;
       value->value = (int)cpy->value;
+
       varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vinteger_t);
     } break;
     case VFLOAT: {
@@ -515,7 +518,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
               // exit(-1);
             } break;
           }
-          x += sizeof(struct vm_vfloat_t)-1;
+          x += sizeof(struct vm_vnull_t)-1;
         } break;
         default: {
           printf("err: %s %d\n", __FUNCTION__, __LINE__);
