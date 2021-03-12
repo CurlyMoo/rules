@@ -68,6 +68,9 @@ struct unittest_t {
   { "if 3 == 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
   { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 95 } }, { { "$a = 3", 95 } } },
   { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 112 } }, { { "$a = 6", 112 } } },
+  { "if 1 == 1 == 1 then $a = 1; end", { { "$a = 1", 95 } },  { { "$a = 1", 95 } } },
+  { "if 1 == 1 == 2 then $a = 1; end", { { "$a = 1", 95 } },  { { "", 87 } } },
+  { "if 1 == 1 then $a = 1; $a = $a + 2; end", { { "$a = 3", 127 } }, { { "$a = 3", 127 } } },
   { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 172 } }, { { "$a = 10", 172 } } },
   { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 113 } }, { { "", 105 } } },
   { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 129 } }, { { "$a = 9", 129 } } },
@@ -160,6 +163,41 @@ struct unittest_t {
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } },
   { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 98 } },  { { "$b = NULL$a = 0", 98 } } }, // FIXME
+
+  /*
+   * Invalid rules
+   */
+  { "", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "foo", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "1 == 1", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo do", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if foo then", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1.1.1 == 1 then", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == ) then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if (1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if () then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if ( == ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 2 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = 1; max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then max(1, 2) == 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then max(1, 2) == 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if if == 1 then $a == 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if on foo then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on if 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if max == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = 1; foo() end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then max(1, 2 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then max(1, == ); end", { { NULL, 0 } },  { { NULL, 0 } } }
 };
 
 static int alignedbytes(int v) {
@@ -599,7 +637,9 @@ void run_test(int *i) {
   varstack->stack = NULL;
   varstack->nrbytes = 4;
 
-  while(rule_initialize(unittests[(*i)].rule, &pos, &rules, &nrrules, varstack) == 0) {
+  int ret = 0;
+
+  while((ret = rule_initialize(unittests[(*i)].rule, &pos, &rules, &nrrules, varstack)) == 0) {
     const char *rule = &unittests[(*i)].rule[ppos];
     int size = (pos-ppos);
 #ifdef ESP8266
@@ -710,12 +750,37 @@ void run_test(int *i) {
     varstack->nrbytes = 4;
   }
 
-  if(nrrules > 0) {
+  if(ret == -1) {
+    const char *rule = unittests[(*i)].rule;
+    int size = strlen(unittests[(*i)].rule);
+#ifdef ESP8266
+    memset(&out, 0, 1024);
+    if(size > 49) {
+      size = min(size, 45);
+      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+    } else {
+      size = min(size, 50);
+      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+    }
+    Serial.println(out);
+#else
+    if(size > 49) {
+      size = min(size, 45);
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+    } else {
+      size = min(size, 50);
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+    }
+#endif
+  } else {
     for(x=0;x<nrrules;x++) {
       struct varstack_t *node = (struct varstack_t *)rules[x]->userdata;
       FREE(node->stack);
       FREE(node);
     }
+  }
+
+  if(nrrules > 0) {
     rules_gc(&rules, nrrules);
   }
   nrrules = 0;
