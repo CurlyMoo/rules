@@ -1390,7 +1390,7 @@ static int rule_parse(struct rules_t *obj) {
                 default: {
                   int val = 0;
                   lexer_bytecode_pos(obj, pos+1, &val);
-                  fprintf(stderr, "ERROR: 1Unexpected token at position #%d\n", val);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val);
                   return -1;
                 } break;
               }
@@ -1547,7 +1547,7 @@ static int rule_parse(struct rules_t *obj) {
                 } else {
                   int val = 0;
                   lexer_bytecode_pos(obj, cache->end - 1, &val);
-                  fprintf(stderr, "ERROR: 2Unexpected token at position #%d\n", val);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val);
                   return -1;
                 }
 
@@ -1580,7 +1580,7 @@ static int rule_parse(struct rules_t *obj) {
                 } else {
                   int val = 0;
                   lexer_bytecode_pos(obj, cache->end, &val);
-                  fprintf(stderr, "ERROR: 3Unexpected token at position #%d\n", val);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val);
                   return -1;
                 }
 
@@ -1707,7 +1707,7 @@ static int rule_parse(struct rules_t *obj) {
                 default: {
                   int val = 0;
                   lexer_bytecode_pos(obj, pos-1, &val);
-                  fprintf(stderr, "ERROR: 4Unexpected token at position #%d\n", val+1);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val+1);
                   return -1;
                 } break;
               }
@@ -1886,7 +1886,7 @@ static int rule_parse(struct rules_t *obj) {
               default: {
                 int val = 0;
                 lexer_bytecode_pos(obj, pos, &val);
-                fprintf(stderr, "ERROR: 5Unexpected token at position #%d\n", val+1);
+                fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val+1);
                 return -1;
               } break;
             }
@@ -1903,7 +1903,7 @@ static int rule_parse(struct rules_t *obj) {
               default: {
                 int val = 0;
                 lexer_bytecode_pos(obj, pos, &val);
-                fprintf(stderr, "ERROR: 6Unexpected token at position #%d\n", val+1);
+                fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val+1);
                 return -1;
               } break;
             }
@@ -2120,7 +2120,7 @@ static int rule_parse(struct rules_t *obj) {
                 default: {
                   int val = 0;
                   lexer_bytecode_pos(obj, pos, &val);
-                  fprintf(stderr, "ERROR: 7Unexpected token at position #%d\n", val);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val);
                   return -1;
                 } break;
               }
@@ -2278,13 +2278,13 @@ static int rule_parse(struct rules_t *obj) {
               case TOPERATOR: {
                 int val = 0;
                 lexer_bytecode_pos(obj, pos+1, &val);
-                fprintf(stderr, "ERROR: 8Unexpected operator at position #%d\n", val+1);
+                fprintf(stderr, "ERROR: Unexpected operator at position #%d\n", val+1);
                 return -1;
               } break;
               default: {
                 int val = 0;
                 lexer_bytecode_pos(obj, pos+1, &val);
-                fprintf(stderr, "ERROR: 9Unexpected token at position #%d\n", val+1);
+                fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val+1);
                 return -1;
               }
             }
@@ -2532,7 +2532,7 @@ static int rule_parse(struct rules_t *obj) {
                 default: {
                   int val = 0;
                   lexer_bytecode_pos(obj, pos, &val);
-                  fprintf(stderr, "ERROR: 10Unexpected token at position #%d\n", val);
+                  fprintf(stderr, "ERROR: Unexpected token at position #%d\n", val);
                   return -1;
                 } break;
               }
@@ -3323,7 +3323,7 @@ void valprint(struct rules_t *obj, char *out, int size) {
   }
 }
 
-void vm_clear_values(struct rules_t *obj) {
+static void vm_clear_values(struct rules_t *obj) {
   int i = 0, x = 0;
   for(i=0;i<obj->nrbytes;i++) {
     if(obj->bytecode[i] == 0 && obj->bytecode[i+1] == 0) {
