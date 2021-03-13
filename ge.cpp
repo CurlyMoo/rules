@@ -32,7 +32,14 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
   /*
    * Values can only be equal when the type matches
    */
-  if((obj->bytecode[a]) != (obj->bytecode[b])) {
+  if(
+      (
+        obj->bytecode[a] == VNULL || obj->bytecode[a] == VCHAR ||
+        obj->bytecode[b] == VNULL || obj->bytecode[b] == VCHAR
+      )
+    &&
+      (obj->bytecode[a] != obj->bytecode[b])
+    ) {
     out->value = 0;
   } else {
     switch(obj->bytecode[a]) {
@@ -46,9 +53,21 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
 /* LCOV_EXCL_STOP*/
       } break;
       case VINTEGER: {
-        struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
-        struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
-        if(na->value >= nb->value) {
+        float av = 0.0;
+        float bv = 0.0;
+        if(obj->bytecode[a] == VINTEGER) {
+          struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
+          av = (float)na->value;
+        }
+        if(obj->bytecode[b] == VFLOAT) {
+          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
+          bv = nb->value;
+        }
+        if(obj->bytecode[b] == VINTEGER) {
+          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
+          bv = (float)nb->value;
+        }
+        if(av > bv || abs(av-bv) < EPSILON) {
           out->value = 1;
         } else {
           out->value = 0;
@@ -56,19 +75,41 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-        printf("%s %d %d\n", __FUNCTION__, na->value, nb->value);
+        printf("%s %g %g\n", __FUNCTION__, av, bv);
 #endif
 /* LCOV_EXCL_STOP*/
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
-        struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
-        if(na->value >= nb->value) {
+        float av = 0.0;
+        float bv = 0.0;
+        if(obj->bytecode[a] == VFLOAT) {
+          struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
+          av = na->value;
+        }
+        if(obj->bytecode[b] == VFLOAT) {
+          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
+          bv = nb->value;
+        }
+        if(obj->bytecode[b] == VINTEGER) {
+          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
+          bv = (float)nb->value;
+        }
+        if(av > bv || abs(av-bv) < EPSILON) {
           out->value = 1;
         } else {
           out->value = 0;
         }
+
+/* LCOV_EXCL_START*/
+#ifdef DEBUG
+        printf("%s %g %g\n", __FUNCTION__, av, bv);
+#endif
+/* LCOV_EXCL_STOP*/
       } break;
+      /*
+       * FIXME
+       */
+      /* LCOV_EXCL_START*/
       case VCHAR: {
         struct vm_vchar_t *na = (struct vm_vchar_t *)&obj->bytecode[a];
         struct vm_vchar_t *nb = (struct vm_vchar_t *)&obj->bytecode[b];
@@ -78,6 +119,7 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
           out->value = 0;
         }
       } break;
+      /* LCOV_EXCL_STOP*/
     }
   }
 

@@ -60,9 +60,14 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
         out->value = 0;
       }
     } break;
+    /*
+     * FIXME
+     */
+    /* LCOV_EXCL_START*/
     case VCHAR: {
       out->value = 1;
     } break;
+    /* LCOV_EXCL_STOP*/
   }
   switch(obj->bytecode[b]) {
     case VNULL: {
@@ -89,9 +94,14 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
         out->value = 0;
       }
     } break;
+    /*
+     * FIXME
+     */
+    /* LCOV_EXCL_START*/
     case VCHAR: {
       out->value = 1;
     } break;
+    /* LCOV_EXCL_STOP*/
   }
 
   obj->nrbytes += sizeof(struct vm_vinteger_t);

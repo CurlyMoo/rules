@@ -60,9 +60,11 @@ int event_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint16_
           obj->nrbytes += sizeof(struct vm_vfloat_t);
           return 0;
         } break;
+        /* LCOV_EXCL_START*/
         case VCHAR: {
           exit(-1);
         } break;
+        /* LCOV_EXCL_STOP*/
         default: {
 
         } break;

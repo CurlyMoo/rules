@@ -34,7 +34,7 @@ int event_operator_or_callback(struct rules_t *obj, int a, int b, int *ret) {
     out->value = 0;
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-        printf("%s NULL\n", __FUNCTION__);
+    printf("%s NULL\n", __FUNCTION__);
 #endif
 /* LCOV_EXCL_STOP*/
   } else {
@@ -64,9 +64,14 @@ int event_operator_or_callback(struct rules_t *obj, int a, int b, int *ret) {
           out->value = 0;
         }
       } break;
+      /*
+       * FIXME
+       */
+      /* LCOV_EXCL_START*/
       case VCHAR: {
         out->value = 1;
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     switch(obj->bytecode[b]) {
       case VINTEGER: {
@@ -90,9 +95,14 @@ int event_operator_or_callback(struct rules_t *obj, int a, int b, int *ret) {
           out->value = 0;
         }
       } break;
+      /*
+       * FIXME
+       */
+      /* LCOV_EXCL_START*/
       case VCHAR: {
         out->value = 1;
       } break;
+      /* LCOV_EXCL_STOP*/
     }
   }
 

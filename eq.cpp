@@ -70,6 +70,10 @@ int event_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
           out->value = 0;
         }
       } break;
+      /*
+       * FIXME
+       */
+      /* LCOV_EXCL_START*/
       case VCHAR: {
         struct vm_vchar_t *na = (struct vm_vchar_t *)&obj->bytecode[a];
         struct vm_vchar_t *nb = (struct vm_vchar_t *)&obj->bytecode[b];
@@ -79,6 +83,7 @@ int event_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
           out->value = 0;
         }
       } break;
+      /* LCOV_EXCL_STOP*/
     }
   }
 

@@ -3065,6 +3065,8 @@ static int vm_value_upd_pos(struct rules_t *obj, int val, int step) {
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[step];
       node->value = val;
     } break;
+    case VNULL: {
+    } break;
     /* LCOV_EXCL_START*/
     default: {
       fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
