@@ -34,6 +34,7 @@ int event_function_max_callback(struct rules_t *obj, uint16_t argc, uint16_t *ar
   struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
   out->ret = 0;
   out->type = VINTEGER;
+  out->value = 0;
 
   int i = 0;
   for(i=0;i<argc;i++) {

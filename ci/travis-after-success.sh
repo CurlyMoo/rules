@@ -9,5 +9,7 @@ if [[ "$COVERAGE" == "1" && "$TRAVIS_EVENT_TYPE" != "pull_request" ]]; then
 
     lcov --list coverage-filtered.info
 
+    genhtml coverage-filtered.info
+
     coveralls-lcov --repo-token ${COVERALLS_TOKEN} coverage.info
 fi

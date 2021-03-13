@@ -92,6 +92,7 @@ typedef struct rule_options_t {
    */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
+  void (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
   void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, int size);
 

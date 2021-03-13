@@ -63,9 +63,15 @@ struct unittest_t {
    * Valid rules
    */
   { "if 3 == 3 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
+  { "if (3 == 3) then $a = 6; end", { { "$a = 6", 88 } }, { { "$a = 6", 88 } } },
+  { "if NULL == 3 then $a = 6; end", { { "$a = 6", 80 } }, { { "", 72 } } },
+  { "if 3 == NULL then $a = 6; end", { { "$a = 6", 80 } }, { { "", 72 } } },
+  { "if (NULL == 3) then $a = 6; end", { { "$a = 6", 90 } }, { { "", 82 } } },
+  { "if (3 == NULL) then $a = 6; end", { { "$a = 6", 90 } }, { { "", 82 } } },
   { "if @a == 3 then $a = 6; end", { { "$a = 6", 89 } }, { { "", 81 } } },
   { "if 3 == 3 then @a = 6; end", { { "@a = 6", 78 } }, { { "@a = 6", 78 } } },
   { "if 3 == 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
+  { "if 3 == 3 then $a = 1.1; end", { { "$a = 1.1", 80 } }, { { "$a = 1.1", 80 } } },
   { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 95 } }, { { "$a = 3", 95 } } },
   { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 112 } }, { { "$a = 6", 112 } } },
   { "if 1 == 1 == 1 then $a = 1; end", { { "$a = 1", 95 } },  { { "$a = 1", 95 } } },
@@ -100,6 +106,7 @@ struct unittest_t {
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 5 >= 4; end", { "$a = 1", 173 }, { "$a = 1", 173 } },
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 3 >= 4; end", { "$a = 0", 173 }, { "$a = 0", 173 } },
   { "if 1 == 1 then $a = 3; end", { "$a = 3", 78 }, { "$a = 3", 78 } },
+  { "if 1 == 1 then $a = 3.1; $b = $a; end", { "$a = 3.1$b = 3.1", 120 }, { "$a = 3.1$b = 3.1", 120 } },
   { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 102 }, { "$a = NULL", 102 } },
   { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 129 }, { "$a = 1", 129 } },
   { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 182 }, { "$a = 1", 182 } },
@@ -120,8 +127,11 @@ struct unittest_t {
   { "if 1 == 1 then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 212 }, { "$a = 2", 204 } },
   { "if 1 == 1 then $a = 1; $b = $a; end", { "$a = 1$b = 1", 118 }, { "$a = 1$b = 1", 118 } },
   { "if 1 == 1 then $a = 1; if 5 >= 4 then $a = 3; end $b = $a; end", { "$a = 3$b = 3", 181 }, { "$a = 3$b = 3", 181 } },
+  { "if 1 == 1 then $a = 1; if $a == 1 then $a = 3; end end", { "$a = 3", 152 }, { "$a = 3", 152 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; end", { "$a = 1", 156 }, { "$a = 1", 156 } },
   { "if 3 == 3 then $a = max(1); end", { "$a = 1", 95 }, { "$a = 1", 95 } },
+  { "if 3 == 3 then $a = max(NULL, 1); end", { "$a = 1", 103 }, { "$a = 1", 103 } },
+  { "if 3 == 3 then $a = max(1, NULL); end", { "$a = 1", 103 }, { "$a = 1", 103 } },
   { "if 3 == 3 then $b = 2; $a = max($b, 1); end", { "$b = 2$a = 2", 141 }, { "$b = 2$a = 2", 141 } },
   { "if 3 == 3 then $a = max(1, 2); end", { "$a = 2", 101 }, { "$a = 2", 101 } },
   { "if 3 == 3 then $a = max(1, 2, 3, 4); end", { "$a = 4", 113 }, { "$a = 4", 113 } },
@@ -153,6 +163,7 @@ struct unittest_t {
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 368 }, { "$a = 4$b = 3", 368 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 532 }, { "$a = 4$b = 52@c = 5", 532 } },
   { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 78 }, { "$b = 3" , 78 } },  { { "$a = 6", 78 }, { "$b = 3" , 78 } } },
+  { "on foo then max(1, 2); end", { "", 60 }, { "", 60 } },
   { "on foo then $a = 6; end", { "$a = 6", 60 }, { "$a = 6", 60 } },
   { "on foo then $a = 6; $b = 3; end", { "$a = 6$b = 3", 89 }, { "$a = 6$b = 3", 89 } },
   { "on foo then @a = 6; end", { { "@a = 6", 60 } }, { { "@a = 6", 60 } } },
@@ -169,6 +180,7 @@ struct unittest_t {
    */
   { "", { { NULL, 0 } },  { { NULL, 0 } } },
   { "foo", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "foo(", { { NULL, 0 } },  { { NULL, 0 } } },
   { "1 == 1", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo do", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if foo then", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -197,7 +209,14 @@ struct unittest_t {
   { "if max == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1; foo() end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then max(1, 2 end", { { NULL, 0 } },  { { NULL, 0 } } },
-  { "if 1 == 1 then max(1, == ); end", { { NULL, 0 } },  { { NULL, 0 } } }
+  { "if 1 == 1 then max(1, == ); end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if (1 + 1) 1 then $a = 3; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then NULL; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = max(1, 2)NULL; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = ); end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 1 then $a = $a $a; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then bar() $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if ( ; == 1 ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
 };
 
 static int alignedbytes(int v) {
