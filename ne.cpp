@@ -33,16 +33,25 @@ int event_operator_ne_callback(struct rules_t *obj, int a, int b, int *ret) {
    * Values can only be equal when the type matches
    */
   if((obj->bytecode[a]) != (obj->bytecode[b])) {
-    out->value = 0;
+    out->value = 1;
   } else {
     switch(obj->bytecode[a]) {
+      case VNULL: {
+        out->value = 1;
+
+/* LCOV_EXCL_START*/
+#ifdef DEBUG
+        printf("%s NULL\n", __FUNCTION__);
+#endif
+/* LCOV_EXCL_STOP*/
+      } break;
       case VINTEGER: {
         struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
         struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
-        if(na->value != nb->value) {
-          out->value = 1;
-        } else {
+        if(na->value == nb->value) {
           out->value = 0;
+        } else {
+          out->value = 1;
         }
 
 /* LCOV_EXCL_START*/
@@ -55,21 +64,26 @@ int event_operator_ne_callback(struct rules_t *obj, int a, int b, int *ret) {
       case VFLOAT: {
         struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
         struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
-        if(abs((float)na->value-(float)nb->value) > EPSILON) {
-          out->value = 1;
-        } else {
+        if(abs((float)na->value-(float)nb->value) < EPSILON) {
           out->value = 0;
+        } else {
+          out->value = 1;
         }
       } break;
+      /*
+       * FIXME
+       */
+      /* LCOV_EXCL_START*/
       case VCHAR: {
         struct vm_vchar_t *na = (struct vm_vchar_t *)&obj->bytecode[a];
         struct vm_vchar_t *nb = (struct vm_vchar_t *)&obj->bytecode[b];
-        if(strcmp((char *)na->value, (char *)nb->value) != 0) {
-          out->value = 1;
-        } else {
+        if(strcmp((char *)na->value, (char *)nb->value) == 0) {
           out->value = 0;
+        } else {
+          out->value = 1;
         }
       } break;
+      /* LCOV_EXCL_STOP*/
     }
   }
 

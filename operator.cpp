@@ -31,6 +31,7 @@
 #include "plus.h"
 #include "multiply.h"
 #include "and.h"
+#include "mod.h"
 #include "or.h"
 #include "divide.h"
 #include "ge.h"
@@ -46,6 +47,7 @@ struct event_operator_t event_operators[] = {
   { "+", 60, 1, event_operator_plus_callback },
   { "-", 60, 1, event_operator_minus_callback },
   { "*", 70, 1, event_operator_multiply_callback },
+  { "%", 70, 1, event_operator_mod_callback },
   { "&&", 20, 1, event_operator_and_callback },
   { "||", 10, 1, event_operator_or_callback },
   { "/", 70, 1, event_operator_divide_callback },

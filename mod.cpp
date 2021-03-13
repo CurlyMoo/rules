@@ -10,16 +10,16 @@
   #pragma GCC diagnostic warning "-fpermissive"
 #endif
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 #include <math.h>
 
 #include "function.h"
 #include "mem.h"
 #include "rules.h"
 
-int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
+int event_operator_mod_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->nrbytes;
 
   if((obj->bytecode[a]) == VNULL || (obj->bytecode[b]) == VNULL) {
@@ -49,7 +49,7 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 
     out->ret = 0;
     out->type = VFLOAT;
-    out->value = na->value - nb->value;
+    out->value = fmod(na->value, nb->value);
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
@@ -58,14 +58,13 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 /* LCOV_EXCL_STOP*/
 
     obj->nrbytes += sizeof(struct vm_vfloat_t);
-  } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
-    float f = 0;
-    int i = 0;
-
+  } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {    
     struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
     out->ret = 0;
     out->type = VFLOAT;
 
+    float f = 0;
+    int i = 0;
     if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vfloat_t))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
@@ -75,17 +74,17 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
     } else if((obj->bytecode[a]) == VINTEGER) {
       struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
       i = na->value;
+      out->value = fmodf(f, (float)i);
     }
     if((obj->bytecode[b]) == VFLOAT) {
       struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
       f = nb->value;
-      out->value = i - f;
+      out->value = fmodf(f, (float)i);
     } else if((obj->bytecode[b]) == VINTEGER) {
       struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
       i = nb->value;
-      out->value = f - i;
+      out->value = fmodf((float)i, f);
     }
-
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
@@ -104,7 +103,7 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 
     out->ret = 0;
     out->type = VINTEGER;
-    out->value = na->value - nb->value;
+    out->value = na->value % nb->value;
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
