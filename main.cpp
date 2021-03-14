@@ -34,9 +34,11 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+#define OUTPUT_SIZE 512
+
 static struct rules_t **rules = NULL;
 static int nrrules = 0;
-static char out[1024];
+static char out[OUTPUT_SIZE];
 
 struct rule_options_t rule_options;
 
@@ -53,11 +55,11 @@ struct unittest_t {
   struct {
     const char *output;
     int bytes;
-  } validate[12];
+  } validate[3];
   struct {
     const char *output;
     int bytes;
-  } run[12];
+  } run[3];
 } unittests[] = {
   /*
    * Valid rules
@@ -661,8 +663,8 @@ static int event_cb(struct rules_t *obj, const char *name) {
     called = rules[obj->caller-1];
 
 #ifdef ESP8266
-    memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "- continuing with caller #%d at step #%d", obj->caller, called->cont.go);
+    memset(&out, 0, OUTPUT_SIZE);
+    snprintf((char *)&out, OUTPUT_SIZE, "- continuing with caller #%d at step #%d", obj->caller, called->cont.go);
     Serial.println(out);
 #else
     printf("- continuing with caller #%d at step #%d\n", obj->caller, called->cont.go);
@@ -686,8 +688,8 @@ static int event_cb(struct rules_t *obj, const char *name) {
     called->caller = obj->nr;
 
 #ifdef ESP8266
-    memset(&out, 0, 1024);
-    snprintf((char *)&out, 1024, "- running event \"%s\" called from caller #%d", name, obj->nr);
+    memset(&out, 0, OUTPUT_SIZE);
+    snprintf((char *)&out, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
     Serial.println(out);
 #else
     printf("- running event \"%s\" called from caller #%d\n", name, obj->nr);
@@ -730,13 +732,13 @@ void run_test(int *i) {
     const char *rule = &unittests[(*i)].rule[ppos];
     int size = (pos-ppos);
 #ifdef ESP8266
-    memset(&out, 0, 1024);
+    memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = min(size, 45);
-      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
     } else {
       size = min(size, 50);
-      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
     }
     Serial.println(out);
 #else
@@ -752,12 +754,12 @@ void run_test(int *i) {
 #ifdef DEBUG
     printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 1));
 #endif
-    valprint(rules[nrrules-1], (char *)&out, 1024);
+    valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
 
     if(strcmp(out, unittests[(*i)].validate[rules[nrrules-1]->nr-1].output) != 0) {
 #ifdef ESP8266
-      memset(&out, 0, 1024);
-      snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output, out);
+      memset(&out, 0, OUTPUT_SIZE);
+      snprintf((char *)&out, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output, out);
       Serial.println(out);
 #else
       printf("Expected: %s\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output);
@@ -768,10 +770,10 @@ void run_test(int *i) {
 
 #ifndef ESP8266
     if((rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes) {
-      // memset(&out, 0, 1024);
-      // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
+      // memset(&out, 0, OUTPUT_SIZE);
+      // snprintf((char *)&out, OUTPUT_SIZE, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
       // Serial.println(out);
-  // #else
+// #else
       printf("Expected: %d\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes);
       printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4));
 
@@ -799,24 +801,24 @@ void run_test(int *i) {
       printf("bytecode is %d bytes\n", rules[nrrules-1]->nrbytes);
 #endif
 
+#ifndef ESP8266
       if((rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes) {
-#ifdef ESP8266
-        // memset(&out, 0, 1024);
-        // snprintf((char *)&out, 1024, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
+        // memset(&out, 0, OUTPUT_SIZE);
+        // snprintf((char *)&out, OUTPUT_SIZE, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
         // Serial.println(out);
-#else
+// #else
         printf("Expected: %d\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes);
         printf("Was: %d\n", rules[nrrules-1]->nrbytes + (varstack->nrbytes - 4));
 
         exit(-1);
-#endif
       }
+#endif
 
-      valprint(rules[nrrules-1], (char *)&out, 1024);
+      valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
       if(strcmp(out, unittests[(*i)].run[rules[nrrules-1]->nr-1].output) != 0) {
 #ifdef ESP8266
-        memset(&out, 0, 1024);
-        snprintf((char *)&out, 1024, "Expected: %s\nWas: %s", unittests[(*i)].run[rules[nrrules-1]->nr-1].output, out);
+        memset(&out, 0, OUTPUT_SIZE);
+        snprintf((char *)&out, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].run[rules[nrrules-1]->nr-1].output, out);
         Serial.println(out);
 #else
         printf("Expected: %s\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].output);
@@ -841,13 +843,13 @@ void run_test(int *i) {
     const char *rule = unittests[(*i)].rule;
     int size = strlen(unittests[(*i)].rule);
 #ifdef ESP8266
-    memset(&out, 0, 1024);
+    memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = min(size, 45);
-      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
     } else {
       size = min(size, 50);
-      snprintf((char *)&out, 1024, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
     }
     Serial.println(out);
 #else
