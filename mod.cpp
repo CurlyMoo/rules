@@ -58,16 +58,18 @@ int event_operator_mod_callback(struct rules_t *obj, int a, int b, int *ret) {
 /* LCOV_EXCL_STOP*/
 
     obj->nrbytes += sizeof(struct vm_vfloat_t);
-  } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {    
-    struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
-    out->ret = 0;
-    out->type = VFLOAT;
+  } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
 
     float f = 0;
     int i = 0;
     if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vfloat_t))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
+
+    struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
+    out->ret = 0;
+    out->type = VFLOAT;
+
     if((obj->bytecode[a]) == VFLOAT) {
       struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
       f = na->value;

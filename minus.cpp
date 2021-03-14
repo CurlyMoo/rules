@@ -62,13 +62,14 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
     float f = 0;
     int i = 0;
 
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vfloat_t))) == NULL) {
+      OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+    }
+
     struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
     out->ret = 0;
     out->type = VFLOAT;
 
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vfloat_t))) == NULL) {
-      OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-    }
     if((obj->bytecode[a]) == VFLOAT) {
       struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
       f = na->value;
