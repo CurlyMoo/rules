@@ -67,7 +67,7 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
           struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
           bv = (float)nb->value;
         }
-        if(av > bv || abs(av-bv) < EPSILON) {
+        if(av > bv || fabs(av-bv) < EPSILON) {
           out->value = 1;
         } else {
           out->value = 0;
@@ -94,7 +94,7 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
           struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
           bv = (float)nb->value;
         }
-        if(av > bv || abs(av-bv) < EPSILON) {
+        if(av > bv || fabs(av-bv) < EPSILON) {
           out->value = 1;
         } else {
           out->value = 0;

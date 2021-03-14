@@ -64,7 +64,7 @@ int event_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
       case VFLOAT: {
         struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
         struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
-        if(abs((float)na->value-(float)nb->value) < EPSILON) {
+        if(fabs((float)na->value-(float)nb->value) < EPSILON) {
           out->value = 1;
         } else {
           out->value = 0;

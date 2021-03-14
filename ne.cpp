@@ -64,11 +64,17 @@ int event_operator_ne_callback(struct rules_t *obj, int a, int b, int *ret) {
       case VFLOAT: {
         struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
         struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
-        if(abs((float)na->value-(float)nb->value) < EPSILON) {
+        if(fabs((float)na->value-(float)nb->value) < EPSILON) {
           out->value = 0;
         } else {
           out->value = 1;
         }
+
+/* LCOV_EXCL_START*/
+#ifdef DEBUG
+        printf("%s %d %d\n", __FUNCTION__, na->value, nb->value);
+#endif
+/* LCOV_EXCL_STOP*/
       } break;
       /*
        * FIXME
