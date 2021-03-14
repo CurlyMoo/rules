@@ -75,7 +75,7 @@ int event_operator_gt_callback(struct rules_t *obj, int a, int b, int *ret) {
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-        printf("%s %d %d\n", __FUNCTION__, na->value, nb->value);
+        printf("%s %g %g\n", __FUNCTION__, av, bv);
 #endif
 /* LCOV_EXCL_STOP*/
       } break;
