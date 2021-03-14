@@ -4064,6 +4064,9 @@ int rule_run(struct rules_t *obj, int validate) {
             rule_options.cpy_token_val_cb(obj, go);
           }
 
+          /*
+           * Reassign node due to various (unsigned char *)REALLOC's
+           */
           node = (struct vm_tvar_t *)&obj->bytecode[go];
 
           ret = go;
