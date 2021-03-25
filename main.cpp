@@ -64,186 +64,190 @@ struct unittest_t {
   /*
    * Valid rules
    */
-  { "if 3 == 3 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if (3 == 3) then $a = 6; end", { { "$a = 6", 88 } }, { { "$a = 6", 88 } } },
-  { "if NULL == 3 then $a = 6; end", { { "$a = 6", 80 } }, { { "", 72 } } },
-  { "if 1.1 == 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 1.1 == 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 4 != 3 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if (4 != 3) then $a = 6; end", { { "$a = 6", 88 } }, { { "$a = 6", 88 } } },
-  { "if NULL != 3 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if NULL != NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 1.2 != 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 1.2 != 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.1 >= 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.1 >= 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 2 >= 1.1 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if 2.1 >= 1 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if NULL >= 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if NULL >= NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1 > 2 then $a = 6; end", { { "$a = 6", 78 } }, { { "", 70 } } },
-  { "if 2 > 1 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if 2 > 1.1 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if 1.1 > 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.1 > 1.0 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if NULL > 1.2 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if NULL > NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.2 <= 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.1 <= 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 1.1 <= 2 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if 1 <= 2 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if 2 <= 1 then $a = 6; end", { { "$a = 6", 78 } }, { { "", 70 } } },
-  { "if 1 <= 2.1 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if 1.2 <= NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if NULL <= NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 2 < 1 then $a = 6; end", { { "$a = 6", 78 } }, { { "", 70 } } },
-  { "if 1 < 2 then $a = 6; end", { { "$a = 6", 78 } }, { { "$a = 6", 78 } } },
-  { "if 1.1 < 2 then $a = 6; end", { { "$a = 6", 80 } }, { { "$a = 6", 80 } } },
-  { "if 1.2 < 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if 1.0 < 1.1 then $a = 6; end", { { "$a = 6", 82 } }, { { "$a = 6", 82 } } },
-  { "if 1.2 < NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if NULL < NULL then $a = 6; end", { { "$a = 6", 82 } }, { { "", 74 } } },
-  { "if NULL && NULL then $a = -6; end", { { "$a = -6", 83 } }, { { "", 75 } } },
-  { "if 0 && 0 then $a = -6; end", { { "$a = -6", 79 } }, { { "", 71 } } },
-  { "if 1 && 1 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
-  { "if 1.1 && 1.2 then $a = -6; end", { { "$a = -6", 83 } }, { { "$a = -6", 83 } } },
-  { "if 0.0 && 1.2 then $a = -6; end", { { "$a = -6", 83 } }, { { "", 75 } } },
-  { "if -1.1 && 1.2 then $a = -6; end", { { "$a = -6", 84 } }, { { "", 76 } } },
-  { "if 1.2 && 0.0 then $a = -6; end", { { "$a = -6", 83 } }, { { "", 75 } } },
-  { "if 1.2 && -1.1 then $a = -6; end", { { "$a = -6", 84 } }, { { "", 76 } } },
-  { "if NULL || NULL then $a = -6; end", { { "$a = -6", 83 } }, { { "", 75 } } },
-  { "if 0 || 0 then $a = -6; end", { { "$a = -6", 79 } }, { { "", 71 } } },
-  { "if 1 || 1 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
-  { "if 1.1 || 1.2 then $a = -6; end", { { "$a = -6", 83 } }, { { "$a = -6", 83 } } },
-  { "if -0.1 || -0.1 then $a = -6; end", { { "$a = -6", 85 } }, { { "", 77 } } },
-  { "if 0.0 || 1.2 then $a = -6; end", { { "$a = -6", 83 } }, { { "$a = -6", 83 } } },
-  { "if -1.1 || 1.2 then $a = -6; end", { { "$a = -6", 84 } }, { { "$a = -6", 84 } } },
-  { "if 1.2 || 0.0 then $a = -6; end", { { "$a = -6", 83 } }, { { "$a = -6", 83 } } },
-  { "if 1.2 || -1.1 then $a = -6; end", { { "$a = -6", 84 } }, { { "$a = -6", 84 } } },
-  { "if 3 == NULL then $a = 6; end", { { "$a = 6", 80 } }, { { "", 72 } } },
-  { "if (NULL == 3) then $a = 6; end", { { "$a = 6", 90 } }, { { "", 82 } } },
-  { "if (3 == NULL) then $a = 6; end", { { "$a = 6", 90 } }, { { "", 82 } } },
-  { "if @a == 3 then $a = 6; end", { { "$a = 6", 89 } }, { { "", 81 } } },
-  { "if 3 == 3 then @a = 6; end", { { "@a = 6", 78 } }, { { "@a = 6", 78 } } },
-  { "if 3 == 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
-  { "if 4 != 3 then $a = -6; end", { { "$a = -6", 79 } }, { { "$a = -6", 79 } } },
-  { "if 3 == 3 then $a = 1.1; end", { { "$a = 1.1", 80 } }, { { "$a = 1.1", 80 } } },
-  { "if 3 == 3 then $a = 1 - NULL; end", { { "$a = NULL", 93 } }, { { "$a = NULL", 93 } } },
-  { "if 3 == 3 then $a = 1 - 0.5; end", { { "$a = 0.5", 97 } }, { { "$a = 0.5", 97 } } },
-  { "if 3 == 3 then $a = 0.5 - 0.5; end", { { "$a = 0", 99 } }, { { "$a = 0", 99 } } },
-  { "if 3 == 3 then $a = 0.5 - 1; end", { { "$a = -0.5", 97 } }, { { "$a = -0.5", 97 } } },
-  { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 95 } }, { { "$a = 3", 95 } } },
-  { "if 3 == 3 then $a = 1.5 + 2.5; end", { { "$a = 4", 99 } }, { { "$a = 4", 99 } } },
-  { "if 3 == 3 then $a = 1 * NULL; end", { { "$a = NULL", 93 } }, { { "$a = NULL", 93 } } },
-  { "if 3 == 3 then $a = 1 ^ NULL; end", { { "$a = NULL", 93 } }, { { "$a = NULL", 93 } } },
-  { "if 3 == 3 then $a = 9 % 2; end", { { "$a = 1", 95 } }, { { "$a = 1", 95 } } },
-  { "if 3 == 3 then $a = 9 % NULL; end", { { "$a = NULL", 93 } }, { { "$a = NULL", 93 } } },
-  { "if 3 == 3 then $a = 9.5 % 1.5; end", { { "$a = 0.5", 99 } }, { { "$a = 0.5", 99 } } },
-  { "if 3 == 3 then $a = 10 % 1.5; end", { { "$a = 1.5", 98 } }, { { "$a = 1.5", 98 } } },
-  { "if 3 == 3 then $a = 1.5 % 10; end", { { "$a = 1", 98 } }, { { "$a = 1", 98 } } },
-  { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 112 } }, { { "$a = 6", 112 } } },
-  { "if 1 == 1 == 1 then $a = 1; end", { { "$a = 1", 95 } },  { { "$a = 1", 95 } } },
-  { "if 1 == 1 == 2 then $a = 1; end", { { "$a = 1", 95 } },  { { "", 87 } } },
-  { "if 1 == 1 then $a = 1; $a = $a + 2; end", { { "$a = 3", 127 } }, { { "$a = 3", 127 } } },
-  { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 172 } }, { { "$a = 10", 172 } } },
-  { "if 1 == 1 then $a = NULL / 1; end", { { "$a = NULL", 93 } }, { { "$a = NULL", 93 } } },
-  { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 113 } }, { { "", 105 } } },
-  { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 129 } }, { { "$a = 9", 129 } } },
-  { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { { "$a = 9", 139 } }, { { "$a = 9", 139 } } },
-  { "if 1 == 1 then $a = 1 * 2 + 3; end", { { "$a = 5", 112 } }, { { "$a = 5", 112 } } },
-  { "if 1 == 1 then $a = 1 + 2 * 3 / 4; end", { { "$a = 2.5", 129 } }, { { "$a = 2.5", 129 } } },
-  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2; end", { { "$a = 1.375", 146 } }, { { "$a = 1.375", 146 } } },
-  { "if 1 == 1 then $a = 1 + 4 ^ 2 ^ 1; end", { { "$a = 17", 129 } }, { { "$a = 17", 129 } } },
-  { "if 1 == 1 then $a = (1 + 4 ^ 2 ^ 1); end", { { "$a = 17", 139 } }, { { "$a = 17", 139 } } },
-  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2); end", { "$a = 1.375", 156 }, { "$a = 1.375", 156 } },
-  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3); end", { "$a = 2.125", 190 }, { "$a = 2.125", 190 } },
-  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3 ^ 4); end", { "$a = 31.375", 207 }, { "$a = 31.375", 207 } },
-  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2 ^ 1 * 3 ^ 4; end", { "$a = 31.375", 197 }, { "$a = 31.375", 197 } },
-  { "if 1 == 1 then $a = (1 + 2) * 3; end", { "$a = 9", 122 }, { "$a = 9", 122 } },
-  { "if 1 == 1 then $a = (1 + 2 * 3); end", { "$a = 7", 122 }, { "$a = 7", 122 } },
-  { "if 1 == 1 then $a = 3 * (1 + 2); end", { "$a = 9", 122 }, { "$a = 9", 122 } },
-  { "if 1 == 1 then $a = 3 * (1 + 2) * 2; end", { "$a = 18", 139 }, { "$a = 18", 139 } },
-  { "if 1 == 1 then $a = 3 * (1 + 3) ^ 2; end", { "$a = 48", 139 }, { "$a = 48", 139 } },
-  { "if 1 == 1 then $a = 7 + 6 * 5 / (4 - 3) ^ 2 ^ 1; end", { "$a = 37", 190 }, { "$a = 37", 190 } },
-  { "if 1 == 1 then $a = 3 * (1 + 2) + 2; end", { "$a = 11", 139 }, { "$a = 11", 139 } },
-  { "if 1 == 1 then $a = 3 + (1 + 2) * 2; end", { "$a = 9", 139 }, { "$a = 9", 139 } },
-  { "if 1 == 1 then $a = 3 * (1 + 2 / 2) + 3; end", { "$a = 9", 156 }, { "$a = 9", 156 } },
-  { "if 1 == 1 then $a = 3 * ((1 + 2) / 2) + 2; end", { "$a = 6.5", 166 }, { "$a = 6.5", 166 } },
-  { "if 1 == 1 then $a = 3 * ((1 + 2) / 2 + 3); end", { "$a = 13.5", 166 }, { "$a = 13.5", 166 } },
-  { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)); end", { "$a = 1.8", 176 }, { "$a = 1.8", 176 } },
-  { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)) + 2; end", { "$a = 3.8", 193 }, { "$a = 3.8", 193 } },
-  { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 5 >= 4; end", { "$a = 1", 173 }, { "$a = 1", 173 } },
-  { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 3 >= 4; end", { "$a = 0", 173 }, { "$a = 0", 173 } },
-  { "if 1 == 1 then $a = 3; end", { "$a = 3", 78 }, { "$a = 3", 78 } },
-  { "if 1 == 1 then $a = 3.1; $b = $a; end", { "$a = 3.1$b = 3.1", 120 }, { "$a = 3.1$b = 3.1", 120 } },
-  { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 102 }, { "$a = NULL", 102 } },
-  { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 129 }, { "$a = 1", 129 } },
-  { "if 1 == 1 then $a = coalesce($a, 1.1) + 1; end", { "$a = 2.1", 131 }, { "$a = 2.1", 131 } },
-  { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 182 }, { "$a = 1", 182 } },
-  { "if 1 == 1 then $a = 1; if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 203 }, { "$a = 2", 203 } },
-  { "if 1 == 1 then $a = 1; if $a == 1 then $a = NULL; end end", { "$a = NULL", 150 }, { "$a = NULL", 150 } },
-  { "if 1 == 1 then $a = 1; $a = NULL; end", { "$a = NULL", 97 }, { "$a = NULL", 97 } },
-  { "if 1 == 2 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 4", 107 } },
-  { "if 1 == 1 then $a = 3; else $a = 4; end", { "$a = 4", 107 }, { "$a = 3", 107 } },
-  { "if (1 + 1) == 1 then $a = 3; else $a = 4; end", { "$a = 4", 134 }, { "$a = 4", 134 } },
-  { "if 1 == 2 || 3 >= 4 then $a = max(1, 2); end", { "$a = 2", 135 }, { "", 127 } },
-  { "if 1 == 2 || 3 >= 4 then $a = min(3, 1, 2); end", { "$a = 1", 141 }, { "", 133 } },
-  { "if 1 == 2 || 3 >= 4 then $a = 1; end", { "$a = 1", 112 }, { "", 104 } },
-  { "if 1 == 2 || 3 >= 4 || 5 == 6 then $a = max(1, 3, 2); else $b = 9; end", { "$a = 3$b = 9", 212 }, { "$b = 9", 204 } },
-  { "if 1 == 1 then $a = 1; $b = 2; end", { "$a = 1$b = 2", 107 }, { "$a = 1$b = 2", 107 } },
-  { "if 1 == 1 then $a = 1; $b = ($a + 3) * 3; end", { "$a = 1$b = 12", 162 }, { "$a = 1$b = 12", 162 } },
-  { "if 1 == 1 then $a = 1; $b = $a + 3 * 3; end", { "$a = 1$b = 10", 152 }, { "$a = 1$b = 10", 152 } },
-  { "if 1 == 1 then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 141 }, { "$a = 2", 141 } },
-  { "if 1 == 1 then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 212 }, { "$a = 2", 204 } },
-  { "if 1 == 1 then $a = 1; $b = $a; end", { "$a = 1$b = 1", 118 }, { "$a = 1$b = 1", 118 } },
-  { "if 1 == 1 then $a = 1; if 5 >= 4 then $a = 3; end $b = $a; end", { "$a = 3$b = 3", 181 }, { "$a = 3$b = 3", 181 } },
-  { "if 1 == 1 then $a = 1; if $a == 1 then $a = 3; end end", { "$a = 3", 152 }, { "$a = 3", 152 } },
-  { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; end", { "$a = 1", 156 }, { "$a = 1", 156 } },
-  { "if 3 == 3 then $a = max(1); end", { "$a = 1", 95 }, { "$a = 1", 95 } },
-  { "if 3 == 3 then $a = max(NULL, 1); end", { "$a = 1", 103 }, { "$a = 1", 103 } },
-  { "if 3 == 3 then $a = max(1, NULL); end", { "$a = 1", 103 }, { "$a = 1", 103 } },
-  { "if 3 == 3 then $b = 2; $a = max($b, 1); end", { "$b = 2$a = 2", 141 }, { "$b = 2$a = 2", 141 } },
-  { "if 3 == 3 then $a = max(1, 2); end", { "$a = 2", 101 }, { "$a = 2", 101 } },
-  { "if 3 == 3 then $a = max(1, 2, 3, 4); end", { "$a = 4", 113 }, { "$a = 4", 113 } },
-  { "if 3 == 3 then $a = max(1, 4, 5, 3, 2); end", { "$a = 5", 119 }, { "$a = 5", 119 } },
-  { "if 3 == 3 then $a = max(max(1, 4), 2); end", { "$a = 4", 124 }, { "$a = 4", 124 } },
-  { "if 3 == 3 then $a = max(1, 2) * 3; end", { "$a = 6", 118 }, { "$a = 6", 118 } },
-  { "if 3 == 3 then $a = max(1, 2) * max(3, 4); end", { "$a = 8", 141 }, { "$a = 8", 141 } },
-  { "if 3 == 3 then $a = max(max(1, 2), (1 * max(1, 3) ^ 2)); end", { "$a = 9", 191 }, { "$a = 9", 191 } },
-  { "if 3 == 3 then $b = 1; $a = max($b + 1); end", { "$b = 1$a = 2", 152 }, { "$b = 1$a = 2", 152 } },
-  { "if 3 == 3 then $b = 1; $a = max($b + 1) * 3; end", { "$b = 1$a = 6", 169 }, { "$b = 1$a = 6", 169 } },
-  { "if max(1, 3) == 3 then $a = 1; end", { "$a = 1", 101 }, { "$a = 1", 101 } },
-  { "if max(1, 3) == max(1, 3) then $a = 1; end", { "$a = 1", 124 }, { "$a = 1", 124 } },
-  { "if 3 == 3 then max(1, 2); end", { "", 78 }, { "", 78 } },
-  { "if 3 == 3 then $a = max(1 + 1, 2 + 2); end", { "$a = 4", 135 }, { "$a = 4", 135 } },
-  { "if 1 == 1 then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 116 } },  { { "$b = NULL$a = 0", 116 } } }, // FIXME
-  { "if 3 == 3 then $a = max((1 + 3), 2); end", { "$a = 4", 128 }, { "$a = 4", 128 } },
-  { "if 3 == 3 then $a = max((1 + (3 * 3)), 2); end", { "$a = 10", 155 }, { "$a = 10", 155 } },
-  { "if 3 == 3 then $a = max(1 + 3 * 3, 3 * 4); end", { "$a = 12", 152 }, { "$a = 12", 152 } },
-  { "if 3 == 3 then $a = max(((2 + 3) * 3), (3 * 4)); end", { "$a = 15", 182 }, { "$a = 15", 182 } },
-  { "if 3 == 3 then $a = (max(1, 2) + 2) * 3; end", { "$a = 12", 145 }, { "$a = 12", 145 } },
-  { "if 3 == 3 then $a = (max(1, 2) + 2) * 3; end", { "$a = 12", 145 }, { "$a = 12", 145 } },
-  { "if 1 == 1 then $a = max(0, 1) + max(1, 2) * max(2, 3) / max(3, 4) ^ max(1, 2) ^ max(0, 1) * max(2, 3) ^ max(3, 4); end", { "$a = 31.375", 381 }, { "$a = 31.375", 381 } },
-  { "if 3 == 3 then $a = 2; $b = max((($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 222 }, { "$a = 2$b = 15", 222 } },
-  { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 229 }, { "$a = 2$b = 15", 229 } },
-  { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 107 }, { "$a = 1", 107 } },
-  { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 177 }, { "$a = 3", 177 } },
-  { "if 1 == 1 then if 2 == 2 then $a = 1; end else $a = 2; end", { "$a = 2", 149 }, { "$a = 1", 149 } },
-  { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 347 }, { "$a = 4$b = 14", 347 } },
-  { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 368 }, { "$a = 4$b = 3", 368 } },
-  { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 532 }, { "$a = 4$b = 52@c = 5", 532 } },
-  { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 78 }, { "$b = 3" , 78 } },  { { "$a = 6", 78 }, { "$b = 3" , 78 } } },
-  { "on foo then max(1, 2); end", { "", 60 }, { "", 60 } },
-  { "on foo then $a = 6; end", { "$a = 6", 60 }, { "$a = 6", 60 } },
-  { "on foo then $a = 6; $b = 3; end", { "$a = 6$b = 3", 89 }, { "$a = 6$b = 3", 89 } },
-  { "on foo then @a = 6; end", { { "@a = 6", 60 } }, { { "@a = 6", 60 } } },
-  { "on foo then $a = 1 + 2; end", { { "$a = 3", 77 } }, { { "$a = 3", 77 } } },
-  { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 123 }, { "$a = 2", 123 } },
-  { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 194 }, { "$a = 2", 186 } },
-  { "on foo then bar(); end  ", { { "", 50 } },  { { "", 50 } } },
-  { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3" , 78 } },  { { "$a = 6", 60 }, { "$b = 3" , 78 } } },
-  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 60 }, { "$b = 3", 103 } },  { { "$a = 6", 60 }, { "$b = 3", 103 } } },
-  { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 98 } },  { { "$b = NULL$a = 0", 98 } } }, // FIXME
+  { "if 3 == 3 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if (3 == 3) then $a = 6; end", { { "$a = 6", 70 } }, { { "$a = 6", 70 } } },
+  { "if 100 == 100 then $a = 100; end", { { "$a = 100", 69 } }, { { "$a = 100", 69 } } },
+  { "if -10 == -10 then $a = -10; end", { { "$a = -10", 69 } }, { { "$a = -10", 69 } } },
+  { "if NULL == 3 then $a = 6; end", { { "$a = 6", 61 } }, { { "", 54 } } },
+  { "if 1.1 == 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if 1.1 == 1.2 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 4 != 3 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if (4 != 3) then $a = 6; end", { { "$a = 6", 70 } }, { { "$a = 6", 70 } } },
+  { "if NULL != 3 then $a = 6; end", { { "$a = 6", 61 } }, { { "$a = 6", 61 } } },
+  { "if NULL != NULL then $a = 6; end", { { "$a = 6", 59 } }, { { "$a = 6", 59 } } },
+  { "if 1.2 != 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if 1.2 != 1.2 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 1.1 >= 1.2 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 1.1 >= 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if 2 >= 1.1 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if 2.1 >= 1 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if NULL >= 1.2 then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if NULL >= NULL then $a = 6; end", { { "$a = 6", 59 } }, { { "", 52 } } },
+  { "if 1 > 2 then $a = 6; end", { { "$a = 6", 63} }, { { "", 56 } } },
+  { "if 2 > 1 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if 2 > 1.1 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if 1.1 > 1.2 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 1.1 > 1.0 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if NULL > 1.2 then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if NULL > NULL then $a = 6; end", { { "$a = 6", 59 } }, { { "", 52 } } },
+  { "if 1.2 <= 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 1.1 <= 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if 1.1 <= 2 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if 1 <= 2 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if 2 <= 1 then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if 1 <= 2.1 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if 1.2 <= NULL then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if NULL <= NULL then $a = 6; end", { { "$a = 6", 59 } }, { { "", 52 } } },
+  { "if 2 < 1 then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if 1 < 2 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if 1.1 < 2 then $a = 6; end", { { "$a = 6", 65 } }, { { "$a = 6", 65 } } },
+  { "if 1.2 < 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
+  { "if 1.0 < 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
+  { "if 1.2 < NULL then $a = 6; end", { { "$a = 6", 63 } }, { { "", 56 } } },
+  { "if NULL < NULL then $a = 6; end", { { "$a = 6", 59 } }, { { "", 52 } } },
+  { "if NULL && NULL then $a = -6; end", { { "$a = -6", 60 } }, { { "", 53 } } },
+  { "if 0 && 0 then $a = -6; end", { { "$a = -6", 64 } }, { { "", 57 } } },
+  { "if 1 && 1 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
+  { "if 1.1 && 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if 0.0 && 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "", 61 } } },
+  { "if -1.1 && 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "", 61 } } },
+  { "if 1.2 && 0.0 then $a = -6; end", { { "$a = -6", 68 } }, { { "", 61 } } },
+  { "if 1.2 && -1.1 then $a = -6; end", { { "$a = -6", 68 } }, { { "", 61 } } },
+  { "if NULL || NULL then $a = -6; end", { { "$a = -6", 60 } }, { { "", 53 } } },
+  { "if 0 || 0 then $a = -6; end", { { "$a = -6", 64 } }, { { "", 57 } } },
+  { "if 1 || 1 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
+  { "if 1.1 || 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if -0.1 || -0.1 then $a = -6; end", { { "$a = -6", 68 } }, { { "", 61 } } },
+  { "if 0.0 || 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if -1.1 || 1.2 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if 1.2 || 0.0 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if 1.2 || -1.1 then $a = -6; end", { { "$a = -6", 68 } }, { { "$a = -6", 68 } } },
+  { "if 3 == NULL then $a = 6; end", { { "$a = 6", 61 } }, { { "", 54 } } },
+  { "if (NULL == 3) then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
+  { "if (3 == NULL) then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
+  { "if @a == 3 then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
+  { "if 3 == 3 then @a = 6; end", { { "@a = 6", 63 } }, { { "@a = 6", 63 } } },
+  { "if 3 == 3 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
+  { "if 4 != 3 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
+  { "if 3 == 3 then $a = 1.1; end", { { "$a = 1.1", 65 } }, { { "$a = 1.1", 65 } } },
+  { "if 3 == 3 then $a = 1 - NULL; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
+  { "if 3 == 3 then $a = 1 - 0.5; end", { { "$a = 0.5", 80 } }, { { "$a = 0.5", 80 } } },
+  { "if 3 == 3 then $a = 0.5 - 0.5; end", { { "$a = 0", 82 } }, { { "$a = 0", 82 } } },
+  { "if 3 == 3 then $a = 0.5 - 1; end", { { "$a = -0.5", 80 } }, { { "$a = -0.5", 80 } } },
+  { "if 3 == 3 then $a = 1 + 2; end", { { "$a = 3", 78 } }, { { "$a = 3", 78 } } },
+  { "if 3 == 3 then $a = 1.5 + 2.5; end", { { "$a = 4", 82 } }, { { "$a = 4", 82 } } },
+  { "if 3 == 3 then $a = 1 * NULL; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
+  { "if 3 == 3 then $a = 1 ^ NULL; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
+  { "if 3 == 3 then $a = 9 % 2; end", { { "$a = 1", 78 } }, { { "$a = 1", 78 } } },
+  { "if 3 == 3 then $a = 9 % NULL; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
+  { "if 3 == 3 then $a = 9.5 % 1.5; end", { { "$a = 0.5", 82 } }, { { "$a = 0.5", 82 } } },
+  { "if 3 == 3 then $a = 10 % 1.5; end", { { "$a = 1.5", 81 } }, { { "$a = 1.5", 81 } } },
+  { "if 3 == 3 then $a = 1.5 % 10; end", { { "$a = 1", 81 } }, { { "$a = 1", 81 } } },
+  { "if 1 == 1 then $a = 1 + 2 + 3; end", { { "$a = 6", 93 } }, { { "$a = 6", 93 } } },
+  { "if 1 == 1 == 1 then $a = 1; end", { { "$a = 1", 78 } },  { { "$a = 1", 78 } } },
+  { "if 1 == 1 == 2 then $a = 1; end", { { "$a = 1", 78 } },  { { "", 71 } } },
+  { "if 1 == 1 then $a = 1; $a = $a + 2; end", { { "$a = 3", 100 } }, { { "$a = 3", 100 } } },
+  { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 135 } }, { { "$a = 10", 135 } } },
+  { "if 1 == 1 then $a = NULL / 1; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
+  { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 94 } }, { { "", 87 } } },
+  { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 108 } }, { { "$a = 9", 108 } } },
+  { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { { "$a = 9", 115 } }, { { "$a = 9", 115 } } },
+  { "if 1 == 1 then $a = 1 * 2 + 3; end", { { "$a = 5", 93 } }, { { "$a = 5", 93 } } },
+  { "if 1 == 1 then $a = 1 * 100 ^ 2; end", { { "$a = 10000", 95 } }, { { "$a = 10000", 95 } } },
+  { "if 1 == 1 then $a = 1 * 1.1 ^ 2; end", { { "$a = 1.21", 95 } }, { { "$a = 1.21", 95 } } },
+  { "if 1 == 1 then $a = 1 + 2 * 3 / 4; end", { { "$a = 2.5", 108 } }, { { "$a = 2.5", 108 } } },
+  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2; end", { { "$a = 1.375", 123 } }, { { "$a = 1.375", 123 } } },
+  { "if 1 == 1 then $a = 1 + 4 ^ 2 ^ 1; end", { { "$a = 17", 108 } }, { { "$a = 17", 108 } } },
+  { "if 1 == 1 then $a = (1 + 4 ^ 2 ^ 1); end", { { "$a = 17", 115 } }, { { "$a = 17", 115 } } },
+  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2); end", { "$a = 1.375", 130 }, { "$a = 1.375", 130 } },
+  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3); end", { "$a = 2.125", 160 }, { "$a = 2.125", 160 } },
+  { "if 1 == 1 then $a = (1 + 2 * 3 / 4 ^ 2 ^ 1 * 3 ^ 4); end", { "$a = 31.375", 175 }, { "$a = 31.375", 175 } },
+  { "if 1 == 1 then $a = 1 + 2 * 3 / 4 ^ 2 ^ 1 * 3 ^ 4; end", { "$a = 31.375", 168 }, { "$a = 31.375", 168 } },
+  { "if 1 == 1 then $a = (1 + 2) * 3; end", { "$a = 9", 100 }, { "$a = 9", 100 } },
+  { "if 1 == 1 then $a = (1 + 2 * 3); end", { "$a = 7", 100 }, { "$a = 7", 100 } },
+  { "if 1 == 1 then $a = 3 * (1 + 2); end", { "$a = 9", 100 }, { "$a = 9", 100 } },
+  { "if 1 == 1 then $a = 3 * (1 + 2) * 2; end", { "$a = 18", 115 }, { "$a = 18", 115 } },
+  { "if 1 == 1 then $a = 3 * (1 + 3) ^ 2; end", { "$a = 48", 115 }, { "$a = 48", 115 } },
+  { "if 1 == 1 then $a = 7 + 6 * 5 / (4 - 3) ^ 2 ^ 1; end", { "$a = 37", 160 }, { "$a = 37", 160 } },
+  { "if 1 == 1 then $a = 3 * (1 + 2) + 2; end", { "$a = 11", 115 }, { "$a = 11", 115 } },
+  { "if 1 == 1 then $a = 3 + (1 + 2) * 2; end", { "$a = 9", 115 }, { "$a = 9", 115 } },
+  { "if 1 == 1 then $a = 3 * (1 + 2 / 2) + 3; end", { "$a = 9", 130 }, { "$a = 9", 130 } },
+  { "if 1 == 1 then $a = 3 * ((1 + 2) / 2) + 2; end", { "$a = 6.5", 137 }, { "$a = 6.5", 137 } },
+  { "if 1 == 1 then $a = 3 * ((1 + 2) / 2 + 3); end", { "$a = 13.5", 137 }, { "$a = 13.5", 137 } },
+  { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)); end", { "$a = 1.8", 144 }, { "$a = 1.8", 144 } },
+  { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)) + 2; end", { "$a = 3.8", 159 }, { "$a = 3.8", 159 } },
+  { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 5 >= 4; end", { "$a = 1", 145 }, { "$a = 1", 145 } },
+  { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 3 >= 4; end", { "$a = 0", 145 }, { "$a = 0", 145 } },
+  { "if 1 == 1 then $a = 3; end", { "$a = 3", 63 }, { "$a = 3", 63 } },
+  { "if 1 == 1 then $a = 3.1; $b = $a; end", { "$a = 3.1$b = 3.1", 94 }, { "$a = 3.1$b = 3.1", 94 } },
+  { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 79 }, { "$a = NULL", 79 } },
+  { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 100 }, { "$a = 1", 100 } },
+  { "if 1 == 1 then $a = coalesce($a, 1.1) + 1; end", { "$a = 2.1", 102 }, { "$a = 2.1", 102 } },
+  { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 138 }, { "$a = 1", 138 } },
+  { "if 1 == 1 then $a = 1; if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 155 }, { "$a = 2", 155 } },
+  { "if 1 == 1 then $a = 1; if $a == 1 then $a = NULL; end end", { "$a = NULL", 114 }, { "$a = NULL", 114 } },
+  { "if 1 == 1 then $a = 1; $a = NULL; end", { "$a = NULL", 74 }, { "$a = NULL", 74 } },
+  { "if 1 == 2 then $a = 3; else $a = 4; end", { "$a = 4", 84 }, { "$a = 4", 84 } },
+  { "if 1 == 1 then $a = 3; else $a = 4; end", { "$a = 4", 84 }, { "$a = 3", 84 } },
+  { "if (1 + 1) == 1 then $a = 3; else $a = 4; end", { "$a = 4", 106 }, { "$a = 4", 106 } },
+  { "if 1 == 2 || 3 >= 4 then $a = max(1, 2); end", { "$a = 2", 110 }, { "", 103 } },
+  { "if 1 == 2 || 3 >= 4 then $a = min(3, 1, 2); end", { "$a = 1", 117 }, { "", 110 } },
+  { "if 1 == 2 || 3 >= 4 then $a = 1; end", { "$a = 1", 93 }, { "", 86 } },
+  { "if 1 == 2 || 3 >= 4 || 5 == 6 then $a = max(1, 3, 2); else $b = 9; end", { "$a = 3$b = 9", 175 }, { "$b = 9", 168 } },
+  { "if 1 == 1 then $a = 1; $b = 2; end", { "$a = 1$b = 2", 87 }, { "$a = 1$b = 2", 87 } },
+  { "if 1 == 1 then $a = 1; $b = ($a + 3) * 3; end", { "$a = 1$b = 12", 129 }, { "$a = 1$b = 12", 129 } },
+  { "if 1 == 1 then $a = 1; $b = $a + 3 * 3; end", { "$a = 1$b = 10", 122 }, { "$a = 1$b = 10", 122 } },
+  { "if 1 == 1 then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 115 }, { "$a = 2", 115 } },
+  { "if 1 == 1 then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 174 }, { "$a = 2", 167 } },
+  { "if 1 == 1 then $a = 1; $b = $a; end", { "$a = 1$b = 1", 92 }, { "$a = 1$b = 1", 92 } },
+  { "if 1 == 1 then $a = 1; if 5 >= 4 then $a = 3; end $b = $a; end", { "$a = 3$b = 3", 144 }, { "$a = 3$b = 3", 144 } },
+  { "if 1 == 1 then $a = 1; if $a == 1 then $a = 3; end end", { "$a = 3", 120 }, { "$a = 3", 120 } },
+  { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; end", { "$a = 1", 130 }, { "$a = 1", 130 } },
+  { "if 3 == 3 then $a = max(1); end", { "$a = 1", 73 }, { "$a = 1", 73 } },
+  { "if 3 == 3 then $a = max(NULL, 1); end", { "$a = 1", 78 }, { "$a = 1", 78 } },
+  { "if 3 == 3 then $a = max(1, NULL); end", { "$a = 1", 78 }, { "$a = 1", 78 } },
+  { "if 3 == 3 then $b = 2; $a = max($b, 1); end", { "$b = 2$a = 2", 109 }, { "$b = 2$a = 2", 109 } },
+  { "if 3 == 3 then $a = max(1, 2); end", { "$a = 2", 80 }, { "$a = 2", 80 } },
+  { "if 3 == 3 then $a = max(1, 2, 3, 4); end", { "$a = 4", 94 }, { "$a = 4", 94 } },
+  { "if 3 == 3 then $a = max(1, 4, 5, 3, 2); end", { "$a = 5", 101 }, { "$a = 5", 101 } },
+  { "if 3 == 3 then $a = max(max(1, 4), 2); end", { "$a = 4", 97 }, { "$a = 4", 97 } },
+  { "if 3 == 3 then $a = max(1, 2) * 3; end", { "$a = 6", 95 }, { "$a = 6", 95 } },
+  { "if 3 == 3 then $a = max(1, 2) * max(3, 4); end", { "$a = 8", 112 }, { "$a = 8", 112 } },
+  { "if 3 == 3 then $a = max(max(1, 2), (1 * max(1, 3) ^ 2)); end", { "$a = 9", 151 }, { "$a = 9", 151 } },
+  { "if 3 == 3 then $b = 1; $a = max($b + 1); end", { "$b = 1$a = 2", 117 }, { "$b = 1$a = 2", 117 } },
+  { "if 3 == 3 then $b = 1; $a = max($b + 1) * 3; end", { "$b = 1$a = 6", 132 }, { "$b = 1$a = 6", 132 } },
+  { "if max(1, 3) == 3 then $a = 1; end", { "$a = 1", 80 }, { "$a = 1", 80 } },
+  { "if max(1, 3) == max(1, 3) then $a = 1; end", { "$a = 1", 97 }, { "$a = 1", 97 } },
+  { "if 3 == 3 then max(1, 2); end", { "", 63 }, { "", 63 } },
+  { "if 3 == 3 then $a = max(1 + 1, 2 + 2); end", { "$a = 4", 110 }, { "$a = 4", 110 } },
+  { "if 1 == 1 then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 88 } },  { { "$b = NULL$a = 0", 88 } } }, // FIXME
+  { "if 3 == 3 then $a = max((1 + 3), 2); end", { "$a = 4", 102 }, { "$a = 4", 102 } },
+  { "if 3 == 3 then $a = max((1 + (3 * 3)), 2); end", { "$a = 10", 124 }, { "$a = 10", 124 } },
+  { "if 3 == 3 then $a = max(1 + 3 * 3, 3 * 4); end", { "$a = 12", 125 }, { "$a = 12", 125 } },
+  { "if 3 == 3 then $a = max(((2 + 3) * 3), (3 * 4)); end", { "$a = 15", 146 }, { "$a = 15", 146 } },
+  { "if 3 == 3 then $a = (max(1, 2) + 2) * 3; end", { "$a = 12", 117 }, { "$a = 12", 117 } },
+  { "if 3 == 3 then $a = (max(1, 2) + 2) * 3; end", { "$a = 12", 117 }, { "$a = 12", 117 } },
+  { "if 1 == 1 then $a = max(0, 1) + max(1, 2) * max(2, 3) / max(3, 4) ^ max(1, 2) ^ max(0, 1) * max(2, 3) ^ max(3, 4); end", { "$a = 31.375", 304 }, { "$a = 31.375", 304 } },
+  { "if 3 == 3 then $a = 2; $b = max((($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 175 }, { "$a = 2$b = 15", 175 } },
+  { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 178 }, { "$a = 2$b = 15", 178 } },
+  { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 84 }, { "$a = 1", 84 } },
+  { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 140 }, { "$a = 3", 140 } },
+  { "if 1 == 1 then if 2 == 2 then $a = 1; end else $a = 2; end", { "$a = 2", 119 }, { "$a = 1", 119 } },
+  { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 276 }, { "$a = 4$b = 14", 276 } },
+  { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 293 }, { "$a = 4$b = 3", 293 } },
+  { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 431 }, { "$a = 4$b = 52@c = 5", 431 } },
+  { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 63 }, { "$b = 3", 63 } },  { { "$a = 6", 63 }, { "$b = 3" , 63 } } },
+  { "on foo then max(1, 2); end", { "", 43 }, { "", 43 } },
+  { "on foo then $a = 6; end", { "$a = 6", 43 }, { "$a = 6", 43 } },
+  { "on foo then $a = 6; $b = 3; end", { "$a = 6$b = 3", 67 }, { "$a = 6$b = 3", 67 } },
+  { "on foo then @a = 6; end", { { "@a = 6", 43 } }, { { "@a = 6", 43 } } },
+  { "on foo then $a = 1 + 2; end", { { "$a = 3", 58 } }, { { "$a = 3", 58 } } },
+  { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 95 }, { "$a = 2", 95 } },
+  { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 154 }, { "$a = 2", 147 } },
+  { "on foo then bar(); end  ", { { "", 28 } },  { { "", 28 } } },
+  { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 43 }, { "$b = 3" , 63 } },  { { "$a = 6", 43 }, { "$b = 3" , 63 } } },
+  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 43 }, { "$b = 3", 72 } },  { { "$a = 6", 43 }, { "$b = 3", 72 } } },
+  { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 68 } },  { { "$b = NULL$a = 0", 68 } } }, // FIXME
 
   /*
    * Invalid rules
@@ -275,6 +279,7 @@ struct unittest_t {
   { "on foo then 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if on foo then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then on foo then $a = 1; end end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on if 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if max == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1; foo() end", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -317,7 +322,7 @@ static int strnicmp(char const *a, char const *b, size_t len) {
   return -1;
 }
 
-static int is_variable(struct rules_t *obj, const char *text, int *pos, int size) {
+static int is_variable(const char *text, int *pos, int size) {
   int i = 1;
   if(text[*pos] == '$' || text[*pos] == '@') {
     while(isalpha(text[*pos+i])) {
@@ -328,7 +333,7 @@ static int is_variable(struct rules_t *obj, const char *text, int *pos, int size
   return -1;
 }
 
-static int is_event(struct rules_t *obj, const char *text, int *pos, int size) {
+static int is_event(const char *text, int *pos, int size) {
   int i = 0, len = 0;
   if(size == 3 &&
     (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
@@ -341,7 +346,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->bytecode[token];
 
-  if(obj->bytecode[var->token + 1] == '@') {
+  if(var->token[0] == '@') {
     memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
     vinteger.type = VINTEGER;
     vinteger.value = 5;
@@ -358,6 +363,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
       var->value = ret;
       varstack->nrbytes = alignedbytes(varstack->nrbytes) + sizeof(struct vm_vnull_t);
     }
+
     return &varstack->stack[var->value];
   }
   return NULL;
@@ -374,7 +380,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
       case VINTEGER: {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->stack[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-        if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
+        if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
           var->value = foo->value;
           val->ret = token;
           foo->value = 0;
@@ -385,7 +391,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
       case VFLOAT: {
         struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack->stack[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-        if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
+        if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
           var->value = foo->value;
           val->ret = token;
           foo->value = 0;
@@ -396,7 +402,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
       case VNULL: {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->stack[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-        if(strcmp((char *)&obj->bytecode[foo->token+1], (char *)&obj->bytecode[var->token+1]) == 0 && val->ret != token) {
+        if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
           var->value = foo->value;
           val->ret = token;
           foo->value = 0;
@@ -510,7 +516,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       case VINTEGER: {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->stack[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
-        if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
+        if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
           var->value = 0;
           vm_value_del(obj, x);
           loop = 0;
@@ -521,7 +527,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       case VFLOAT: {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->stack[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
-        if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
+        if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
           var->value = 0;
           vm_value_del(obj, x);
           loop = 0;
@@ -532,7 +538,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       case VNULL: {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->stack[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[node->ret];
-        if(strcmp((char *)&obj->bytecode[var->token+1], (char *)&obj->bytecode[tmp->token+1]) == 0) {
+        if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
           var->value = 0;
           vm_value_del(obj, x);
           loop = 0;
@@ -548,6 +554,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   }
 
   var = (struct vm_tvar_t *)&obj->bytecode[token];
+
   if(var->value > 0) {
     vm_value_del(obj, var->value);
   }
@@ -610,7 +617,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", &obj->bytecode[node->token+1], val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", node->token, val->value);
             } break;
             default: {
               // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->bytecode[val->ret]);
@@ -624,7 +631,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", &obj->bytecode[node->token+1], val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", node->token, val->value);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -638,7 +645,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", &obj->bytecode[node->token+1]);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", node->token);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -659,7 +666,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
 static int event_cb(struct rules_t *obj, const char *name) {
   struct rules_t *called = NULL;
 
-  if(obj->caller > 0) {
+  if(obj->caller > 0 && name == NULL) {
     called = rules[obj->caller-1];
 
 #ifdef ESP8266
@@ -838,6 +845,9 @@ void run_test(int *i) {
     varstack->stack = NULL;
     varstack->nrbytes = 4;
   }
+  if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
+    exit(-1);
+  }
 
   if(ret == -1) {
     const char *rule = unittests[(*i)].rule;
@@ -881,7 +891,10 @@ void run_test(int *i) {
 int main(int argc, char **argv) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
 
+  // int foo = 220;
+  // for(i=foo-1;i<foo;i++) {
   for(i=0;i<nrtests;i++) {
+    // printf("%s\n", unittests[i].rule);
     run_test(&i);
   }
 }

@@ -39,7 +39,6 @@ int event_operator_multiply_callback(struct rules_t *obj, int a, int b, int *ret
 
     obj->nrbytes += sizeof(struct vm_vnull_t);
   } else if((obj->bytecode[a]) == VCHAR || (obj->bytecode[b]) == VCHAR) {
-  } else if((obj->bytecode[a]) == VFLOAT && (obj->bytecode[b]) == VFLOAT) {
   } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
     float f = 0;
     int i = 0;

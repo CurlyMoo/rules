@@ -84,8 +84,8 @@ typedef struct rule_options_t {
   /*
    * Identifying callbacks
    */
-  int (*is_token_cb)(struct rules_t *obj, const char *text, int *pos, int size);
-  int (*is_event_cb)(struct rules_t *obj, const char *text, int *pos, int size);
+  int (*is_token_cb)(const char *text, int *pos, int size);
+  int (*is_event_cb)(const char *text, int *pos, int size);
 
   /*
    * Variables
@@ -115,54 +115,54 @@ extern struct rule_options_t rule_options;
 typedef struct vm_vchar_t {
   VM_GENERIC_FIELDS
   char value[];
-} vm_char_t;
+} __attribute__((packed)) vm_char_t;
 
 typedef struct vm_vnull_t {
   VM_GENERIC_FIELDS
-} vm_vnull_t;
+} __attribute__((packed)) vm_vnull_t;
 
 typedef struct vm_vinteger_t {
   VM_GENERIC_FIELDS
   int value;
-} vm_vinteger_t;
+} __attribute__((packed)) vm_vinteger_t;
 
 typedef struct vm_vfloat_t {
   VM_GENERIC_FIELDS
   float value;
-} vm_vfloat_t;
+} __attribute__((packed)) vm_vfloat_t;
 
 typedef struct vm_tgeneric_t {
   VM_GENERIC_FIELDS
-} vm_tgeneric_t;
+} __attribute__((packed)) vm_tgeneric_t;
 
 typedef struct vm_tstart_t {
   VM_GENERIC_FIELDS
   uint16_t go;
-} vm_tstart_t;
+} __attribute__((packed)) vm_tstart_t;
 
 typedef struct vm_tif_t {
   VM_GENERIC_FIELDS
   uint16_t go;
   uint16_t true_;
   uint16_t false_;
-} vm_tif_t;
+} __attribute__((packed)) vm_tif_t;
 
 typedef struct vm_lparen_t {
   VM_GENERIC_FIELDS
   uint16_t go;
   uint16_t value;
-} vm_lparen_t;
+} __attribute__((packed)) vm_lparen_t;
 
 typedef struct vm_tnumber_t {
   VM_GENERIC_FIELDS
-  uint16_t token;
-} vm_tnumber_t;
+  uint8_t token[];
+} __attribute__((packed)) vm_tnumber_t;
 
 typedef struct vm_ttrue_t {
   VM_GENERIC_FIELDS
   uint8_t nrgo;
   uint16_t go[];
-} vm_ttrue_t;
+} __attribute__((packed)) vm_ttrue_t;
 
 typedef struct vm_tfunction_t {
   VM_GENERIC_FIELDS
@@ -170,37 +170,37 @@ typedef struct vm_tfunction_t {
   uint16_t value;
   uint8_t nrgo;
   uint16_t go[];
-} vm_tfunction_t;
+} __attribute__((packed)) vm_tfunction_t;
 
 typedef struct vm_tvar_t {
   VM_GENERIC_FIELDS
-  uint16_t token;
   uint16_t go;
   uint16_t value;
-} vm_tvar_t;
+  uint8_t token[];
+} __attribute__((packed)) vm_tvar_t;
 
 typedef struct vm_tevent_t {
   VM_GENERIC_FIELDS
-  uint16_t token;
   uint16_t go;
-} vm_tevent_t;
+  uint8_t token[];
+} __attribute__((packed)) vm_tevent_t;
 
 typedef struct vm_tcevent_t {
   VM_GENERIC_FIELDS
-  uint16_t token;
-} vm_tcevent_t;
+  uint8_t token[];
+} __attribute__((packed)) vm_tcevent_t;
 
 typedef struct vm_toperator_t {
   VM_GENERIC_FIELDS
-  uint16_t token;
+  uint8_t token;
   uint16_t left;
   uint16_t right;
   uint16_t value;
-} vm_toperator_t;
+} __attribute__((packed)) vm_toperator_t;
 
 typedef struct vm_teof_t {
   uint8_t type;
-} vm_teof_t;
+} __attribute__((packed)) vm_teof_t;
 
 int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nrrules, void *userdata);
 void rules_gc(struct rules_t ***obj, int nrrules);
