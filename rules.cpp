@@ -65,8 +65,6 @@ static void print_bytecode(struct rules_t *obj);
 #endif
 /*LCOV_EXCL_STOP*/
 
-static int lexer_peek(struct rules_t *obj, int skip, int *type);
-
 static int strnicmp(char const *a, char const *b, size_t len) {
   int i = 0;
 
@@ -456,6 +454,11 @@ static int lexer_bytecode_pos(int skip, int *pos) {
       *pos = i;
       while(bytecode[++i] != 0);
       nr++;
+    } else {
+      *pos = i;
+      i++;
+      nr++;
+      return 1;
     }
 
     if(skip == nr-1) {
@@ -719,53 +722,18 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
 }
 
 static int lexer_peek(int skip, int *type) {
-  int i = 0, nr = 0, tmp = 0, val = 0;
+  int i = 0, nr = 0, tmp = 0, val = 0, x = 0;
 
-  for(i=0;i<nrbytes;i++) {
-    if(bytecode[i] == TIF || bytecode[i] == TTHEN ||
-       bytecode[i] == TEND || bytecode[i] == TASSIGN ||
-       bytecode[i] == LPAREN || bytecode[i] == RPAREN ||
-       bytecode[i] == TELSE || bytecode[i] == TSEMICOLON ||
-       bytecode[i] == TCOMMA || bytecode[i] == VNULL ||
-       bytecode[i] == TEND) {
-      tmp = bytecode[i];
-    } else if(bytecode[i] == TOPERATOR) {
-      tmp = bytecode[i];
-      i++;
-    } else if(bytecode[i] == TFUNCTION) {
-      tmp = bytecode[i];
-      i++;
-    } else if(bytecode[i] == TVAR ||
-              bytecode[i] == TNUMBER ||
-              bytecode[i] == TSTRING ||
-              bytecode[i] == TCEVENT ||
-              bytecode[i] == TEVENT) {
-      tmp = bytecode[i];
-      while(bytecode[i] != 0) {
-        i++;
-      }
-    } else {
-      tmp = TEOF;
-    }
-    if(skip == nr++) {
-      *type = tmp;
-      break;
-    }
-  }
-
-  if(skip > nr) {
-    return -1;
-  }
-  /*LCOV_EXCL_START*/
-  if(skip == nr) {
+  int pos = 0, pos1 = 0, ret = 0;
+  ret = lexer_bytecode_pos(skip, &pos);
+  if(ret == 1) {
     *type = TEOF;
-    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-    return 0;
+  } else if(ret == 0) {
+    *type = bytecode[pos];
+  } else {
+    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__); /*LCOV_EXCL_LINE*/
   }
-  /*LCOV_EXCL_STOP*/
 
-
-  *type = tmp;
   return 0;
 }
 
