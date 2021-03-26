@@ -9,6 +9,8 @@
 #ifndef _MEM_H_
 #define _MEM_H_
 
+int alignedbytes(int v);
+
 #define OUT_OF_MEMORY while(0) { }
 
 #define STRDUP strdup

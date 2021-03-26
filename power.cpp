@@ -23,7 +23,7 @@ int event_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->nrbytes;
 
   if((obj->bytecode[a]) == VNULL || (obj->bytecode[b]) == VNULL) {
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vnull_t))) == NULL) {
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
     struct vm_vnull_t *out = (struct vm_vnull_t *)&obj->bytecode[obj->nrbytes];
@@ -37,14 +37,14 @@ int event_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += sizeof(struct vm_vnull_t);
+    obj->nrbytes += alignedbytes(sizeof(struct vm_vnull_t));
   } else if((obj->bytecode[a]) == VCHAR || (obj->bytecode[b]) == VCHAR) {
   } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
     float f = 0;
     int i = 0;
 
 
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vfloat_t))) == NULL) {
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
 
@@ -93,10 +93,10 @@ int event_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += sizeof(struct vm_vfloat_t);
+    obj->nrbytes += alignedbytes(sizeof(struct vm_vfloat_t));
   } else if((obj->bytecode[a]) == VINTEGER && (obj->bytecode[b]) == VINTEGER) {
 
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vinteger_t))) == NULL) {
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
     struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
@@ -112,7 +112,7 @@ int event_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
     printf("4 %s %d %d\n", __FUNCTION__, na->value, nb->value);
 #endif
 /* LCOV_EXCL_STOP*/
-    obj->nrbytes += sizeof(struct vm_vinteger_t);
+    obj->nrbytes += alignedbytes(sizeof(struct vm_vinteger_t));
   }
 
 

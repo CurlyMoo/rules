@@ -23,7 +23,7 @@
 int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->nrbytes;
 
-  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes+sizeof(struct vm_vinteger_t))) == NULL) {
+  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
     OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
   }
   struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
@@ -104,7 +104,7 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
     /* LCOV_EXCL_STOP*/
   }
 
-  obj->nrbytes += sizeof(struct vm_vinteger_t);
+  obj->nrbytes += alignedbytes(sizeof(struct vm_vinteger_t));
 
   return 0;
 }

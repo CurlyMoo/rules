@@ -111,15 +111,6 @@ void rules_gc(struct rules_t ***rules, int nrrules) {
 #endif
 }
 
-static int alignedbytes(int v) {
-#ifdef ESP8266
-  while((v++ % 4) != 0);
-  return --v;
-#else
-  return v;
-#endif
-}
-
 static int is_function(const char *text, int *pos, int size) {
   int i = 0, len = 0;
   for(i=0;i<nr_event_functions;i++) {
@@ -3005,6 +2996,9 @@ static int vm_value_set(struct rules_t *obj, int step, int ret) {
 
   int start = alignedbytes(0);
 
+#ifdef DEBUG
+  printf("%s %d %d\n", __FUNCTION__, __LINE__, out);
+#endif
   switch(obj->bytecode[step]) {
     case TNUMBER: {
       float var = 0;
@@ -3012,7 +3006,7 @@ static int vm_value_set(struct rules_t *obj, int step, int ret) {
       struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->bytecode[step];
       var = atof((char *)node->token);
 
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
 
@@ -3020,10 +3014,13 @@ static int vm_value_set(struct rules_t *obj, int step, int ret) {
       value->type = VINTEGER;
       value->ret = ret;
       value->value = (int)var;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vinteger_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vinteger_t));
+#ifdef DEBUG
+      printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, (int)var);
+#endif
     } break;
     case VFLOAT: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
 
@@ -3032,10 +3029,13 @@ static int vm_value_set(struct rules_t *obj, int step, int ret) {
       value->type = VFLOAT;
       value->ret = ret;
       value->value = cpy->value;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vfloat_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vfloat_t));
+#ifdef DEBUG
+      printf("%s %d %d %g\n", __FUNCTION__, __LINE__, out, cpy->value);
+#endif
     } break;
     case VINTEGER: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
 
@@ -3044,17 +3044,23 @@ static int vm_value_set(struct rules_t *obj, int step, int ret) {
       value->type = VINTEGER;
       value->ret = ret;
       value->value = cpy->value;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vinteger_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vinteger_t));
+#ifdef DEBUG
+      printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, cpy->value);
+#endif
     } break;
     case VNULL: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vnull_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
 
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->bytecode[obj->nrbytes];
       value->type = VNULL;
       value->ret = ret;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vnull_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vnull_t));
+#ifdef DEBUG
+      printf("%s %d %d NULL\n", __FUNCTION__, __LINE__, out);
+#endif
     } break;
     /* LCOV_EXCL_START*/
     default: {
@@ -3131,7 +3137,7 @@ static int vm_value_clone(struct rules_t *obj, unsigned char *val) {
 
   switch(val[0]) {
     case VINTEGER: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vinteger_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&val[0];
@@ -3139,10 +3145,10 @@ static int vm_value_clone(struct rules_t *obj, unsigned char *val) {
       value->type = VINTEGER;
       value->ret = 0;
       value->value = (int)cpy->value;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vinteger_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vinteger_t));
     } break;
     case VFLOAT: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vfloat_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&val[0];
@@ -3150,16 +3156,16 @@ static int vm_value_clone(struct rules_t *obj, unsigned char *val) {
       value->type = VFLOAT;
       value->ret = 0;
       value->value = cpy->value;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vfloat_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vfloat_t));
     } break;
     case VNULL: {
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes)+sizeof(struct vm_vnull_t))) == NULL) {
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->bytecode[obj->nrbytes];
       value->type = VNULL;
       value->ret = 0;
-      obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vnull_t);
+      obj->nrbytes = alignedbytes(obj->nrbytes + sizeof(struct vm_vnull_t));
     } break;
     /* LCOV_EXCL_START*/
     default: {
@@ -3178,9 +3184,12 @@ static int vm_value_del(struct rules_t *obj, int idx) {
     return -1;
   }
 
+#ifdef DEBUG
+  printf("%s %d %d\n", __FUNCTION__, __LINE__, idx);
+#endif
   switch(obj->bytecode[idx]) {
     case VINTEGER: {
-      ret = sizeof(struct vm_vinteger_t);
+      ret = alignedbytes(sizeof(struct vm_vinteger_t));
       memmove(&obj->bytecode[idx], &obj->bytecode[idx+ret], obj->nrbytes-idx-ret);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -3188,7 +3197,7 @@ static int vm_value_del(struct rules_t *obj, int idx) {
       obj->nrbytes -= ret;
     } break;
     case VFLOAT: {
-      ret = sizeof(struct vm_vfloat_t);
+      ret = alignedbytes(sizeof(struct vm_vfloat_t));
       memmove(&obj->bytecode[idx], &obj->bytecode[idx+ret], obj->nrbytes-idx-ret);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -3196,7 +3205,7 @@ static int vm_value_del(struct rules_t *obj, int idx) {
       obj->nrbytes -= ret;
     } break;
     case VNULL: {
-      ret = sizeof(struct vm_vnull_t);
+      ret = alignedbytes(sizeof(struct vm_vnull_t));
       memmove(&obj->bytecode[idx], &obj->bytecode[idx+ret], obj->nrbytes-idx-ret);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, obj->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -3219,6 +3228,9 @@ static int vm_value_del(struct rules_t *obj, int idx) {
    */
   for(x=idx;alignedbytes(x)<obj->nrbytes;x++) {
     x = alignedbytes(x);
+#ifdef DEBUG
+    printf("%s %d %d\n", __FUNCTION__, __LINE__, x);
+#endif
     switch(obj->bytecode[x]) {
       case VINTEGER: {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->bytecode[x];
@@ -3241,24 +3253,24 @@ static int vm_value_del(struct rules_t *obj, int idx) {
         }
         x += sizeof(struct vm_vnull_t)-1;
       } break;
-/* LCOV_EXCL_START*/
+      /* LCOV_EXCL_START*/
       default: {
         fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
         return -1;
       } break;
-/* LCOV_EXCL_STOP*/
+      /* LCOV_EXCL_STOP*/
     }
   }
   return ret;
 }
 
+/*LCOV_EXCL_START*/
 void valprint(struct rules_t *obj, char *out, int size) {
   int x = 0, pos = 0;
   memset(out, 0, size);
   /*
    * This is only used for debugging purposes
    */
-  /*
   for(x=alignedbytes(obj->pos.vars);alignedbytes(x)<obj->nrbytes;x++) {
     if(alignedbytes(x) < obj->nrbytes) {
       x = alignedbytes(x);
@@ -3268,15 +3280,15 @@ void valprint(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", &obj->bytecode[node->token+1], val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", node->token, val->value);
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", event_functions[obj->bytecode[node->token+1]].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", event_functions[node->token].name, val->value);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", event_operators[obj->bytecode[node->token+1]].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", event_operators[node->token].name, val->value);
             } break;
             default: {
               // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->bytecode[val->ret]);
@@ -3290,15 +3302,15 @@ void valprint(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", &obj->bytecode[node->token+1], val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", node->token, val->value);
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", event_functions[obj->bytecode[node->token+1]].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", event_functions[node->token].name, val->value);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", event_operators[obj->bytecode[node->token+1]].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", event_operators[node->token].name, val->value);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -3312,15 +3324,15 @@ void valprint(struct rules_t *obj, char *out, int size) {
           switch(obj->bytecode[val->ret]) {
             case TVAR: {
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", &obj->bytecode[node->token+1]);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", node->token);
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_functions[obj->bytecode[node->token+1]].name);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_functions[node->token].name);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_operators[obj->bytecode[node->token+1]].name);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_operators[node->token].name);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -3335,11 +3347,12 @@ void valprint(struct rules_t *obj, char *out, int size) {
       }
     }
   }
-  */
+
   if(rule_options.prt_token_val_cb != NULL) {
     rule_options.prt_token_val_cb(obj, out, size);
   }
 }
+/*LCOV_EXCL_START*/
 
 static void vm_clear_values(struct rules_t *obj) {
   int i = 0, x = 0;
@@ -4233,6 +4246,7 @@ void print_bytecode(struct rules_t *obj) {
   int step = 0, i = 0, x = 0;
 
   for(i=0;i<obj->nrbytes;i++) {
+    i = alignedbytes(i);
     printf("%d", i);
     switch(obj->bytecode[i]) {
       case TIF: {
