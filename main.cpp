@@ -316,7 +316,7 @@ static int strnicmp(char const *a, char const *b, size_t len) {
   return -1;
 }
 
-static int is_variable(const char *text, int *pos, int size) {
+static int is_variable(char *text, int *pos, int size) {
   int i = 1;
   if(text[*pos] == '$' || text[*pos] == '@') {
     while(isalpha(text[*pos+i])) {
@@ -327,7 +327,7 @@ static int is_variable(const char *text, int *pos, int size) {
   return -1;
 }
 
-static int is_event(const char *text, int *pos, int size) {
+static int is_event(char *text, int *pos, int size) {
   int i = 0, len = 0;
   if(size == 3 &&
     (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
@@ -473,7 +473,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
   for(x=idx;alignedbytes(x)<varstack->nrbytes;x++) {
     x = alignedbytes(x);
 #ifdef DEBUG
-  printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
+    printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
     switch(varstack->stack[x]) {
       case VINTEGER: {
@@ -690,7 +690,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
   }
 }
 
-static int event_cb(struct rules_t *obj, const char *name) {
+static int event_cb(struct rules_t *obj, char *name) {
   struct rules_t *called = NULL;
 
   if(obj->caller > 0 && name == NULL) {
@@ -712,6 +712,7 @@ static int event_cb(struct rules_t *obj, const char *name) {
       return rule_run(obj, 0);
     }
     int i = 0;
+
     for(i=0;i<nrrules;i++) {
       if(rules[i] == obj) {
         called = rules[i-1];
@@ -752,7 +753,7 @@ void run_test(int *i) {
   }
 #endif
 
-  int pos = 0, ppos = 0, len = strlen(unittests[(*i)].rule);
+  int pos = 0, ppos = 0, len = strlen(unittests[(*i)].rule), offset = 0;
   struct varstack_t *varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
   if(varstack == NULL) {
     OUT_OF_MEMORY
@@ -762,26 +763,32 @@ void run_test(int *i) {
 
   int ret = 0;
 
-  while((ret = rule_initialize(unittests[(*i)].rule, &pos, &rules, &nrrules, varstack)) == 0) {
-    const char *rule = &unittests[(*i)].rule[ppos];
-    int size = (pos-ppos);
+  char *rule = STRDUP(unittests[(*i)].rule);
+  if(rule == NULL) {
+    OUT_OF_MEMORY
+  }
+  ppos = len;
+
+  while((ret = rule_initialize(&rule, &rules, &nrrules, varstack)) == 0) {
+    pos = strlen(rule);
+    int size = ppos-pos;
 #ifdef ESP8266
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = min(size, 45);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 46-size, " ");
     } else {
       size = min(size, 50);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 50-size, " ");
     }
     Serial.println(out);
 #else
     if(size > 49) {
       size = min(size, 45);
-      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 46-size, " ");
     } else {
       size = min(size, 50);
-      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 50-size, " ");
     }
 #endif
 
@@ -863,6 +870,7 @@ void run_test(int *i) {
       fflush(stdout);
     }
 
+    offset = size;
     ppos = pos;
 
     varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
@@ -875,6 +883,8 @@ void run_test(int *i) {
   if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
     exit(-1);
   }
+
+  FREE(rule);
 
   if(ret == -1) {
     const char *rule = unittests[(*i)].rule;
@@ -918,10 +928,7 @@ void run_test(int *i) {
 int main(int argc, char **argv) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
 
-  // int foo = 127;
-  // for(i=foo-1;i<foo;i++) {
   for(i=0;i<nrtests;i++) {
-    // printf("%s\n", unittests[i].rule);
     run_test(&i);
   }
 }

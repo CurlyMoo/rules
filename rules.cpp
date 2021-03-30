@@ -109,7 +109,7 @@ void rules_gc(struct rules_t ***rules, int nrrules) {
 #endif
 }
 
-static int is_function(const char *text, int *pos, int size) {
+static int is_function(char *text, int *pos, int size) {
   int i = 0, len = 0;
   for(i=0;i<nr_event_functions;i++) {
     len = strlen(event_functions[i].name);
@@ -121,7 +121,7 @@ static int is_function(const char *text, int *pos, int size) {
   return -1;
 }
 
-static int is_operator(const char *text, int *pos, int size) {
+static int is_operator(char *text, int *pos, int size) {
   int i = 0, len = 0;
   for(i=0;i<nr_event_operators;i++) {
     len = strlen(event_operators[i].name);
@@ -133,7 +133,7 @@ static int is_operator(const char *text, int *pos, int size) {
   return -1;
 }
 
-static int lexer_parse_number(const char *text, int *pos) {
+static int lexer_parse_number(char *text, int *pos) {
 
   int i = 0, nrdot = 0, len = strlen(text), start = *pos;
 
@@ -155,20 +155,13 @@ static int lexer_parse_number(const char *text, int *pos) {
       (*pos)++;
       i++;
     }
-
-    if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+(*pos - start)+1)) == NULL) {
-      OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-    }
-    memcpy(&bytecode[nrbytes], &text[start], *pos - start);
-    nrbytes += (*pos - start);
-    bytecode[nrbytes++] = 0;
     return 0;
   } else {
     return -1;
   }
 }
 
-static int lexer_parse_string(const char *text, int *pos) {
+static int lexer_parse_string(char *text, int *pos) {
   int len = strlen(text), start = *pos;
 
   while(*pos <= len &&
@@ -179,12 +172,6 @@ static int lexer_parse_string(const char *text, int *pos) {
         text[*pos] != ')') {
     (*pos)++;
   }
-  if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+(*pos - start)+1)) == NULL) {
-    OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-  }
-  memcpy(&bytecode[nrbytes], &text[start], *pos - start);
-  nrbytes += (*pos - start);
-  bytecode[nrbytes++] = 0;
   return 0;
 }
 
@@ -246,7 +233,7 @@ static int lexer_parse_string(const char *text, int *pos) {
   // return -1;
 // }
 
-static int lexer_parse_skip_characters(const char *text, int len, int *pos) {
+static int lexer_parse_skip_characters(char *text, int len, int *pos) {
   while(*pos <= len &&
       (text[*pos] == ' ' ||
       text[*pos] == '\n' ||
@@ -257,11 +244,15 @@ static int lexer_parse_skip_characters(const char *text, int len, int *pos) {
   return 0;
 }
 
-static int rule_prepare(const char *text, int *pos) {
-  int ret = 0, len = strlen(text);
-  int nrblocks = 0;
-  while(*pos < len) {
-    lexer_parse_skip_characters(text, len, pos);
+static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
+  int ret = 0, len = strlen(*text);
+  int nrblocks = 0, nr = 0, pos = *start;
+
+  while(pos < len) {
+    lexer_parse_skip_characters(*text, len, &pos);
+    if(pos == len) {
+      return -1;
+    }
 
     // if(lexer->current_char[0] == '\'' || lexer->current_char[0] == '"') {
       // ret = lexer_parse_quoted_string(obj, lexer, &tpos);
@@ -274,212 +265,157 @@ static int rule_prepare(const char *text, int *pos) {
         // exit(-1);
       // }
     // } else
-    if(isdigit(text[*pos]) || (text[*pos] == '-' && *pos < len && isdigit(text[(*pos)+1]))) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TNUMBER;
-      ret = lexer_parse_number(text, pos);
-    } else if(strnicmp((char *)&text[*pos], "if", 2) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TIF;
-      (*pos)+=2;
+    *start = pos;
+    if(isdigit((*text)[pos]) || ((*text)[pos] == '-' && pos < len && isdigit((*text)[(pos)+1]))) {
+      lexer_parse_number((*text), &pos);
+      nr++;
+      *type = TNUMBER;
+    } else if(strnicmp((char *)&(*text)[pos], "if", 2) == 0) {
+      pos+=2;
       nrblocks++;
-    } else if(strnicmp(&text[*pos], "on", 2) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TEVENT;
-      *pos+=2;
-      lexer_parse_skip_characters(text, len, pos);
-      ret = lexer_parse_string(text, pos);
+      nr++;
+      *type = TIF;
+    } else if(strnicmp(&(*text)[pos], "on", 2) == 0) {
+      pos+=2;
+      lexer_parse_skip_characters((*text), len, &pos);
+      lexer_parse_string((*text), &pos);
       nrblocks++;
-    } else if(strnicmp((char *)&text[*pos], "else", 4) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TELSE;
-      (*pos)+=4;
-    } else if(strnicmp((char *)&text[*pos], "then", 4) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TTHEN;
-      (*pos)+=4;
-    } else if(strnicmp((char *)&text[*pos], "end", 3) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TEND;
-      (*pos)+=3;
+      nr++;
+      *type = TEVENT;
+    } else if(strnicmp((char *)&(*text)[pos], "else", 4) == 0) {
+      pos+=4;
+      nr++;
+      *type = TELSE;
+    } else if(strnicmp((char *)&(*text)[pos], "then", 4) == 0) {
+      pos+=4;
+      nr++;
+      *type = TTHEN;
+    } else if(strnicmp((char *)&(*text)[pos], "end", 3) == 0) {
+      pos+=3;
       nrblocks--;
-    } else if(strnicmp((char *)&text[*pos], "NULL", 4) == 0) {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = VNULL;
-      (*pos)+=4;
-    } else if(text[*pos] == ',') {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TCOMMA;
-      (*pos)++;
-    } else if(text[*pos] == '(') {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = LPAREN;
-      (*pos)++;
-    } else if(text[*pos] == ')') {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = RPAREN;
-      (*pos)++;
-    } else if(text[*pos] == '=' && *pos < len && text[(*pos)+1] != '=') {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TASSIGN;
-      (*pos)++;
-    } else if(text[*pos] == ';') {
-      if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+1)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      bytecode[nrbytes++] = TSEMICOLON;
-      (*pos)++;
+      nr++;
+      *type = TEND;
+    } else if(strnicmp((char *)&(*text)[pos], "NULL", 4) == 0) {
+      pos+=4;
+      nr++;
+      *type = VNULL;
+    } else if((*text)[pos] == ',') {
+      pos++;
+      nr++;
+      *type = TCOMMA;
+    } else if((*text)[pos] == '(') {
+      pos++;
+      nr++;
+      *type = LPAREN;
+    } else if((*text)[pos] == ')') {
+      pos++;
+      nr++;
+      *type = RPAREN;
+    } else if((*text)[pos] == '=' && pos < len && (*text)[(pos)+1] != '=') {
+      pos++;
+      nr++;
+      *type = TASSIGN;
+    } else if((*text)[pos] == ';') {
+      pos++;
+      nr++;
+      *type = TSEMICOLON;
     } else {
       int a = 0;
-      int b = len-(*pos)-1, len1 = 0;
-      for(a=(*pos);a<len;a++) {
-        if(text[a] == ' ' || text[a] == '(' || text[a] == ',') {
-          b = a-(*pos);
+      int b = len-(pos)-1, len1 = 0;
+      for(a=(pos);a<len;a++) {
+        if((*text)[a] == ' ' || (*text)[a] == '(' || (*text)[a] == ',') {
+          b = a-(pos);
           break;
         }
       }
 
-      if((len1 = is_function(text, pos, b)) > -1) {
-        if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+2)) == NULL) {
-          OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-        }
-        bytecode[nrbytes++] = TFUNCTION;
-        bytecode[nrbytes++] = len1;
-        *pos += b;
-      } else if((len1 = is_operator(text, pos, b)) > -1) {
-        if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+2)) == NULL) {
-          OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-        }
-        bytecode[nrbytes++] = TOPERATOR;
-        bytecode[nrbytes++] = len1;
-        *pos += b;
-      } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb(text, pos, b)) > -1) {
-        if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+len1+2)) == NULL) {
-          OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-        }
-        bytecode[nrbytes++] = TVAR;
-        memcpy(&bytecode[nrbytes], &text[*pos], len1);
-        nrbytes += len1;
-        bytecode[nrbytes++] = 0;
-        *pos += len1;
-      } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb(text, pos, b)) > -1) {
-        if((*pos)+b < len && text[(*pos)+b] == '(' && (*pos)+b+1 < len && text[(*pos)+b+1] == ')') {
-          if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+2)) == NULL) {
-            OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-          }
-          bytecode[nrbytes++] = TCEVENT;
-          lexer_parse_skip_characters(text, len, pos);
-          ret = lexer_parse_string(text, pos);
-          *pos += 2;
+      if((len1 = is_function((*text), start, b)) > -1) {
+        pos += b;
+        nr++;
+        *type = TFUNCTION;
+      } else if((len1 = is_operator((*text), &pos, b)) > -1) {
+        pos += b;
+        nr++;
+        *type = TOPERATOR;
+      } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb((*text), &pos, b)) > -1) {
+        pos += len1;
+        nr++;
+        *type = TVAR;
+      } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb((*text), &pos, b)) > -1) {
+        if((pos)+b < len && (*text)[(pos)+b] == '(' && (pos)+b+1 < len && (*text)[(pos)+b+1] == ')') {
+          lexer_parse_skip_characters((*text), len, &pos);
+          lexer_parse_string((*text), &pos);
+          pos += 2;
+          nr++;
+          *type = TCEVENT;
         } else {
-          if((len - *pos) > 5) {
-            fprintf(stderr, "ERROR: unknown token '%.5s...'\n", &text[*pos]);
+          if((len - pos) > 5) {
+            fprintf(stderr, "ERROR: unknown token '%.5s...'\n", &(*text)[pos]);
           } else {
-            fprintf(stderr, "ERROR: unknown token '%.5s'\n", &text[*pos]);
+            fprintf(stderr, "ERROR: unknown token '%.5s'\n", &(*text)[pos]);
           }
           return -1;
         }
       } else {
-        if((len - *pos) > 5) {
-          fprintf(stderr, "ERROR: unknown token '%.5s...'\n", &text[*pos]);
+        if((len - pos) > 5) {
+          fprintf(stderr, "ERROR: unknown token '%.5s...'\n", &(*text)[pos]);
         } else {
-          fprintf(stderr, "ERROR: unknown token '%.5s'\n", &text[*pos]);
+          fprintf(stderr, "ERROR: unknown token '%.5s'\n", &(*text)[pos]);
         }
         return -1;
       }
     }
 
-    lexer_parse_skip_characters(text, len, pos);
+    *end = pos;
 
-    if(nrblocks == 0) {
-      break;
-    }
-  }
-
-  if((bytecode = (unsigned char *)REALLOC(bytecode, nrbytes+2)) == NULL) {
-    OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-  }
-  bytecode[nrbytes++] = 0;
-  bytecode[nrbytes++] = 0;
-
-  return ret;
-}
-
-static int lexer_bytecode_pos(int skip, int *pos) {
-  int nr = 0, i = 0;
-  for(i=0;i<nrbytes;i++) {
-    if(bytecode[i] == TIF || bytecode[i] == TTHEN ||
-       bytecode[i] == TEND || bytecode[i] == TASSIGN ||
-       bytecode[i] == LPAREN || bytecode[i] == RPAREN ||
-       bytecode[i] == TELSE || bytecode[i] == TSEMICOLON ||
-       bytecode[i] == TCOMMA || bytecode[i] == VNULL ||
-       bytecode[i] == TEND) {
-      *pos = i;
-      nr++;
-    } else if(bytecode[i] == TFUNCTION) {
-      *pos = i;
-      i++;
-      nr++;
-    } else if(bytecode[i] == TOPERATOR) {
-      *pos = i;
-      i++;
-      nr++;
-    } else if(bytecode[i] == TVAR ||
-              bytecode[i] == TSTRING ||
-              bytecode[i] == TNUMBER ||
-              bytecode[i] == TCEVENT ||
-              bytecode[i] == TEVENT) {
-      *pos = i;
-      while(bytecode[++i] != 0);
-      nr++;
-    } else {
-      *pos = i;
-      i++;
-      nr++;
+    if(skip == -1 && nrblocks == 0) {
+      (*text)[pos] = 0;
       return 1;
     }
+
+    lexer_parse_skip_characters((*text), len, &pos);
 
     if(skip == nr-1) {
       return 0;
     }
   }
-  /*LCOV_EXCL_START*/
-  if(skip > nr) {
-    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-    return -1;
-  }
-  if(skip == nr) {
-    return 0;
-  }
 
-  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-  return -1;
-  /*LCOV_EXCL_STOP*/
+  *type = TEOF;
+  return 1;
 }
 
-static int vm_parent(struct rules_t *obj, int type, int val) {
+static int lexer_eat(char **text, int *length, int start, int len) {
+  int i = 0;
+  for(i=0;i<nrcache;i++) {
+    vmcache[i]->start -= 1;
+  }
+
+  int pos = start + len;
+  lexer_parse_skip_characters(*text, strlen(*text), &pos);
+
+  int newsize = *length-(pos-start);
+
+  memmove((char *)&(*text)[start], (char *)&(*text)[pos], *length-pos);
+
+  if((*text = (char *)REALLOC(*text, (size_t)(*length + 1))) == NULL) {
+    OUT_OF_MEMORY
+  }
+
+  (*text)[newsize] = 0;
+  *length = newsize;
+
+  return 0;
+}
+
+static int lexer_peek(char **text, int skip, int *type, int *start, int *len) {
+  int end = 0;
+  *start = 0;
+  int ret = lexer_iter(text, skip, start, &end, type);
+  *len = end-*start;
+  return ret;
+}
+
+static int vm_parent(char **text, struct rules_t *obj, int type, int start, int len, int opt) {
   int ret = alignedbytes(obj->nrbytes), size = 0, pos = -1, i = 0;
 
   switch(type) {
@@ -494,18 +430,6 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       node->type = type;
       node->go = 0;
       node->ret = 0;
-
-      obj->nrbytes = size;
-    } break;
-    case TEOF: {
-      size = alignedbytes(ret+sizeof(struct vm_teof_t));
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_teof_t));
-
-      struct vm_teof_t *node = (struct vm_teof_t *)&obj->bytecode[ret];
-      node->type = type;
 
       obj->nrbytes = size;
     } break;
@@ -540,11 +464,27 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
 
       obj->nrbytes = size;
     } break;
-    case TNUMBER: {
-      lexer_bytecode_pos(val, &pos);
+    case TOPERATOR: {
+      size = alignedbytes(ret+sizeof(struct vm_toperator_t));
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_toperator_t));
 
-      int l = strlen((char *)&bytecode[pos+1]);
-      float var = atof((char *)&bytecode[pos+1]);
+      struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[ret];
+      node->type = type;
+      node->ret = 0;
+      node->token = is_operator(*text, &start, len);
+      node->left = 0;
+      node->right = 0;
+      node->value = 0;
+
+      obj->nrbytes = size;
+    } break;
+    case TNUMBER: {
+      char tmp = (*text)[start+len];
+      (*text)[start+len] = 0;
+      float var = atof((char *)&(*text)[start]);
       float nr = 0;
 
       if(modff(var, &nr) == 0) {
@@ -554,16 +494,16 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
          * as ascii characters.
          */
         if(var < 100 && var > -9) {
-          size = alignedbytes(ret+sizeof(struct vm_tnumber_t)+l+1);
+          size = alignedbytes(ret+sizeof(struct vm_tnumber_t)+len+1);
           if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
             OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
           }
-          memset(&obj->bytecode[ret], 0, sizeof(struct vm_tnumber_t)+l+1);
+          memset(&obj->bytecode[ret], 0, sizeof(struct vm_tnumber_t)+len+1);
 
           struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->bytecode[ret];
           node->type = type;
           node->ret = 0;
-          memcpy(node->token, &bytecode[pos+1], l+1);
+          memcpy(node->token, &(*text)[start], len);
 
           obj->nrbytes = size;
         } else {
@@ -588,60 +528,42 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
         value->value = var;
         obj->nrbytes = alignedbytes(obj->nrbytes) + sizeof(struct vm_vfloat_t);
       }
+      (*text)[start+len] = tmp;
     } break;
     case TFALSE:
     case TTRUE: {
-      size = alignedbytes(ret+sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*val));
+      size = alignedbytes(ret+sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*opt));
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*val));
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*opt));
 
       struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->bytecode[ret];
       node->type = type;
       node->ret = 0;
-      node->nrgo = val;
-      for(i=0;i<val;i++) {
+      node->nrgo = opt;
+      for(i=0;i<opt;i++) {
         node->go[i] = 0;
       }
 
       obj->nrbytes = size;
     } break;
     case TFUNCTION: {
-      size = alignedbytes(ret+sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*val));
+      size = alignedbytes(ret+sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*opt));
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*val));
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*opt));
 
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[ret];
-      node->token = 0;
+      node->token = is_function(*text, &start, len);;
       node->type = type;
       node->ret = 0;
-      node->nrgo = val;
-      for(i=0;i<val;i++) {
+      node->nrgo = opt;
+      for(i=0;i<opt;i++) {
         node->go[i] = 0;
       }
       node->value = 0;
-
-      obj->nrbytes = size;
-    } break;
-    case TCEVENT: {
-      lexer_bytecode_pos(val, &pos);
-
-      int l = strlen((char *)&bytecode[pos+1]);
-
-      size = alignedbytes(ret+sizeof(struct vm_tcevent_t)+(sizeof(uint16_t)*val)+l+1);
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tcevent_t)+(sizeof(uint16_t)*val)+l+1);
-
-      struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[ret];
-
-      node->type = type;
-      node->ret = 0;
-      memcpy(node->token, &bytecode[pos+1], l+1);
 
       obj->nrbytes = size;
     } break;
@@ -659,15 +581,11 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       obj->nrbytes = size;
     } break;
     case TVAR: {
-      lexer_bytecode_pos(val, &pos);
-
-      int l = strlen((char *)&bytecode[pos+1]);
-
-      size = alignedbytes(ret+sizeof(struct vm_tvar_t)+l+1);
+      size = alignedbytes(ret+sizeof(struct vm_tvar_t)+len+1);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tvar_t)+l+1);
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tvar_t)+len+1);
 
       struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->bytecode[ret];
       node->type = type;
@@ -675,86 +593,66 @@ static int vm_parent(struct rules_t *obj, int type, int val) {
       node->go = 0;
       node->value = 0;
 
-      memcpy(node->token, &bytecode[pos+1], l+1);
+      memcpy(node->token, &(*text)[start], len);
       obj->nrbytes = size;
     } break;
     case TEVENT: {
-      lexer_bytecode_pos(val, &pos);
+      int pos = 0;
+      lexer_parse_skip_characters(&(*text)[start+2], strlen(&(*text)[start]), &pos);
 
-      int l = strlen((char *)&bytecode[pos+1]);
+      len -= (2+pos);
 
-      size = alignedbytes(ret+sizeof(struct vm_tevent_t)+l+1);
+      size = alignedbytes(ret+sizeof(struct vm_tevent_t)+len+1);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tevent_t)+l+1);
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tevent_t)+len+1);
 
       struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->bytecode[ret];
       node->type = type;
       node->ret = 0;
       node->go = 0;
 
-      memcpy(node->token, &bytecode[pos+1], l+1);
+      memcpy(node->token, &(*text)[start+2+pos], len);
       obj->nrbytes = size;
     } break;
-    case TOPERATOR: {
-      size = alignedbytes(ret+sizeof(struct vm_toperator_t));
+    case TCEVENT: {
+      size = alignedbytes(ret+sizeof(struct vm_tcevent_t)+(len-2)+1);
       if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      memset(&obj->bytecode[ret], 0, sizeof(struct vm_toperator_t));
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_tcevent_t)+(len-2)+1);
 
-      lexer_bytecode_pos(val, &pos);
-
-      struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->bytecode[ret];
+      struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->bytecode[ret];
 
       node->type = type;
       node->ret = 0;
-      node->token = bytecode[pos+1];
-      node->left = 0;
-      node->right = 0;
-      node->value = 0;
+      /*
+       * memcpy triggers a -Wstringop-overflow here
+       */
+      // memcpy(node->token, &(*text)[start], len-2);
+      sprintf((char *)node->token, "%.*s", len-2, &(*text)[start]);
 
       obj->nrbytes = size;
     } break;
+    case TEOF: {
+      size = alignedbytes(ret+sizeof(struct vm_teof_t));
+      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, size)) == NULL) {
+        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
+      }
+      memset(&obj->bytecode[ret], 0, sizeof(struct vm_teof_t));
+
+      struct vm_teof_t *node = (struct vm_teof_t *)&obj->bytecode[ret];
+      node->type = type;
+
+      obj->nrbytes = size;
+    } break;
+    default: {
+      return -1;
+    } break;
   }
+
   return ret;
-}
-
-static int lexer_peek(int skip, int *type) {
-  int i = 0, nr = 0, tmp = 0, val = 0, x = 0;
-
-  int pos = 0, pos1 = 0, ret = 0;
-  ret = lexer_bytecode_pos(skip, &pos);
-  if(ret == 1) {
-    *type = TEOF;
-  } else if(ret == 0) {
-    *type = bytecode[pos];
-  } else {
-    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__); /*LCOV_EXCL_LINE*/
-  }
-
-  return 0;
-}
-
-static int lexer_eat(int offset, int skip) {
-  int i = 0, nr = 0, tmp = 0;
-  int val = 0, val1 = 0;
-
-  lexer_bytecode_pos(offset, &val1);
-  lexer_bytecode_pos(skip + 1, &val);
-
-  memmove(&bytecode[val1], &bytecode[val1+(val-val1)], nrbytes-(val1+(val-val1)));
-  nrbytes -= (val-val1);
-  bytecode[nrbytes] = 0;
-
-  for(i=0;i<nrcache;i++) {
-    if(vmcache[i]->start >= offset) {
-      vmcache[i]->start -= ((skip-offset)+1);
-    }
-  }
-
-  return 0;
 }
 
 static int vm_rewind2(struct rules_t *obj, int step, int type, int type2) {
@@ -875,58 +773,35 @@ static void vm_cache_del(int start) {
 #endif
 }
 
-static struct vm_cache_t *vm_cache_get(int type, int step, int start) {
+static struct vm_cache_t *vm_cache_get(int type, int start) {
   int x = 0;
   for(x=0;x<nrcache;x++) {
-    if(
-      (
-        (type > -1 && vmcache[x]->type == type) || (type == -1)
-      ) && (
-        (start > -1 && vmcache[x]->start == start) || (start == -1)
-      ) && (
-        (step > -1 && vmcache[x]->step == step) || (step == -1)
-      )
-    ) {
+    if(vmcache[x]->type == type && vmcache[x]->start == start) {
       return vmcache[x];
     }
   }
   return NULL;
 }
 
-static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *step_out, int offset, int source) {
-  int b = 0, c = 0, step = 0, val = 0, first = 1;
+static int lexer_parse_math_order(char **text, int *length, struct rules_t *obj, int type, int *pos, int *step_out, int offset, int source) {
+  unsigned char *val = NULL;
+  int b = 0, c = 0, step = 0, first = 1, start = 0, len = 0;
 
   while(1) {
     int right = 0;
-    lexer_peek((*pos), &b);
 
-    if(lexer_peek((*pos), &b) < 0 || b != TOPERATOR) {
+    if(lexer_peek(text, (*pos), &b, &start, &len) < 0 || b != TOPERATOR) {
       break;
     }
 
-    step = vm_parent(obj, b, (*pos));
-    lexer_eat(offset, *pos);
+    step = vm_parent(text, obj, b, start, len, 0);
+    lexer_eat(text, length, start, len);
 
-    if(lexer_peek((*pos), &c) == 0) {
+    if(lexer_peek(text, (*pos), &c, &start, &len) == 0) {
       switch(c) {
         case LPAREN: {
           int oldpos = (*pos);
-          struct vm_cache_t *x = vm_cache_get(LPAREN, -1, (*pos));
-          /* LCOV_EXCL_START*/
-          if(x == NULL) {
-            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-            return -1;
-          }
-          /* LCOV_EXCL_STOP*/
-          (*pos) = x->start + 1;
-          right = x->step;
-          vm_cache_del(oldpos);
-          lexer_eat(offset, (*pos));
-          (*pos) -= 1;
-        } break;
-        case TFUNCTION: {
-          int oldpos = (*pos);
-          struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, (*pos));
+          struct vm_cache_t *x = vm_cache_get(LPAREN, (*pos));
           /* LCOV_EXCL_START*/
           if(x == NULL) {
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -936,19 +811,55 @@ static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *
           (*pos) = x->start;
           right = x->step;
           vm_cache_del(oldpos);
-          lexer_eat(offset, (*pos));
+
+          if(lexer_peek(text, *pos, &type, &start, &len) < 0) {
+            /* LCOV_EXCL_START*/
+            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+            return -1;
+            /* LCOV_EXCL_STOP*/
+          }
+          if(type != LPAREN) {
+            /* LCOV_EXCL_START*/
+            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+            return -1;
+            /* LCOV_EXCL_STOP*/
+          }
+          lexer_eat(text, length, start, len);
         } break;
-        case TVAR: {
-          right = vm_parent(obj, c, (*pos));
-          lexer_eat(offset, (*pos));
+        case TFUNCTION: {
+          int oldpos = (*pos);
+          struct vm_cache_t *x = vm_cache_get(TFUNCTION, (*pos));
+          /* LCOV_EXCL_START*/
+          if(x == NULL) {
+            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+            return -1;
+          }
+          /* LCOV_EXCL_STOP*/
+          (*pos) = x->start;
+          right = x->step;
+          vm_cache_del(oldpos);
+
+          if(lexer_peek(text, (*pos), &type, &start, &len) < 0 || type != TFUNCTION) {
+            /* LCOV_EXCL_START*/
+            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+            return -1;
+            /* LCOV_EXCL_STOP*/
+          }
+          lexer_eat(text, length, start, len);
+
+          if(lexer_peek(text, (*pos), &type, &start, &len) < 0 || type != LPAREN) {
+            /* LCOV_EXCL_START*/
+            fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+            return -1;
+            /* LCOV_EXCL_STOP*/
+          }
+          lexer_eat(text, length, start, len);
         } break;
+        case TVAR:
+        case VNULL:
         case TNUMBER: {
-          right = vm_parent(obj, c, (*pos));
-          lexer_eat(offset, (*pos));
-        } break;
-        case VNULL: {
-          right = vm_parent(obj, c, (*pos));
-          lexer_eat(offset, (*pos));
+          right = vm_parent(text, obj, c, start, len, 0);
+          lexer_eat(text, length, start, len);
         } break;
         default: {
           fprintf(stderr, "ERROR: Expected a parenthesis block, function, number or variable\n");
@@ -1117,13 +1028,13 @@ static int lexer_parse_math_order(struct rules_t *obj, int type, int *pos, int *
   return step;
 }
 
-static int rule_parse(struct rules_t *obj) {
+static int rule_parse(char **text, int *length, struct rules_t *obj) {
   int type = 0, type1 = 0, go = -1, step_out = -1, step = 0, pos = 0;
   int has_paren = -1, has_function = -1, has_if = -1, has_on = -1;
-  int loop = 1, start = 0, r_rewind = -1, offset = 0;
+  int loop = 1, startnode = 0, r_rewind = -1, offset = 0, start = 0, len = 0;
 
   /* LCOV_EXCL_START*/
-  if(lexer_peek(0, &type) < 0) {
+  if(lexer_peek(text, 0, &type, &start, &len) < 0) {
     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
     return -1;
   }
@@ -1134,7 +1045,7 @@ static int rule_parse(struct rules_t *obj) {
     return -1;
   }
 
-  start = vm_parent(obj, TSTART, -1);
+  startnode = vm_parent(text, obj, TSTART, 0, 0, 0);
 
   while(loop) {
     if(go > -1) {
@@ -1151,7 +1062,7 @@ static int rule_parse(struct rules_t *obj) {
         /* LCOV_EXCL_STOP*/
         } break;
         case TEVENT: {
-          if(lexer_peek(pos, &type) < 0) {
+          if(lexer_peek(text, pos, &type, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
@@ -1165,23 +1076,26 @@ static int rule_parse(struct rules_t *obj) {
                 return -1;
               }
 
-              step_out = vm_parent(obj, TEVENT, pos);
+              step_out = vm_parent(text, obj, TEVENT, start, len, 0);
+              lexer_eat(text, length, start, len);
+
               struct vm_tevent_t *a = (struct vm_tevent_t *)&obj->bytecode[step_out];
 
-              lexer_eat(offset, pos);
+              if(lexer_peek(text, pos, &type, &start, &len) == 0 && type == TTHEN) {
 
-              if(lexer_peek(pos, &type) == 0 && type == TTHEN) {
+                lexer_eat(text, length, start, len);
+
                 /*
                  * Predict how many go slots we need to
                  * reserve for the TRUE / FALSE nodes.
                  */
                 int y = pos, nrexpressions = 0;
-                while(lexer_peek(y++, &type) == 0) {
+                while(lexer_peek(text, y++, &type, &start, &len) == 0) {
                   if(type == TEOF) {
                     break;
                   }
                   if(type == TIF) {
-                    struct vm_cache_t *cache = vm_cache_get(TIF, -1, y-1);
+                    struct vm_cache_t *cache = vm_cache_get(TIF, y-1);
                     nrexpressions++;
                     y = cache->start + 1;
                     continue;
@@ -1207,7 +1121,8 @@ static int rule_parse(struct rules_t *obj) {
                  * for the number of operations the
                  * TRUE of FALSE will forward to.
                  */
-                step = vm_parent(obj, TTRUE, nrexpressions);
+                step = vm_parent(text, obj, TTRUE, start, len, nrexpressions);
+
                 struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->bytecode[step];
                 struct vm_tevent_t *b = (struct vm_tevent_t *)&obj->bytecode[step_out];
 
@@ -1217,7 +1132,6 @@ static int rule_parse(struct rules_t *obj) {
                 go = TEVENT;
 
                 step_out = step;
-                lexer_eat(offset, pos);
               } else {
                 fprintf(stderr, "ERROR: Expected a 'then' token\n");
                 return -1;
@@ -1233,17 +1147,17 @@ static int rule_parse(struct rules_t *obj) {
                   continue;
                 } break;
                 case TFUNCTION: {
-                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
+                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, pos);
                   /* LCOV_EXCL_START*/
                   if(x == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  if(lexer_peek(x->start + 1, &type) == 0) {
+                  if(lexer_peek(text, x->start + 2, &type, &start, &len) == 0) {
                     switch(type) {
                       case TSEMICOLON: {
-                        pos = x->start + 2;
+                        pos = x->start;
 
                         int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->bytecode[x->step];
@@ -1268,6 +1182,31 @@ static int rule_parse(struct rules_t *obj) {
                         go = TEVENT;
                         step_out = tmp;
                         vm_cache_del(x->start);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TSEMICOLON) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
                       } break;
                       case TOPERATOR: {
                         go = type;
@@ -1281,21 +1220,32 @@ static int rule_parse(struct rules_t *obj) {
                   continue;
                 } break;
                 case TIF: {
-                  struct vm_cache_t *cache = vm_cache_get(TIF, -1, pos);
+                  struct vm_cache_t *cache = vm_cache_get(TIF, pos);
                   /* LCOV_EXCL_START*/
                   if(cache == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  step = cache->step;
 
-                  if(lexer_peek(cache->start + 1, &type) < 0) {
+                  step = cache->step;
+                  pos = cache->start;
+
+
+                  if(lexer_peek(text, cache->start, &type, &start, &len) < 0) {
                     /* LCOV_EXCL_START*/
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                     /* LCOV_EXCL_STOP*/
                   }
+
+                  /*
+                   * After an cached IF block has been linked
+                   * it can be removed from cache
+                   */
+                  vm_cache_del(cache->start);
+
+                  lexer_eat(text, length, start, len);
 
                   struct vm_tif_t *i = (struct vm_tif_t *)&obj->bytecode[step];
 
@@ -1305,16 +1255,6 @@ static int rule_parse(struct rules_t *obj) {
                   int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
 
                   i->ret = step_out;
-                  pos = cache->start + 1;
-
-                  /*
-                   * After an cached IF block has been linked
-                   * it can be removed from cache
-                   */
-                  vm_cache_del(cache->start);
-                  lexer_eat(offset, pos - 1);
-                  pos -= 1;
-
                   switch(obj->bytecode[step_out]) {
                     case TFALSE:
                     case TTRUE: {
@@ -1366,12 +1306,12 @@ static int rule_parse(struct rules_t *obj) {
                   /* LCOV_EXCL_START*/
 
                   if(has_on == 0) {
-                    struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[start];
+                    struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[startnode];
                     struct vm_tif_t *a = (struct vm_tif_t *)&obj->bytecode[tmp];
                     b->go = tmp;
-                    a->ret = start;
+                    a->ret = startnode;
 
-                    step = vm_parent(obj, TEOF, -1);
+                    step = vm_parent(text, obj, TEOF, 0, 0, 0);
 #ifdef DEBUG
                     printf("nr steps: %d\n", step);/*LCOV_EXCL_LINE*/
 #endif
@@ -1379,6 +1319,15 @@ static int rule_parse(struct rules_t *obj) {
 
                     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->bytecode[tmp];
                     node->ret = step;
+
+                    if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+                      /* LCOV_EXCL_START*/
+                      fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                      return -1;
+                      /* LCOV_EXCL_STOP*/
+                    }
+
+                    lexer_eat(text, length, start, len);
                   }
 
                   /*
@@ -1412,7 +1361,7 @@ static int rule_parse(struct rules_t *obj) {
           }
         } break;
         case TIF: {
-          if(lexer_peek(pos, &type) < 0) {
+          if(lexer_peek(text, pos, &type, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
@@ -1426,13 +1375,15 @@ static int rule_parse(struct rules_t *obj) {
                 (obj->bytecode[step_out]) == TFALSE
               ) && (type != TTHEN && type != TELSE)
             ) {
+
             /*
              * Link cached IF blocks together
              */
-            struct vm_cache_t *cache = vm_cache_get(TIF, -1, pos);
+            struct vm_cache_t *cache = vm_cache_get(TIF, pos);
             if(cache != NULL) {
               step = cache->step;
-              if(lexer_peek(cache->start + 1, &type) < 0) {
+
+              if(lexer_peek(text, cache->start, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                 return -1;
@@ -1449,13 +1400,14 @@ static int rule_parse(struct rules_t *obj) {
               i->ret = step_out;
               pos = cache->start;
 
-
               /*
                * After an cached IF block has been linked
                * it can be removed from cache
                */
               vm_cache_del(cache->start);
-              lexer_eat(offset, pos);
+
+              lexer_eat(text, length, start, len);
+
               switch(obj->bytecode[step_out]) {
                 case TFALSE:
                 case TTRUE: {
@@ -1489,38 +1441,38 @@ static int rule_parse(struct rules_t *obj) {
               /*
                * An IF block directly followed by another IF block
                */
-              if(lexer_peek(pos, &type) == 0 && type == TIF) {
+              if(lexer_peek(text, pos, &type, &start, &len) == 0 && type == TIF) {
                 go = TIF;
                 continue;
               }
             }
 
             if(type == TIF) {
-              step = vm_parent(obj, type, -1);
+              step = vm_parent(text, obj, TIF, start, len, 0);
               struct vm_tif_t *a = (struct vm_tif_t *)&obj->bytecode[step];
 
-              /*
-               * If this is a nested IF block,
-               * cache it for linking further on
-               */
-              if(has_if > 0) {
-                vm_cache_add(TIF, step, has_if);
-                pos++;
+              if(pos == 0) {
+                struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[start];
+                b->go = step;
+                a->ret = start;
+              }
+              if(has_if == 0) {
+                lexer_eat(text, length, start, len);
               } else {
-                lexer_eat(offset, pos);
+                pos++;
               }
 
-              if(lexer_peek(pos+1, &type) == 0 && type == TOPERATOR) {
+              if(lexer_peek(text, pos+1, &type, &start, &len) == 0 && type == TOPERATOR) {
                 go = TOPERATOR;
                 step_out = step;
                 continue;
-              } else if(lexer_peek(pos, &type) == 0 && type == LPAREN) {
+              } else if(lexer_peek(text, pos, &type, &start, &len) == 0 && type == LPAREN) {
                 step_out = step;
 
                 /*
                  * Link cached parenthesis blocks
                  */
-                struct vm_cache_t *cache = vm_cache_get(LPAREN, -1, pos);
+                struct vm_cache_t *cache = vm_cache_get(LPAREN, pos);
                 /* LCOV_EXCL_START*/
                 if(cache == NULL) {
                   fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -1528,23 +1480,21 @@ static int rule_parse(struct rules_t *obj) {
                 }
                 /* LCOV_EXCL_STOP*/
 
+                lexer_eat(text, length, start, len);
+
                 struct vm_lparen_t *c = (struct vm_lparen_t *)&obj->bytecode[cache->step];
                 /*
                  * If this parenthesis is part of a operator
                  * let the operator handle it.
                  */
-                if(lexer_peek(cache->start + 2, &type) < 0) {
+                if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                   /* LCOV_EXCL_START*/
                   fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 }
 
-                if(type == TOPERATOR) {
-                  go = TOPERATOR;
-                  step_out = step;
-                  continue;
-                } else if(type == TTHEN) {
+                if(type == TTHEN) {
                   step_out = c->go;
                   go = TIF;
                   a->go = cache->step;
@@ -1554,12 +1504,17 @@ static int rule_parse(struct rules_t *obj) {
                   return -1;
                 }
 
-                lexer_eat(offset, cache->start + 1);
                 vm_cache_del(cache->start);
                 continue;
-              } else if(lexer_peek(pos, &type) == 0 && type == TFUNCTION) {
-                fprintf(stderr, "ERROR: Function without operator in if condition\n");
-                return -1;
+              } else if(lexer_peek(text, pos, &type, &start, &len) == 0 && type == TFUNCTION) {
+                if(lexer_peek(text, pos+2, &type, &start, &len) == 0 && type == TOPERATOR) {
+                  go = TOPERATOR;
+                  step_out = step;
+                  continue;
+                } else {
+                  fprintf(stderr, "ERROR: Function without operator in if condition\n");
+                  return -1;
+                }
               } else {
                 fprintf(stderr, "ERROR: Expected a parenthesis block, function or operator\n");
                 return -1;
@@ -1579,7 +1534,7 @@ static int rule_parse(struct rules_t *obj) {
                   continue;
                 } break;
                 case TFUNCTION: {
-                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
+                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, pos);
                   /* LCOV_EXCL_START*/
                   if(x == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -1587,11 +1542,9 @@ static int rule_parse(struct rules_t *obj) {
                   }
                   /* LCOV_EXCL_STOP*/
 
-                  if(lexer_peek(x->start + 1, &type) == 0) {
+                  if(lexer_peek(text, x->start + 2, &type, &start, &len) == 0) {
                     switch(type) {
                       case TSEMICOLON: {
-                        pos = x->start + 1;
-
                         int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->bytecode[x->step];
                         struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->bytecode[step_out];
@@ -1615,7 +1568,31 @@ static int rule_parse(struct rules_t *obj) {
                         go = TIF;
                         step_out = tmp;
                         vm_cache_del(x->start);
-                        lexer_eat(offset, pos);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TSEMICOLON) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
                       } break;
                       case TOPERATOR: {
                         go = type;
@@ -1634,26 +1611,26 @@ static int rule_parse(struct rules_t *obj) {
 
                   int tmp = vm_rewind(obj, step_out, TIF);
                   if(has_if > 0) {
-                    struct vm_cache_t *cache = vm_cache_get(TIF, tmp, -1);
-                    /* LCOV_EXCL_START*/
-                    if(cache == NULL) {
+                    r_rewind = has_if;
+
+                    if(lexer_peek(text, has_if + 1, &type, &start, &len) < 0 || type != TEND) {
+                      /* LCOV_EXCL_START*/
                       fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                       return -1;
+                      /* LCOV_EXCL_STOP*/
                     }
-                    /* LCOV_EXCL_STOP*/
 
-                    r_rewind = cache->start;
+                    lexer_eat(text, length, start, len);
 
-                    lexer_eat(offset, pos);
-
+                    vm_cache_add(TIF, tmp, has_if);
                   }
                   if(has_if == 0) {
-                    struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[start];
+                    struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->bytecode[startnode];
                     struct vm_tif_t *a = (struct vm_tif_t *)&obj->bytecode[tmp];
                     b->go = tmp;
-                    a->ret = start;
+                    a->ret = startnode;
 
-                    step = vm_parent(obj, TEOF, -1);
+                    step = vm_parent(text, obj, TEOF, 0, 0, 0);
 #ifdef DEBUG
                     printf("nr steps: %d\n", step);/*LCOV_EXCL_LINE*/
 #endif
@@ -1661,6 +1638,15 @@ static int rule_parse(struct rules_t *obj) {
 
                     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->bytecode[tmp];
                     node->ret = step;
+
+                    if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+                      /* LCOV_EXCL_START*/
+                      fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                      return -1;
+                      /* LCOV_EXCL_STOP*/
+                    }
+
+                    lexer_eat(text, length, start, len);
                   }
 
                   /*
@@ -1689,12 +1675,14 @@ static int rule_parse(struct rules_t *obj) {
           } else {
             int t = 0;
 
-            if(lexer_peek(pos, &type) < 0) {
+            if(lexer_peek(text, pos, &type, &start, &len) < 0) {
               /* LCOV_EXCL_START*/
               fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
               return -1;
               /* LCOV_EXCL_STOP*/
             }
+
+            lexer_eat(text, length, start, len);
 
             if(type == TTHEN) {
               t = TTRUE;
@@ -1706,14 +1694,20 @@ static int rule_parse(struct rules_t *obj) {
              * Predict how many go slots we need to
              * reserve for the TRUE / FALSE nodes.
              */
-            int y = pos, nrexpressions = 0;
+            int y = pos, nrexpressions = 0, z = 0;
 
-            while(lexer_peek(y++, &type) == 0) {
+            while((z = lexer_peek(text, y++, &type, &start, &len)) == 0) {
               if(type == TEOF) {
                 break;
               }
               if(type == TIF) {
-                struct vm_cache_t *cache = vm_cache_get(TIF, -1, y-1);
+                struct vm_cache_t *cache = vm_cache_get(TIF, y-1);
+                if(cache == NULL) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
                 nrexpressions++;
                 y = cache->start + 1;
                 continue;
@@ -1744,12 +1738,20 @@ static int rule_parse(struct rules_t *obj) {
              */
             step_out = vm_rewind(obj, step_out, TIF);
 
+            if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+              /* LCOV_EXCL_START*/
+              fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+              return -1;
+              /* LCOV_EXCL_STOP*/
+            }
+
             /*
              * The last parameter is used for
              * for the number of operations the
              * TRUE of FALSE will forward to.
              */
-            step = vm_parent(obj, t, nrexpressions);
+            step = vm_parent(text, obj, t, 0, 0, nrexpressions);
+
             struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->bytecode[step];
             struct vm_tif_t *b = (struct vm_tif_t *)&obj->bytecode[step_out];
 
@@ -1763,32 +1765,16 @@ static int rule_parse(struct rules_t *obj) {
             go = TIF;
 
             step_out = step;
-            lexer_eat(offset, pos);
           }
         } break;
         case TOPERATOR: {
           int a = -1, val = 0;
           int source = step_out;
 
-          if(lexer_peek(pos, &a) == 0) {
+          if(lexer_peek(text, pos, &a, &start, &len) == 0) {
             switch(a) {
               case LPAREN: {
-                struct vm_cache_t *x = vm_cache_get(LPAREN, -1, pos);
-                /* LCOV_EXCL_START*/
-                if(x == NULL) {
-                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-                  return -1;
-                }
-                /* LCOV_EXCL_STOP*/
-                int oldpos = pos;
-                pos = x->start + 1;
-                step_out = x->step;
-                vm_cache_del(oldpos);
-                lexer_eat(offset, pos);
-                pos -= 1;
-              } break;
-              case TFUNCTION: {
-                struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
+                struct vm_cache_t *x = vm_cache_get(LPAREN, pos);
                 /* LCOV_EXCL_START*/
                 if(x == NULL) {
                   fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -1799,19 +1785,51 @@ static int rule_parse(struct rules_t *obj) {
                 pos = x->start;
                 step_out = x->step;
                 vm_cache_del(oldpos);
-                lexer_eat(offset, pos);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+
+                lexer_eat(text, length, start, len);
               } break;
-              case TVAR: {
-                step_out = vm_parent(obj, a, pos);
-                lexer_eat(offset, pos);
+              case TFUNCTION: {
+                struct vm_cache_t *x = vm_cache_get(TFUNCTION, pos);
+                /* LCOV_EXCL_START*/
+                if(x == NULL) {
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                }
+                /* LCOV_EXCL_STOP*/
+                int oldpos = pos;
+                pos = x->start;
+                step_out = x->step;
+                vm_cache_del(oldpos);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+
+                lexer_eat(text, length, start, len);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                lexer_eat(text, length, start, len);
               } break;
+              case TVAR:
+              case VNULL:
               case TNUMBER: {
-                step_out = vm_parent(obj, a, pos);
-                lexer_eat(offset, pos);
-              } break;
-              case VNULL: {
-                step_out = vm_parent(obj, a, pos);
-                lexer_eat(offset, pos);
+                step_out = vm_parent(text, obj, a, start, len, 0);
+                lexer_eat(text, length, start, len);
               } break;
               /* LCOV_EXCL_START*/
               default: {
@@ -1826,7 +1844,7 @@ static int rule_parse(struct rules_t *obj) {
            * The return value is the positition
            * of the root operator
            */
-          int step = lexer_parse_math_order(obj, TOPERATOR, &pos, &step_out, offset, source);
+          int step = lexer_parse_math_order(text, length, obj, TOPERATOR, &pos, &step_out, offset, source);
           if(step == -1) {
             return -1;
           }
@@ -1867,7 +1885,7 @@ static int rule_parse(struct rules_t *obj) {
               } break;
             }
           }
-          if(lexer_peek(pos, &type) == 0) {
+          if(lexer_peek(text, pos, &type, &start, &len) == 0) {
             switch(type) {
               case TTHEN: {
                 go = TIF;
@@ -1884,16 +1902,15 @@ static int rule_parse(struct rules_t *obj) {
         } break;
         case VNULL: {
           struct vm_vnull_t *node = NULL;
-          if(lexer_peek(pos, &type) < 0) {
+          if(lexer_peek(text, pos, &type, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
             /* LCOV_EXCL_STOP*/
           }
 
-          step = vm_parent(obj, VNULL, pos);
-
-          pos++;
+          step = vm_parent(text, obj, VNULL, start, len, 0);
+          lexer_eat(text, length, start, len);
 
           switch((obj->bytecode[step_out])) {
             case TVAR: {
@@ -1932,13 +1949,20 @@ static int rule_parse(struct rules_t *obj) {
           if((obj->bytecode[step_out]) == TTRUE || (obj->bytecode[step_out]) == TFALSE) {
             struct vm_tvar_t *node = NULL;
             struct vm_ttrue_t *node1 = NULL;
+            unsigned char *val = NULL;
 
-            step = vm_parent(obj, TVAR, pos);
+            if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+              /* LCOV_EXCL_START*/
+              fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+              return -1;
+              /* LCOV_EXCL_STOP*/
+            }
+
+            step = vm_parent(text, obj, TVAR, start, len, 0);
+            lexer_eat(text, length, start, len);
 
             node = (struct vm_tvar_t *)&obj->bytecode[step];
             node1 = (struct vm_ttrue_t *)&obj->bytecode[step_out];
-
-            lexer_eat(offset, pos);
 
             int x = 0;
             for(x=0;x<node1->nrgo;x++) {
@@ -1958,15 +1982,16 @@ static int rule_parse(struct rules_t *obj) {
 
             step_out = step;
 
-            if(lexer_peek(pos, &type) < 0 || type != TASSIGN) {
+            if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TASSIGN) {
               /* LCOV_EXCL_START*/
               fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
               return -1;
               /* LCOV_EXCL_STOP*/
             }
-            lexer_eat(offset, pos);
 
-            if(lexer_peek(pos+1, &type) == 0 && type == TOPERATOR) {
+            lexer_eat(text, length, start, len);
+
+            if(lexer_peek(text, pos+1, &type, &start, &len) == 0 && type == TOPERATOR) {
               switch(type) {
                 case TOPERATOR: {
                   go = TOPERATOR;
@@ -1974,17 +1999,18 @@ static int rule_parse(struct rules_t *obj) {
                   continue;
                 } break;
               }
-            } else if(lexer_peek(pos, &type) == 0) {
+            } else if(lexer_peek(text, pos, &type, &start, &len) == 0) {
               switch(type) {
                 case TNUMBER: {
-                  int foo = vm_parent(obj, type, pos);
+                  int foo = vm_parent(text, obj, type, start, len, 0);
                   struct vm_tgeneric_t *a = (struct vm_tgeneric_t *)&obj->bytecode[foo];
                   node = (struct vm_tvar_t *)&obj->bytecode[step];
                   node->go = foo;
                   a->ret = step;
 
+                  lexer_eat(text, length, start, len);
+
                   go = TVAR;
-                  lexer_eat(offset, pos);
                 } break;
                 case TVAR: {
                   go = TVAR;
@@ -1995,17 +2021,17 @@ static int rule_parse(struct rules_t *obj) {
                   step_out = step;
                 } break;
                 case TFUNCTION: {
-                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, pos);
+                  struct vm_cache_t *x = vm_cache_get(TFUNCTION, pos);
                   /* LCOV_EXCL_START*/
                   if(x == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  if(lexer_peek(x->start + 1, &type) == 0) {
+                  if(lexer_peek(text, x->start + 2, &type, &start, &len) == 0) {
                     switch(type) {
                       case TSEMICOLON: {
-                        pos = x->start + 1;
+                        pos = x->start;
 
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->bytecode[x->step];
                         struct vm_tvar_t *v = (struct vm_tvar_t *)&obj->bytecode[step_out];
@@ -2018,8 +2044,30 @@ static int rule_parse(struct rules_t *obj) {
                         go = obj->bytecode[tmp1];
                         step_out = tmp;
                         vm_cache_del(x->start);
-                        lexer_eat(offset, pos);
-                        pos -= 1;
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
+
+                        if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TSEMICOLON) {
+                          /* LCOV_EXCL_START*/
+                          fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                          return -1;
+                          /* LCOV_EXCL_STOP*/
+                        }
+                        lexer_eat(text, length, start, len);
                       } break;
                       case TOPERATOR: {
                         go = type;
@@ -2033,16 +2081,16 @@ static int rule_parse(struct rules_t *obj) {
                 } break;
                 case LPAREN: {
                   int oldpos = pos;
-                  struct vm_cache_t *x = vm_cache_get(LPAREN, -1, pos);
+                  struct vm_cache_t *x = vm_cache_get(LPAREN, pos);
                   /* LCOV_EXCL_START*/
                   if(x == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  if(lexer_peek(x->start + 2, &type) == 0) {
+                  if(lexer_peek(text, x->start + 1, &type, &start, &len) == 0) {
                     if(type == TSEMICOLON) {
-                      pos = x->start + 2;
+                      pos = x->start;
 
                       struct vm_lparen_t *l = (struct vm_lparen_t *)&obj->bytecode[x->step];
                       struct vm_tvar_t *v = (struct vm_tvar_t *)&obj->bytecode[step_out];
@@ -2054,8 +2102,23 @@ static int rule_parse(struct rules_t *obj) {
                       go = TIF;
                       step_out = tmp;
 
+                      if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                        /* LCOV_EXCL_START*/
+                        fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                        return -1;
+                        /* LCOV_EXCL_STOP*/
+                      }
+                      lexer_eat(text, length, start, len);
+
+                      if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TSEMICOLON) {
+                        /* LCOV_EXCL_START*/
+                        fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                        return -1;
+                        /* LCOV_EXCL_STOP*/
+                      }
+                      lexer_eat(text, length, start, len);
+
                       vm_cache_del(oldpos);
-                      lexer_eat(offset, pos);
                     } else {
                       go = type;
                     }
@@ -2075,31 +2138,36 @@ static int rule_parse(struct rules_t *obj) {
           /*
            * The variable has been called as a value
            */
-          } else if((obj->bytecode[step_out]) == TVAR && lexer_peek(pos, &type) == 0 && type != TSEMICOLON) {
-            if(lexer_peek(pos, &type) == 0 && type == TVAR) {
-              step = vm_parent(obj, TVAR, pos);
-              lexer_eat(offset, pos);
+          } else if((obj->bytecode[step_out]) == TVAR && lexer_peek(text, pos, &type, &start, &len) == 0 && type != TSEMICOLON) {
+            step = vm_parent(text, obj, TVAR, start, len, 0);
+            lexer_eat(text, length, start, len);
 
-              struct vm_tvar_t *in = (struct vm_tvar_t *)&obj->bytecode[step];
-              struct vm_tvar_t *out = (struct vm_tvar_t *)&obj->bytecode[step_out];
-              in->ret = step_out;
-              out->go = step;
+            struct vm_tvar_t *in = (struct vm_tvar_t *)&obj->bytecode[step];
+            struct vm_tvar_t *out = (struct vm_tvar_t *)&obj->bytecode[step_out];
+            in->ret = step_out;
+            out->go = step;
 
-              if(lexer_peek(pos, &type) == 0) {
-                switch(type) {
-                  case TSEMICOLON: {
-                    go = TVAR;
-                  } break;
-                  default: {
-                    fprintf(stderr, "ERROR: Expected a semicolon\n");
-                    return -1;
-                  } break;
-                }
+            if(lexer_peek(text, pos, &type, &start, &len) == 0) {
+              switch(type) {
+                case TSEMICOLON: {
+                  go = TVAR;
+                } break;
+                default: {
+                  fprintf(stderr, "ERROR: Expected a semicolon\n");
+                  return -1;
+                } break;
               }
             }
           } else {
+            if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TSEMICOLON) {
+              /* LCOV_EXCL_START*/
+              fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+              return -1;
+              /* LCOV_EXCL_STOP*/
+            }
+
             int tmp = step_out;
-            lexer_eat(offset, pos);
+            lexer_eat(text, length, start, len);
             while(1) {
               if((obj->bytecode[tmp]) != TTRUE &&
                  (obj->bytecode[tmp]) != TFALSE) {
@@ -2117,19 +2185,19 @@ static int rule_parse(struct rules_t *obj) {
         case TCEVENT: {
           struct vm_tcevent_t *node = NULL;
           /* LCOV_EXCL_START*/
-          if(lexer_peek(pos, &type) < 0 || type != TCEVENT) {
+          if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TCEVENT) {
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
           }
           /* LCOV_EXCL_STOP*/
 
-          step = vm_parent(obj, TCEVENT, pos);
+          step = vm_parent(text, obj, TCEVENT, start, len, 0);
 
           node = (struct vm_tcevent_t *)&obj->bytecode[step];
 
-          lexer_eat(offset, pos);
+          lexer_eat(text, length, start, len);
 
-          if(lexer_peek(pos, &type) < 0) {
+          if(lexer_peek(text, pos, &type, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
@@ -2141,7 +2209,7 @@ static int rule_parse(struct rules_t *obj) {
             return -1;
           }
 
-          lexer_eat(offset, pos);
+          lexer_eat(text, length, start, len);
 
           int tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
           struct vm_ttrue_t *node1 = (struct vm_ttrue_t *)&obj->bytecode[tmp];
@@ -2169,24 +2237,10 @@ static int rule_parse(struct rules_t *obj) {
         case LPAREN: {
           int a = -1, b = -1, val = 0;
 
-          if(lexer_peek(has_paren+1, &a) == 0) {
+          if(lexer_peek(text, has_paren+1, &a, &start, &len) == 0) {
             switch(a) {
               case LPAREN: {
-                struct vm_cache_t *x = vm_cache_get(LPAREN, -1, has_paren+1);
-                /* LCOV_EXCL_START*/
-                if(x == NULL) {
-                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-                  return -1;
-                }
-                /* LCOV_EXCL_STOP*/
-                pos = x->start + 1;
-                step_out = x->step;
-                vm_cache_del(has_paren+1);
-                lexer_eat(offset, pos);
-                pos -= 1;
-              } break;
-              case TFUNCTION: {
-                struct vm_cache_t *x = vm_cache_get(TFUNCTION, -1, has_paren+1);
+                struct vm_cache_t *x = vm_cache_get(LPAREN, has_paren+1);
                 /* LCOV_EXCL_START*/
                 if(x == NULL) {
                   fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -2196,22 +2250,55 @@ static int rule_parse(struct rules_t *obj) {
                 pos = x->start;
                 step_out = x->step;
                 vm_cache_del(has_paren+1);
-                lexer_eat(offset, pos);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                if(type != LPAREN) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                lexer_eat(text, length, start, len);
               } break;
-              case TVAR: {
-                step_out = vm_parent(obj, a, has_paren+1);
-                pos = has_paren + 1;
-                lexer_eat(offset, pos);
+              case TFUNCTION: {
+                struct vm_cache_t *x = vm_cache_get(TFUNCTION, has_paren+1);
+                /* LCOV_EXCL_START*/
+                if(x == NULL) {
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                }
+                /* LCOV_EXCL_STOP*/
+                pos = x->start;
+                step_out = x->step;
+                vm_cache_del(has_paren+1);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                lexer_eat(text, length, start, len);
+
+                if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                lexer_eat(text, length, start, len);
               } break;
+              case TVAR:
+              case VNULL:
               case TNUMBER: {
-                step_out = vm_parent(obj, a, has_paren+1);
                 pos = has_paren + 1;
-                lexer_eat(offset, pos);
-              } break;
-              case VNULL: {
-                step_out = vm_parent(obj, a, has_paren+1);
-                pos = has_paren + 1;
-                lexer_eat(offset, pos);
+                step_out = vm_parent(text, obj, a, start, len, 0);
+                lexer_eat(text, length, start, len);
               } break;
               case RPAREN: {
                 fprintf(stderr, "ERROR: Empty parenthesis block\n");
@@ -2232,9 +2319,9 @@ static int rule_parse(struct rules_t *obj) {
            * The return value is the positition
            * of the root operator
            */
-          int step = lexer_parse_math_order(obj, LPAREN, &pos, &step_out, offset, 0);
+          int step = lexer_parse_math_order(text, length, obj, LPAREN, &pos, &step_out, offset, 0);
 
-          if(lexer_peek(pos, &b) < 0) {
+          if(lexer_peek(text, pos, &b, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
@@ -2242,23 +2329,26 @@ static int rule_parse(struct rules_t *obj) {
           }
 
           if(b != RPAREN) {
-            fprintf(stderr, "ERROR: Expected a closing parenthesis\n");
+            fprintf(stderr, "ERROR: Expected a right parenthesis\n");
             return -1;
           }
+
+          lexer_eat(text, length, start, len);
 
           {
             struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->bytecode[step_out];
             node->ret = 0;
           }
 
-          if(lexer_peek(has_paren, &type) < 0 || type != LPAREN) {
+          if(lexer_peek(text, has_paren, &type, &start, &len) < 0 || type != LPAREN) {
             /* LCOV_EXCL_START*/
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
             /* LCOV_EXCL_STOP*/
           }
 
-          step = vm_parent(obj, LPAREN, has_paren);
+          step = vm_parent(text, obj, LPAREN, start, len, 0);
+
           struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->bytecode[step];
           node->go = step_out;
 
@@ -2290,7 +2380,7 @@ static int rule_parse(struct rules_t *obj) {
            */
           if(step_out == -1) {
             pos = has_function+1;
-            if(lexer_peek(has_function, &type) < 0) {
+            if(lexer_peek(text, has_function, &type, &start, &len) < 0) {
               /* LCOV_EXCL_START*/
               fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
               return -1;
@@ -2302,18 +2392,30 @@ static int rule_parse(struct rules_t *obj) {
              * function has.
              */
             int y = pos + 1, nrargs = 0;
-            while(lexer_peek(y++, &type) == 0) {
+            while(lexer_peek(text, y++, &type, &start, &len) == 0) {
               if(type == TEOF || type == RPAREN) {
                 break;
               }
               if(type == LPAREN) {
-                struct vm_cache_t *cache = vm_cache_get(LPAREN, -1, y-1);
-                y = cache->start + 2;
+                struct vm_cache_t *cache = vm_cache_get(LPAREN, y-1);
+                if(cache == NULL) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                y = cache->start + 1;
                 continue;
               }
               if(type == TFUNCTION) {
-                struct vm_cache_t *cache = vm_cache_get(TFUNCTION, -1, y-1);
-                y = cache->start + 1;
+                struct vm_cache_t *cache = vm_cache_get(TFUNCTION, y-1);
+                if(cache == NULL) {
+                  /* LCOV_EXCL_START*/
+                  fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                y = cache->start + 2;
                 continue;
               }
               if(type == TCOMMA) {
@@ -2323,24 +2425,16 @@ static int rule_parse(struct rules_t *obj) {
 #ifdef DEBUG
             printf("nrarguments: %d\n", nrargs + 1);/*LCOV_EXCL_LINE*/
 #endif
-            step = vm_parent(obj, TFUNCTION, nrargs + 1);
-
-            node = (struct vm_tfunction_t *)&obj->bytecode[step];
-
-            lexer_bytecode_pos(has_function, &val);
-
-            node->token = bytecode[val+1];
-
-            lexer_peek(pos, &type);
-
-            /* LCOV_EXCL_START*/
-            if(lexer_peek(pos, &type) < 0 || type != LPAREN) {
-              fprintf(stderr, "ERROR: Expected a closing parenthesis\n");
+            if(lexer_peek(text, has_function, &type, &start, &len) < 0 || type != TFUNCTION) {
+              /* LCOV_EXCL_START*/
+              fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
               return -1;
+              /* LCOV_EXCL_STOP*/
             }
-            /* LCOV_EXCL_STOP*/
 
-            lexer_eat(offset, pos);
+            step = vm_parent(text, obj, TFUNCTION, start, len, nrargs + 1);
+
+            pos++;
 
           /*
            * When the root node has been created
@@ -2368,7 +2462,7 @@ static int rule_parse(struct rules_t *obj) {
              * of arguments
              */
             while(1) {
-              if(lexer_peek(pos, &type) < 0) {
+              if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                 return -1;
@@ -2376,7 +2470,7 @@ static int rule_parse(struct rules_t *obj) {
               }
 
               if(type == TCOMMA) {
-                lexer_eat(offset, pos);
+                lexer_eat(text, length, start, len);
                 break;
               }
               if(type == RPAREN) {
@@ -2384,7 +2478,7 @@ static int rule_parse(struct rules_t *obj) {
               }
             }
 
-            lexer_peek(pos, &type);
+            lexer_peek(text, pos, &type, &start, &len);
           }
 
           /*
@@ -2396,7 +2490,7 @@ static int rule_parse(struct rules_t *obj) {
            */
           if(type != RPAREN) {
             while(1) {
-              if(lexer_peek(pos + 1, &type) < 0) {
+              if(lexer_peek(text, pos + 1, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                 return -1;
@@ -2407,7 +2501,7 @@ static int rule_parse(struct rules_t *obj) {
                 break;
               }
 
-              if(lexer_peek(pos, &type) < 0) {
+              if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                 return -1;
@@ -2420,8 +2514,7 @@ static int rule_parse(struct rules_t *obj) {
                  * another function, link those together.
                  */
                 case LPAREN: {
-                  struct vm_cache_t *cache = vm_cache_get(LPAREN, -1, pos);
-                  struct vm_lparen_t *paren = (struct vm_lparen_t *)&obj->bytecode[cache->step];
+                  struct vm_cache_t *cache = vm_cache_get(LPAREN, pos);
                   /* LCOV_EXCL_START*/
                   if(cache == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
@@ -2429,22 +2522,32 @@ static int rule_parse(struct rules_t *obj) {
                   }
                   /* LCOV_EXCL_STOP*/
 
+                  node = (struct vm_tfunction_t *)&obj->bytecode[step];
+                  struct vm_lparen_t *paren = (struct vm_lparen_t *)&obj->bytecode[cache->step];
                   int oldpos = pos;
-                  pos = cache->start + 1;
+                  pos = cache->start;
                   node->go[arg++] = cache->step;
                   paren->ret = step;
                   vm_cache_del(oldpos);
-                  lexer_eat(offset, pos);
-                  pos -= 1;
+
+                  if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                    /* LCOV_EXCL_START*/
+                    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  lexer_eat(text, length, start, len);
                 } break;
                 case TFUNCTION: {
-                  struct vm_cache_t *cache = vm_cache_get(TFUNCTION, -1, pos);
-                  struct vm_tfunction_t *func = (struct vm_tfunction_t *)&obj->bytecode[cache->step];
+                  struct vm_cache_t *cache = vm_cache_get(TFUNCTION, pos);
                   /* LCOV_EXCL_START*/
                   if(cache == NULL) {
                     fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                     return -1;
                   }
+
+                  node = (struct vm_tfunction_t *)&obj->bytecode[step];
+                  struct vm_tfunction_t *func = (struct vm_tfunction_t *)&obj->bytecode[cache->step];
                   /* LCOV_EXCL_STOP*/
                   int oldpos = pos;
                   pos = cache->start;
@@ -2452,35 +2555,42 @@ static int rule_parse(struct rules_t *obj) {
                   node->go[arg++] = cache->step;
                   func->ret = step;
                   vm_cache_del(oldpos);
-                  lexer_eat(offset, pos);
+
+                  if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TFUNCTION) {
+                    /* LCOV_EXCL_START*/
+                    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  lexer_eat(text, length, start, len);
+
+                  if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != LPAREN) {
+                    /* LCOV_EXCL_START*/
+                    fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  lexer_eat(text, length, start, len);
                 } break;
                 case TNUMBER: {
-                  int a = vm_parent(obj, TNUMBER, pos);
-                  lexer_eat(offset, pos);
+                  int a = vm_parent(text, obj, TNUMBER, start, len, 0);
+
+                  lexer_eat(text, length, start, len);
 
                   node = (struct vm_tfunction_t *)&obj->bytecode[step];
                   node->go[arg++] = a;
                 } break;
-                case VNULL: {
-                  int a = vm_parent(obj, VNULL, pos);
-
-                  node = (struct vm_tfunction_t *)&obj->bytecode[step];
-                  node->go[arg++] = a;
-
-                  struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->bytecode[a];
-                  tmp->ret = step;
-
-                  lexer_eat(offset, pos);
-                } break;
+                case VNULL:
                 case TVAR: {
-                  int a = vm_parent(obj, TVAR, pos);
+                  int a = vm_parent(text, obj, type, start, len, 0);
+
+                  lexer_eat(text, length, start, len);
 
                   node = (struct vm_tfunction_t *)&obj->bytecode[step];
                   node->go[arg++] = a;
 
                   struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->bytecode[a];
                   tmp->ret = step;
-                  lexer_eat(offset, pos);
                 } break;
                 default: {
                   fprintf(stderr, "ERROR: Unexpected token\n");
@@ -2488,29 +2598,36 @@ static int rule_parse(struct rules_t *obj) {
                 } break;
               }
 
-
-              if(lexer_peek(pos, &type) < 0) {
+              if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
                 return -1;
                 /* LCOV_EXCL_STOP*/
               }
 
-              lexer_eat(offset, pos);
-
               /*
                * A right parenthesis means we've
                * reached the end of the argument list
                */
               if(type == RPAREN) {
+                lexer_eat(text, length, start, len);
                 break;
               } else if(type != TCOMMA) {
-                fprintf(stderr, "ERROR: Expected a closing parenthesis\n");
+                fprintf(stderr, "ERROR: 3Expected a closing parenthesis\n");
                 return -1;
               }
+
+              lexer_eat(text, length, start, len);
             }
           } else {
-            lexer_eat(offset, pos);
+            if(lexer_peek(text, pos, &type, &start, &len) < 0) {
+              /* LCOV_EXCL_START*/
+              fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
+              return -1;
+              /* LCOV_EXCL_STOP*/
+            }
+
+            lexer_eat(text, length, start, len);
           }
 
           /*
@@ -2541,7 +2658,7 @@ static int rule_parse(struct rules_t *obj) {
        * it first.
        */
       if(r_rewind == -1) {
-        if(lexer_peek(pos++, &type) < 0) {
+        if(lexer_peek(text, pos++, &type, &start, &len) < 0) {
           /* LCOV_EXCL_START*/
           fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
           return -1;
@@ -2552,7 +2669,7 @@ static int rule_parse(struct rules_t *obj) {
        * by step until we are at the beginning again.
        */
       } else {
-        if(r_rewind > 0 && lexer_peek(--r_rewind, &type) < 0) {
+        if(r_rewind > 0 && lexer_peek(text, --r_rewind, &type, &start, &len) < 0) {
           go = -1;
         }
         pos = r_rewind+1;
@@ -2563,7 +2680,7 @@ static int rule_parse(struct rules_t *obj) {
         has_if = pos-1;
       } else if(type == TEVENT) {
         has_on = pos-1;
-      } else if(type == LPAREN && lexer_peek(pos-2, &type1) == 0 && type1 != TFUNCTION) {
+      } else if(type == LPAREN && lexer_peek(text, pos-2, &type1, &start, &len) == 0 && type1 != TFUNCTION) {
         has_paren = pos-1;
       }
       if(has_function != -1 || has_paren != -1 || has_if != -1 || has_on != -1) {
@@ -2954,7 +3071,7 @@ static void print_steps(struct rules_t *obj) {
 }
 
 static void print_tree(struct rules_t *obj) {
-  print_steps(obj);
+  print_ast(obj);
 }
 #endif
 /*LCOV_EXCL_STOP*/
@@ -3535,7 +3652,7 @@ int rule_run(struct rules_t *obj, int validate) {
         /*
          * Tail recursive
          */
-        return rule_options.event_cb(obj, (const char *)node->token);
+        return rule_options.event_cb(obj, (char *)node->token);
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->bytecode[go];
@@ -4363,12 +4480,10 @@ void print_bytecode(struct rules_t *obj) {
 #endif
 /*LCOV_EXCL_STOP*/
 
-int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nrrules, void *userdata) {
-  int len = strlen(text);
-  if(*pos >= len) {
+int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *userdata) {
+  if(strlen(*text) == 0) {
     return 1;
   }
-
   *rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t *)*((*nrrules)+1));
   if(*rules == NULL) {
     OUT_OF_MEMORY
@@ -4384,38 +4499,6 @@ int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nr
   (*nrrules)++;
 
   obj->nrbytes = 0;
-/*LCOV_EXCL_START*/
-#if defined(DEBUG) or defined(ESP8266)
-  #ifdef ESP8266
-    obj->timestamp.first = micros();
-  #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.first);
-  #endif
-#endif
-/*LCOV_EXCL_STOP*/
-
-  if(rule_prepare(text, pos) == -1) {
-    return -1;
-  }
-
-/*LCOV_EXCL_START*/
-#if defined(DEBUG) or defined(ESP8266)
-  #ifdef ESP8266
-  obj->timestamp.second = micros();
-
-  memset(&out, 0, 1024);
-  snprintf((char *)&out, 1024, "rule #%d was prepared in %d microseconds", obj->nr, obj->timestamp.second - obj->timestamp.first);
-  Serial.println(out);
-  #else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp.second);
-
-  printf("rule #%d was prepared in %.6f seconds\n", obj->nr,
-    ((double)obj->timestamp.second.tv_sec + 1.0e-9*obj->timestamp.second.tv_nsec) -
-    ((double)obj->timestamp.first.tv_sec + 1.0e-9*obj->timestamp.first.tv_nsec));
-  #endif
-#endif
-/*LCOV_EXCL_STOP*/
-
 
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
@@ -4427,11 +4510,31 @@ int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nr
 #endif
 /*LCOV_EXCL_STOP*/
 
-  if(rule_parse(obj) == -1) {
-    FREE(bytecode);
-    bytecode = NULL;
-    nrbytes = 0;
-    return -1;
+  {
+    int skip = 0, start = 0, end = 0, type = 0;
+    int len = strlen(*text), oldlen = len, ret = 0;
+
+    while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
+
+    if(ret >= 0) {
+      if(rule_parse(text, &len, obj) == -1) {
+        FREE(bytecode);
+        bytecode = NULL;
+        nrbytes = 0;
+        return -1;
+      }
+
+      if((*text)[0] == 0 && oldlen > len && len > 0) {
+        memmove(&(*text)[0], &(*text)[1], len-2);
+        if((*text = (char *)REALLOC(*text, len)) == NULL) {
+          OUT_OF_MEMORY
+        }
+        (*text)[len-1] = 0;
+      }
+    } else {
+      FREE(*text);
+      return -1;
+    }
   }
 
   FREE(bytecode);

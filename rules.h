@@ -84,8 +84,8 @@ typedef struct rule_options_t {
   /*
    * Identifying callbacks
    */
-  int (*is_token_cb)(const char *text, int *pos, int size);
-  int (*is_event_cb)(const char *text, int *pos, int size);
+  int (*is_token_cb)(char *text, int *pos, int size);
+  int (*is_event_cb)(char *text, int *pos, int size);
 
   /*
    * Variables
@@ -99,7 +99,7 @@ typedef struct rule_options_t {
   /*
    * Events
    */
-  int (*event_cb)(struct rules_t *obj, const char *name);
+  int (*event_cb)(struct rules_t *obj, char *name);
 } rule_options_t;
 
 extern struct rule_options_t rule_options;
@@ -202,7 +202,7 @@ typedef struct vm_teof_t {
   uint8_t type;
 } __attribute__((packed)) vm_teof_t;
 
-int rule_initialize(const char *text, int *pos, struct rules_t ***rules, int *nrrules, void *userdata);
+int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *userdata);
 void rules_gc(struct rules_t ***obj, int nrrules);
 int rule_run(struct rules_t *obj, int validate);
 void valprint(struct rules_t *obj, char *out, int size);

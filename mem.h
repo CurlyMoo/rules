@@ -17,6 +17,6 @@ int alignedbytes(int v);
 #define REALLOC realloc
 #define CALLOC calloc
 #define MALLOC malloc
-#define FREE free
+#define FREE(a) do { free(a); (a) = NULL; } while(0)
 
 #endif
