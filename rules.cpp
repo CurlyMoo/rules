@@ -2614,7 +2614,7 @@ static int rule_parse(char **text, int *length, struct rules_t *obj) {
                 lexer_eat(text, length, start, len);
                 break;
               } else if(type != TCOMMA) {
-                fprintf(stderr, "ERROR: 3Expected a closing parenthesis\n");
+                fprintf(stderr, "ERROR: Expected a closing parenthesis\n");
                 return -1;
               }
 
