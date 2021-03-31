@@ -6,11 +6,18 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-int alignedbytes(int v) {
-#ifdef ESP8266
-  while((v++ % 4) != 0);
-  return --v;
-#else
-  return v;
-#endif
+#include <stdio.h>
+
+unsigned int alignedbytes(unsigned int *size, unsigned int v) {
+// #ifdef ESP8266
+  if(*size < v) {
+    while((v++ % 4) != 0);
+    *size = --v;
+    return v;
+  } else {
+    return *size;
+  }
+// #else
+  // return v;
+// #endif
 }

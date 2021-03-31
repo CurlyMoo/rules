@@ -35,7 +35,8 @@ int event_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint16_
     } else {
       switch(obj->bytecode[argv[i]]) {
         case VINTEGER: {
-          if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
+          unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
+          if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
             OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
           }
 
@@ -44,11 +45,12 @@ int event_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint16_
           out->type = VINTEGER;
           out->ret = 0;
           out->value = val->value;
-          obj->nrbytes += alignedbytes(sizeof(struct vm_vinteger_t));
+          obj->nrbytes = size;
           return 0;
         } break;
         case VFLOAT: {
-          if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
+          unsigned int size = obj->nrbytes+sizeof(struct vm_vfloat_t);
+          if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
             OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
           }
 
@@ -57,7 +59,7 @@ int event_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint16_
           out->type = VFLOAT;
           out->ret = 0;
           out->value = val->value;
-          obj->nrbytes += alignedbytes(sizeof(struct vm_vfloat_t));
+          obj->nrbytes = size;
           return 0;
         } break;
         /* LCOV_EXCL_START*/

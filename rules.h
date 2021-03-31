@@ -42,7 +42,7 @@ typedef enum {
 } token_types;
 
 typedef struct rules_t {
-  unsigned short nr;
+  uint8_t nr;
 
   struct {
 #if defined(DEBUG) or defined(ESP8266)
@@ -56,11 +56,6 @@ typedef struct rules_t {
 #endif
   }  timestamp;
 
-  struct {
-    int parsed;
-    int vars;
-  } pos;
-
   /* Continue here after we processed
    * another rule call.
    */
@@ -72,10 +67,11 @@ typedef struct rules_t {
   /* To which rule do we return after
    * being called from another rule.
    */
-  int caller;
+  uint8_t caller;
 
   unsigned char *bytecode;
   unsigned int nrbytes;
+  unsigned int bufsize;
 
   void *userdata;
 } rules_t;

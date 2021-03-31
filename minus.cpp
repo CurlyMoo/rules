@@ -23,7 +23,8 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->nrbytes;
 
   if((obj->bytecode[a]) == VNULL || (obj->bytecode[b]) == VNULL) {
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
+    unsigned int size = obj->nrbytes+sizeof(struct vm_vnull_t);
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
     struct vm_vnull_t *out = (struct vm_vnull_t *)&obj->bytecode[obj->nrbytes];
@@ -37,10 +38,11 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += alignedbytes(sizeof(struct vm_vnull_t));
+    obj->nrbytes = size;
   } else if((obj->bytecode[a]) == VCHAR || (obj->bytecode[b]) == VCHAR) {
   } else if((obj->bytecode[a]) == VFLOAT && (obj->bytecode[b]) == VFLOAT) {
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
+    unsigned int size = obj->nrbytes+sizeof(struct vm_vfloat_t);
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
     struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
@@ -57,12 +59,13 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += alignedbytes(sizeof(struct vm_vfloat_t));
+    obj->nrbytes = size;
   } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
     float f = 0;
     int i = 0;
 
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
+    unsigned int size = obj->nrbytes+sizeof(struct vm_vfloat_t);
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
 
@@ -94,9 +97,10 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += alignedbytes(sizeof(struct vm_vfloat_t));
+    obj->nrbytes = size;
   } else {
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(obj->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
+    unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
+    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
     struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
@@ -113,7 +117,7 @@ int event_operator_minus_callback(struct rules_t *obj, int a, int b, int *ret) {
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes += alignedbytes(sizeof(struct vm_vinteger_t));
+    obj->nrbytes = size;
   }
 
   return 0;

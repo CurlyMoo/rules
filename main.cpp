@@ -44,7 +44,8 @@ struct rule_options_t rule_options;
 
 typedef struct varstack_t {
   unsigned char *stack = NULL;
-  int nrbytes;
+  unsigned int nrbytes;
+  unsigned int bufsize;
 } varstack_t;
 
 static struct vm_vinteger_t vinteger;
@@ -348,14 +349,15 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   } else {
     if(var->value == 0) {
       int ret = varstack->nrbytes;
-      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
+      unsigned int size = ret+sizeof(struct vm_vnull_t);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(&varstack->bufsize, size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->stack[ret];
       value->type = VNULL;
       value->ret = token;
       var->value = ret;
-      varstack->nrbytes = alignedbytes(varstack->nrbytes + sizeof(struct vm_vnull_t));
+      varstack->nrbytes = size;
     }
 
     return &varstack->stack[var->value];
@@ -368,8 +370,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->bytecode[token];
 
   int x = 0;
-  for(x=4;alignedbytes(x)<varstack->nrbytes;x++) {
-    x = alignedbytes(x);
+  for(x=4;x<varstack->nrbytes;x++) {
 #ifdef DEBUG
   printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
@@ -435,7 +436,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
 
   switch(varstack->stack[idx]) {
     case VINTEGER: {
-      ret = alignedbytes(sizeof(struct vm_vinteger_t));
+      ret = sizeof(struct vm_vinteger_t);
       memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
       if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -443,7 +444,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
       varstack->nrbytes -= ret;
     } break;
     case VFLOAT: {
-      ret = alignedbytes(sizeof(struct vm_vfloat_t));
+      ret = sizeof(struct vm_vfloat_t);
       memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
       if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -451,7 +452,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
       varstack->nrbytes -= ret;
     } break;
     case VNULL: {
-      ret = alignedbytes(sizeof(struct vm_vnull_t));
+      ret = sizeof(struct vm_vnull_t);
       memmove(&varstack->stack[idx], &varstack->stack[idx+ret], varstack->nrbytes-idx-ret);
       if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, varstack->nrbytes-ret)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
@@ -470,8 +471,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
    * If a value is deleted, these positions changes,
    * so we need to update all nodes.
    */
-  for(x=idx;alignedbytes(x)<varstack->nrbytes;x++) {
-    x = alignedbytes(x);
+  for(x=idx;x<varstack->nrbytes;x++) {
 #ifdef DEBUG
     printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
@@ -520,8 +520,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
    * the variable being set.
    */
 
-  for(x=4;alignedbytes(x)<varstack->nrbytes && loop == 1;x++) {
-    x = alignedbytes(x);
+  for(x=4;x<varstack->nrbytes && loop == 1;x++) {
 #ifdef DEBUG
     printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
@@ -582,7 +581,8 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 #endif
   switch(obj->bytecode[val]) {
     case VINTEGER: {
-      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes+sizeof(struct vm_vinteger_t)))) == NULL) {
+      unsigned int size = varstack->nrbytes+sizeof(struct vm_vinteger_t);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(&varstack->bufsize, size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->bytecode[val];
@@ -594,10 +594,11 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 #ifdef DEBUG
       printf(". %s %d %d %d\n", __FUNCTION__, __LINE__, x, (int)cpy->value);
 #endif
-      varstack->nrbytes = alignedbytes(varstack->nrbytes + sizeof(struct vm_vinteger_t));
+      varstack->nrbytes = size;
     } break;
     case VFLOAT: {
-      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes+sizeof(struct vm_vfloat_t)))) == NULL) {
+      unsigned int size = varstack->nrbytes+sizeof(struct vm_vfloat_t);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(&varstack->bufsize, size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->bytecode[val];
@@ -609,10 +610,11 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 #ifdef DEBUG
       printf(". %s %d %d %g\n", __FUNCTION__, __LINE__, x, cpy->value);
 #endif
-      varstack->nrbytes = alignedbytes(varstack->nrbytes + sizeof(struct vm_vfloat_t));
+      varstack->nrbytes = size;
     } break;
     case VNULL: {
-      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(varstack->nrbytes+sizeof(struct vm_vnull_t)))) == NULL) {
+      unsigned int size = varstack->nrbytes+sizeof(struct vm_vnull_t);
+      if((varstack->stack = (unsigned char *)REALLOC(varstack->stack, alignedbytes(&varstack->bufsize, size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
       struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->stack[ret];
@@ -622,7 +624,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 #ifdef DEBUG
       printf(". %s %d %d NULL\n", __FUNCTION__, __LINE__, x);
 #endif
-      varstack->nrbytes = alignedbytes(varstack->nrbytes + sizeof(struct vm_vnull_t));
+      varstack->nrbytes = size;
     } break;
     default: {
       printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -635,9 +637,8 @@ static void vm_value_prt(struct rules_t *obj, char *out, int size) {
   struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   int x = 0, pos = 0;
 
-  for(x=4;alignedbytes(x)<varstack->nrbytes;x++) {
-    if(alignedbytes(x) < varstack->nrbytes) {
-      x = alignedbytes(x);
+  for(x=4;x<varstack->nrbytes;x++) {
+    if(x < varstack->nrbytes) {
       switch(varstack->stack[x]) {
         case VINTEGER: {
           struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->stack[x];
@@ -760,6 +761,7 @@ void run_test(int *i) {
   }
   varstack->stack = NULL;
   varstack->nrbytes = 4;
+  varstack->bufsize = 0;
 
   int ret = 0;
 
@@ -824,6 +826,7 @@ void run_test(int *i) {
 
     for(x=0;x<5;x++) {
       varstack->nrbytes = 4;
+      varstack->bufsize = 0;
       varstack->stack = (unsigned char *)REALLOC(varstack->stack, 4);
       memset(varstack->stack, 0, 4);
 
@@ -879,6 +882,7 @@ void run_test(int *i) {
     }
     varstack->stack = NULL;
     varstack->nrbytes = 4;
+    varstack->bufsize = 4;
   }
   if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
     exit(-1);
