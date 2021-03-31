@@ -246,10 +246,19 @@ static int lexer_parse_skip_characters(char *text, int len, int *pos) {
 
 static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
   int ret = 0, len = strlen(*text);
-  int nrblocks = 0, nr = 0, pos = *start;
+  int nrblocks = 0, nr = 0, pos = *start, oldpos;
 
   while(pos < len) {
+    oldpos = pos;
     lexer_parse_skip_characters(*text, len, &pos);
+
+    if(oldpos != pos) {
+      memmove(&(*text)[0], &(*text)[pos], len - pos);
+      len -= pos;
+      pos = 0;
+      (*text)[len] = 0;
+    }
+
     if(pos == len) {
       return -1;
     }
@@ -4520,6 +4529,8 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
     int len = strlen(*text), oldlen = len, ret = 0;
 
     while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
+
+    len = strlen(*text);
 
     if(ret >= 0) {
       if(rule_parse(text, &len, obj) == -1) {
