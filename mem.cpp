@@ -14,6 +14,9 @@ unsigned int alignedbytes(unsigned int *size, unsigned int v) {
     while((v++ % 4) != 0);
     *size = --v;
     return v;
+  } else if(*size > v) {
+    while(*size > v && (v-- % 4) != 0);
+    *size = v+1;
   } else {
     return *size;
   }
