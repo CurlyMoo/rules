@@ -378,7 +378,16 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
     *end = pos;
 
     if(skip == -1 && nrblocks == 0) {
-      (*text)[pos] = 0;
+      int oldpos = pos;
+      lexer_parse_skip_characters((*text), len, &pos);
+      if(len == pos) {
+        return 1;
+      }
+      memmove(&(*text)[oldpos], &(*text)[pos-1], len-(pos)+1);
+      (*text)[oldpos] = 0;
+      len -= (pos-oldpos-1);
+      (*text)[len] = 0;
+
       return 1;
     }
 
@@ -4530,8 +4539,6 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
 
     while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
 
-    len = strlen(*text);
-
     if(ret >= 0) {
       if(rule_parse(text, &len, obj) == -1) {
         FREE(bytecode);
@@ -4540,12 +4547,13 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
         return -1;
       }
 
-      if((*text)[0] == 0 && oldlen > len && len > 0) {
-        memmove(&(*text)[0], &(*text)[1], len-2);
-        if((*text = (char *)REALLOC(*text, len)) == NULL) {
+      if((*text)[0] == 0 && len > 0) {
+        len = strlen(&(*text)[1]);
+        memmove(&(*text)[0], &(*text)[1], len);
+        if((*text = (char *)REALLOC(*text, len+1)) == NULL) {
           OUT_OF_MEMORY
         }
-        (*text)[len-1] = 0;
+        (*text)[len] = 0;
       }
     } else {
       FREE(*text);

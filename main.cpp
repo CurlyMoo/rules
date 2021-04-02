@@ -66,7 +66,6 @@ struct unittest_t {
    * Valid rules
    */
   { "if 3 == 3 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
-  { "   if 3 == 3 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
   { "if (3 == 3) then $a = 6; end", { { "$a = 6", 70 } }, { { "$a = 6", 70 } } },
   { "if 100 == 100 then $a = 100; end", { { "$a = 100", 69 } }, { { "$a = 100", 69 } } },
   { "if -10 == -10 then $a = -10; end", { { "$a = -10", 69 } }, { { "$a = -10", 69 } } },
@@ -242,6 +241,7 @@ struct unittest_t {
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 293 }, { "$a = 4$b = 3", 293 } },
   { "if (1 == 1 && 1 == 0) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a * 5 + 3 * 1) * 2; @c = 5; else if 2 == 2 then $a = 6; else $a = 7; end end", { "$b = 62@c = 5$a = 7", 431 }, { "$a = 4$b = 52@c = 5", 431 } },
   { "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 63 }, { "$b = 3", 63 } },  { { "$a = 6", 63 }, { "$b = 3" , 63 } } },
+  { "   if 3 == 3 then $a = 6; end    if 3 == 3 then $b = 6; end               if 3 == 3 then $c = 6; end", { { "$a = 6", 63 }, { "$b = 6", 63 }, { "$c = 6", 63 } }, { { "$a = 6", 63 }, { "$b = 6", 63 }, { "$c = 6", 63 } } },
   { "on foo then max(1, 2); end", { "", 43 }, { "", 43 } },
   { "on foo then $a = 6; end", { "$a = 6", 43 }, { "$a = 6", 43 } },
   { "on foo then $a = 6; $b = 3; end", { "$a = 6$b = 3", 67 }, { "$a = 6$b = 3", 67 } },
@@ -874,7 +874,7 @@ void run_test(int *i) {
       fflush(stdout);
     }
 
-    offset = size;
+    offset += size;
     ppos = pos;
 
     varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
