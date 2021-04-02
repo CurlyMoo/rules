@@ -2598,6 +2598,9 @@ static int rule_parse(char **text, int *length, struct rules_t *obj) {
 
                   node = (struct vm_tfunction_t *)&obj->bytecode[step];
                   node->go[arg++] = a;
+
+                  struct vm_tnumber_t *tmp = (struct vm_tnumber_t *)&obj->bytecode[a];
+                  tmp->ret = step;
                 } break;
                 case VNULL:
                 case TVAR: {
