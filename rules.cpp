@@ -3211,38 +3211,6 @@ static int vm_value_upd_pos(struct rules_t *obj, int val, int step) {
   return 0;
 }
 
-static int vm_value_src(struct rules_t *obj, int *start, int type) {
-  int x = 0;
-
-  for(x=*start;x<obj->nrbytes;x++) {
-    switch(obj->bytecode[x]) {
-      case VINTEGER: {
-        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->bytecode[x];
-        if((obj->bytecode[node->ret]) == type) {
-          (*start) = x + sizeof(struct vm_vinteger_t);
-          return x;
-        }
-        x += sizeof(struct vm_vinteger_t)-1;
-      } break;
-      case VFLOAT: {
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->bytecode[x];
-        if((obj->bytecode[node->ret]) == type) {
-          (*start) = x + sizeof(struct vm_vfloat_t);
-          return x;
-        }
-        x += sizeof(struct vm_vfloat_t)-1;
-      } break;
-      /* LCOV_EXCL_START*/
-      default: {
-        fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
-        return -1;
-      } break;
-      /* LCOV_EXCL_STOP*/
-    }
-  }
-  return -1;
-}
-
 static int vm_value_clone(struct rules_t *obj, unsigned char *val) {
   int ret = obj->nrbytes;
 
