@@ -1069,6 +1069,9 @@ static int rule_parse(char **text, int *length, struct rules_t *obj) {
   startnode = vm_parent(text, obj, TSTART, 0, 0, 0);
 
   while(loop) {
+#ifdef ESP8266
+    ESP.wdtFeed();
+#endif
     if(go > -1) {
       switch(go) {
         /* LCOV_EXCL_START*/
