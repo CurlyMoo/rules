@@ -111,7 +111,7 @@ extern struct rule_options_t rule_options;
 typedef struct vm_vchar_t {
   VM_GENERIC_FIELDS
   char value[];
-} __attribute__((packed)) vm_char_t;
+} __attribute__((packed)) vm_vchar_t;
 
 typedef struct vm_vnull_t {
   VM_GENERIC_FIELDS
