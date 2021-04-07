@@ -530,13 +530,14 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
       int oldpos = pos;
       lexer_parse_skip_characters((*text), len, &pos);
       if(len == pos) {
+        *start = len;
         return nrbytes;
       }
       memmove(&(*text)[oldpos], &(*text)[pos-1], len-(pos)+1);
       (*text)[oldpos] = 0;
       len -= (pos-oldpos-1);
       (*text)[len] = 0;
-
+      *start = len;
       return nrbytes;
     }
 
@@ -559,6 +560,7 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
 #ifdef DEBUG
     printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
 #endif
+    *start = len;
     return nrbytes;
   } else {
     return 1;
@@ -4637,6 +4639,8 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
     int len = strlen(*text), oldlen = len, ret = 0;
 
     while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
+
+    len = start;
 
     if(ret >= 0) {
       obj->ast.bufsize = alignedbuffer(ret);
