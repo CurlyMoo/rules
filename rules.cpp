@@ -4639,7 +4639,7 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
     while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
 
     if(ret >= 0) {
-      obj->ast.bufsize = alignedbytes(ret);
+      obj->ast.bufsize = alignedbuffer(ret);
       if((obj->ast.buffer = (unsigned char *)MALLOC(obj->ast.bufsize)) == NULL) {
         OUT_OF_MEMORY
       }
