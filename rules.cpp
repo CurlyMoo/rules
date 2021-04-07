@@ -23,11 +23,11 @@
   #include <math.h>
   #include <string.h>
   #include <ctype.h>
-  #include <assert.h>
   #include <stdint.h>
 #else
   #include <Arduino.h>
 #endif
+#include <assert.h>
 
 #include "mem.h"
 #include "rules.h"
@@ -248,6 +248,13 @@ static int lexer_parse_skip_characters(char *text, int len, int *pos) {
 static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
   int ret = 0, len = strlen(*text);
   int nrblocks = 0, nr = 0, pos = *start, oldpos;
+  unsigned int nrbytes = 0, nrfunctions = 0;
+  if(skip == -1) {
+    nrbytes = sizeof(struct vm_tstart_t);
+#ifdef DEBUG
+    printf("TSTART: %lu\n", sizeof(struct vm_tstart_t));
+#endif
+  }
 
   while(pos < len) {
     oldpos = pos;
@@ -278,9 +285,58 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
     *start = pos;
     if(isdigit((*text)[pos]) || ((*text)[pos] == '-' && pos < len && isdigit((*text)[(pos)+1]))) {
       lexer_parse_number((*text), &pos);
+
+      if(skip == -1) {
+        unsigned int len = pos - *start;
+        char tmp = (*text)[(*start)+len];
+        (*text)[*start+len] = 0;
+        float var = atof((char *)&(*text)[*start]);
+        float nr = 0;
+
+        if(modff(var, &nr) == 0) {
+          /*
+           * This range of integers
+           * take less bytes when stored
+           * as ascii characters.
+           */
+          if(var < 100 && var > -9) {
+            nrbytes += sizeof(struct vm_tnumber_t)+len+1;
+#ifdef DEBUG
+            printf("TNUMBER: %lu\n", sizeof(struct vm_tnumber_t)+len+1);
+#endif
+          } else {
+            nrbytes += sizeof(struct vm_vinteger_t);
+#ifdef DEBUG
+            printf("TNUMBER: %lu\n", sizeof(struct vm_vinteger_t));
+#endif
+          }
+        } else {
+          nrbytes += sizeof(struct vm_vfloat_t);
+#ifdef DEBUG
+          printf("TNUMBER: %lu\n", sizeof(struct vm_vinteger_t));
+#endif
+        }
+        (*text)[(*start)+len] = tmp;
+      }
       nr++;
       *type = TNUMBER;
     } else if(strnicmp((char *)&(*text)[pos], "if", 2) == 0) {
+      if(skip == -1) {
+        nrbytes += sizeof(struct vm_tif_t);
+        nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+        printf("TIF: %lu\n", sizeof(struct vm_tif_t));
+        printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+
+        /*
+         * An additional TTRUE slot
+         */
+        nrbytes += sizeof(uint16_t);
+#ifdef DEBUG
+        printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      }
       pos+=2;
       nrblocks++;
       nr++;
@@ -288,11 +344,36 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
     } else if(strnicmp(&(*text)[pos], "on", 2) == 0) {
       pos+=2;
       lexer_parse_skip_characters((*text), len, &pos);
+      int s = pos;
       lexer_parse_string((*text), &pos);
+
+      if(skip == -1) {
+        unsigned int len = pos - s;
+        nrbytes += sizeof(struct vm_tevent_t)+len+1;
+        nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+        printf("TEVENT: %lu\n", sizeof(struct vm_tevent_t)+len+1);
+        printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+
+        /*
+         * An additional TTRUE slot
+         */
+        nrbytes += sizeof(uint16_t);
+#ifdef DEBUG
+        printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      }
       nrblocks++;
       nr++;
       *type = TEVENT;
     } else if(strnicmp((char *)&(*text)[pos], "else", 4) == 0) {
+      if(skip == -1) {
+        nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+        printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+      }
       pos+=4;
       nr++;
       *type = TELSE;
@@ -306,14 +387,35 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
       nr++;
       *type = TEND;
     } else if(strnicmp((char *)&(*text)[pos], "NULL", 4) == 0) {
+      if(skip == -1) {
+        nrbytes += sizeof(struct vm_vnull_t);
+#ifdef DEBUG
+        printf("VNULL: %lu\n", sizeof(struct vm_vnull_t));
+#endif
+      }
       pos+=4;
       nr++;
       *type = VNULL;
     } else if((*text)[pos] == ',') {
+      if(skip == -1) {
+        /*
+         * An additional function argument slot
+         */
+        nrbytes += sizeof(uint16_t);
+#ifdef DEBUG
+        printf("TFUNCTION: %lu\n", sizeof(uint16_t));
+#endif
+      }
       pos++;
       nr++;
       *type = TCOMMA;
     } else if((*text)[pos] == '(') {
+      if(skip == -1) {
+        nrbytes += sizeof(struct vm_lparen_t);
+#ifdef DEBUG
+        printf("LPAREN: %lu\n", sizeof(struct vm_lparen_t));
+#endif
+      }
       pos++;
       nr++;
       *type = LPAREN;
@@ -326,6 +428,15 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
       nr++;
       *type = TASSIGN;
     } else if((*text)[pos] == ';') {
+      if(skip == -1) {
+        /*
+         * An additional TTRUE slot
+         */
+        nrbytes += sizeof(uint16_t);
+#ifdef DEBUG
+        printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      }
       pos++;
       nr++;
       *type = TSEMICOLON;
@@ -340,14 +451,33 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
       }
 
       if((len1 = is_function((*text), start, b)) > -1) {
+        if(skip == -1) {
+          nrbytes += sizeof(struct vm_tfunction_t)+sizeof(uint16_t);
+          nrbytes -= sizeof(struct vm_lparen_t);
+#ifdef DEBUG
+          printf("TFUNCTION: %lu\n", sizeof(struct vm_tfunction_t)+sizeof(uint16_t));
+#endif
+        }
         pos += b;
         nr++;
         *type = TFUNCTION;
       } else if((len1 = is_operator((*text), &pos, b)) > -1) {
+        if(skip == -1) {
+          nrbytes += sizeof(struct vm_toperator_t);
+#ifdef DEBUG
+          printf("TOPERATOR: %lu\n", sizeof(struct vm_toperator_t));
+#endif
+        }
         pos += b;
         nr++;
         *type = TOPERATOR;
       } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb((*text), &pos, b)) > -1) {
+        if(skip == -1) {
+          nrbytes += sizeof(struct vm_tvar_t)+len1+1;
+#ifdef DEBUG
+          printf("TVAR: %lu\n", sizeof(struct vm_tvar_t)+len1+1);
+#endif
+        }
         pos += len1;
         nr++;
         *type = TVAR;
@@ -355,6 +485,14 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
         if((pos)+b < len && (*text)[(pos)+b] == '(' && (pos)+b+1 < len && (*text)[(pos)+b+1] == ')') {
           lexer_parse_skip_characters((*text), len, &pos);
           lexer_parse_string((*text), &pos);
+
+          if(skip == -1) {
+            unsigned int len = pos - *start;
+            nrbytes += sizeof(struct vm_tcevent_t)+len+1;
+#ifdef DEBUG
+            printf("TCEVENT: %lu\n", sizeof(struct vm_tcevent_t)+len1+1);
+#endif
+          }
           pos += 2;
           nr++;
           *type = TCEVENT;
@@ -379,17 +517,27 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
     *end = pos;
 
     if(skip == -1 && nrblocks == 0) {
+      /*
+       * Remove one go slot because of the root
+       * if or on block
+       */
+      nrbytes -= sizeof(uint16_t);
+      nrbytes += sizeof(struct vm_teof_t);
+#ifdef DEBUG
+      printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
+#endif
+
       int oldpos = pos;
       lexer_parse_skip_characters((*text), len, &pos);
       if(len == pos) {
-        return 1;
+        return nrbytes;
       }
       memmove(&(*text)[oldpos], &(*text)[pos-1], len-(pos)+1);
       (*text)[oldpos] = 0;
       len -= (pos-oldpos-1);
       (*text)[len] = 0;
 
-      return 1;
+      return nrbytes;
     }
 
     lexer_parse_skip_characters((*text), len, &pos);
@@ -400,7 +548,21 @@ static int lexer_iter(char **text, int skip, int *start, int *end, int *type) {
   }
 
   *type = TEOF;
-  return 1;
+
+  if(skip == -1) {
+    /*
+     * Remove one go slot because of the root
+     * if or on block
+     */
+    nrbytes -= sizeof(uint16_t);
+    nrbytes += sizeof(struct vm_teof_t);
+#ifdef DEBUG
+    printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
+#endif
+    return nrbytes;
+  } else {
+    return 1;
+  }
 }
 
 static int lexer_eat(char **text, int *length, int start, int len) {
@@ -440,26 +602,17 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
   switch(type) {
     case TSTART: {
       size = alignedbytes(ret+sizeof(struct vm_tstart_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tstart_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->go = 0;
       node->ret = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TIF: {
       size = alignedbytes(ret+sizeof(struct vm_tif_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tif_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -468,15 +621,10 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       node->false_ = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case LPAREN: {
       size = alignedbytes(ret+sizeof(struct vm_lparen_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_lparen_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -484,15 +632,10 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       node->value = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TOPERATOR: {
       size = alignedbytes(ret+sizeof(struct vm_toperator_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_toperator_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -502,7 +645,6 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       node->value = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TNUMBER: {
       char tmp = (*text)[start+len];
@@ -518,54 +660,37 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
          */
         if(var < 100 && var > -9) {
           size = alignedbytes(ret+sizeof(struct vm_tnumber_t)+len+1);
-          if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-            OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-          }
-          memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tnumber_t)+len+1);
-
+          assert(size <= obj->ast.bufsize);
           struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[ret];
           node->type = type;
           node->ret = 0;
           memcpy(node->token, &(*text)[start], len);
 
           obj->ast.nrbytes = size;
-          obj->ast.bufsize = alignedbuffer(size);
         } else {
           size = alignedbytes(obj->ast.nrbytes+sizeof(struct vm_vinteger_t));
-          if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-            OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-          }
-
+          assert(size <= obj->ast.bufsize);
           struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->ast.buffer[obj->ast.nrbytes];
           value->type = VINTEGER;
           value->ret = ret;
           value->value = (int)var;
           obj->ast.nrbytes = size;
-          obj->ast.bufsize = alignedbuffer(size);
         }
       } else {
         size = alignedbytes(obj->ast.nrbytes + sizeof(struct vm_vfloat_t));
-        if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-          OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-        }
-
+        assert(size <= obj->ast.bufsize);
         struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->ast.buffer[obj->ast.nrbytes];
         value->type = VFLOAT;
         value->ret = ret;
         value->value = var;
         obj->ast.nrbytes = size;
-        obj->ast.bufsize = alignedbuffer(size);
       }
       (*text)[start+len] = tmp;
     } break;
     case TFALSE:
     case TTRUE: {
       size = alignedbytes(ret+sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*opt));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*opt));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -575,15 +700,10 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       }
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TFUNCTION: {
       size = alignedbytes(ret+sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*opt));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*opt));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
       node->token = is_function(*text, &start, len);;
       node->type = type;
@@ -595,29 +715,19 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       node->value = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case VNULL: {
       size = alignedbytes(ret+sizeof(struct vm_vnull_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_vnull_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TVAR: {
       size = alignedbytes(ret+sizeof(struct vm_tvar_t)+len+1);
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tvar_t)+len+1);
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -627,7 +737,6 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       memcpy(node->token, &(*text)[start], len);
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TEVENT: {
       int pos = 0;
@@ -636,11 +745,7 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       len -= (2+pos);
 
       size = alignedbytes(ret+sizeof(struct vm_tevent_t)+len+1);
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tevent_t)+len+1);
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[ret];
       node->type = type;
       node->ret = 0;
@@ -649,15 +754,10 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       memcpy(node->token, &(*text)[start+2+pos], len);
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TCEVENT: {
       size = alignedbytes(ret+sizeof(struct vm_tcevent_t)+(len-2)+1);
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_tcevent_t)+(len-2)+1);
-
+      assert(size <= obj->ast.bufsize);
       struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[ret];
 
       node->type = type;
@@ -669,20 +769,14 @@ static int vm_parent(char **text, struct rules_t *obj, int type, int start, int 
       sprintf((char *)node->token, "%.*s", len-2, &(*text)[start]);
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     case TEOF: {
       size = alignedbytes(ret+sizeof(struct vm_teof_t));
-      if((obj->ast.buffer = (unsigned char *)REALLOC(obj->ast.buffer, alignedbuffer(size))) == NULL) {
-        OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
-      }
-      memset(&obj->ast.buffer[ret], 0, sizeof(struct vm_teof_t));
-
+      assert(size <= obj->ast.bufsize);
       struct vm_teof_t *node = (struct vm_teof_t *)&obj->ast.buffer[ret];
       node->type = type;
 
       obj->ast.nrbytes = size;
-      obj->ast.bufsize = alignedbuffer(size);
     } break;
     default: {
       return -1;
@@ -4545,6 +4639,12 @@ int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *us
     while((ret = lexer_iter(text, -1, &start, &end, &type)) == 0);
 
     if(ret >= 0) {
+      obj->ast.bufsize = alignedbytes(ret);
+      if((obj->ast.buffer = (unsigned char *)MALLOC(obj->ast.bufsize)) == NULL) {
+        OUT_OF_MEMORY
+      }
+      memset(obj->ast.buffer, 0, obj->ast.bufsize);
+
       if(rule_parse(text, &len, obj) == -1) {
         FREE(bytecode);
         bytecode = NULL;
