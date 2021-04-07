@@ -20,14 +20,14 @@
 #include "rules.h"
 
 int event_operator_divide_callback(struct rules_t *obj, int a, int b, int *ret) {
-  *ret = obj->nrbytes;
+  *ret = obj->varstack.nrbytes;
 
-  if((obj->bytecode[a]) == VNULL || (obj->bytecode[b]) == VNULL) {
-    unsigned int size = obj->nrbytes+sizeof(struct vm_vnull_t);
-    if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+  if((obj->varstack.buffer[a]) == VNULL || (obj->varstack.buffer[b]) == VNULL) {
+    unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vnull_t));
+    if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
       OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
     }
-    struct vm_vnull_t *out = (struct vm_vnull_t *)&obj->bytecode[obj->nrbytes];
+    struct vm_vnull_t *out = (struct vm_vnull_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
 
     out->ret = 0;
     out->type = VNULL;
@@ -38,12 +38,13 @@ int event_operator_divide_callback(struct rules_t *obj, int a, int b, int *ret) 
 #endif
 /* LCOV_EXCL_STOP*/
 
-    obj->nrbytes = size;
-  } else if((obj->bytecode[a]) == VCHAR || (obj->bytecode[b]) == VCHAR) {
-  } else if((obj->bytecode[a]) == VFLOAT || (obj->bytecode[b]) == VFLOAT) {
+    obj->varstack.nrbytes = size;
+    obj->varstack.bufsize = alignedbuffer(size);
+  } else if((obj->varstack.buffer[a]) == VCHAR || (obj->varstack.buffer[b]) == VCHAR) {
+  } else if((obj->varstack.buffer[a]) == VFLOAT || (obj->varstack.buffer[b]) == VFLOAT) {
   } else {
-    struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
-    struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
+    struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->varstack.buffer[a];
+    struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->varstack.buffer[b];
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
@@ -55,29 +56,31 @@ int event_operator_divide_callback(struct rules_t *obj, int a, int b, int *ret) 
     float nr = 0;
 
     if(modff(var, &nr) == 0) {
-      unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+      unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vinteger_t));
+      if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
+      struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
 
       out->ret = 0;
       out->type = VINTEGER;
       out->value = (int)var;
 
-      obj->nrbytes = size;
+      obj->varstack.nrbytes = size;
+      obj->varstack.bufsize = alignedbuffer(size);
     } else {
-      unsigned int size = obj->nrbytes+sizeof(struct vm_vfloat_t);
-      if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+      unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vfloat_t));
+      if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->bytecode[obj->nrbytes];
+      struct vm_vfloat_t *out = (struct vm_vfloat_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
 
       out->ret = 0;
       out->type = VFLOAT;
       out->value = var;
 
-      obj->nrbytes = size;
+      obj->varstack.nrbytes = size;
+      obj->varstack.bufsize = alignedbuffer(size);
     }
   }
 

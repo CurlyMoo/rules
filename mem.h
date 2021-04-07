@@ -9,7 +9,8 @@
 #ifndef _MEM_H_
 #define _MEM_H_
 
-unsigned int alignedbytes(unsigned int *size, unsigned int v);
+unsigned int alignedbytes(int v);
+unsigned int alignedbuffer(int v);
 
 #define OUT_OF_MEMORY while(0) { }
 

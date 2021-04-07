@@ -26,22 +26,22 @@ int event_function_max_callback(struct rules_t *obj, uint16_t argc, uint16_t *ar
 #endif
 /* LCOV_EXCL_STOP*/
 
-  *ret = obj->nrbytes;
+  *ret = obj->varstack.nrbytes;
 
-  unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
-  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+  unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vinteger_t));
+  if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
     OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
   }
-  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
+  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
   out->ret = 0;
   out->type = VINTEGER;
   out->value = 0;
 
   int i = 0;
   for(i=0;i<argc;i++) {
-    switch(obj->bytecode[argv[i]]) {
+    switch(obj->varstack.buffer[argv[i]]) {
       case VINTEGER: {
-        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&obj->bytecode[argv[i]];
+        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&obj->varstack.buffer[argv[i]];
         if(i == 0) {
           out->value = val->value;
         } else if(val->value > out->value) {
@@ -51,7 +51,8 @@ int event_function_max_callback(struct rules_t *obj, uint16_t argc, uint16_t *ar
     }
   }
 
-  obj->nrbytes = size;
+  obj->varstack.nrbytes = size;
+  obj->varstack.bufsize = alignedbuffer(size);
 
   return 0;
 }

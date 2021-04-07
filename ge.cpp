@@ -20,13 +20,13 @@
 #include "rules.h"
 
 int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
-  *ret = obj->nrbytes;
+  *ret = obj->varstack.nrbytes;
 
-  unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
-  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+  unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vinteger_t));
+  if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
     OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
   }
-  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
+  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
   out->ret = 0;
   out->type = VINTEGER;
 
@@ -35,15 +35,15 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
    */
   if(
       (
-        obj->bytecode[a] == VNULL || obj->bytecode[a] == VCHAR ||
-        obj->bytecode[b] == VNULL || obj->bytecode[b] == VCHAR
+        obj->varstack.buffer[a] == VNULL || obj->varstack.buffer[a] == VCHAR ||
+        obj->varstack.buffer[b] == VNULL || obj->varstack.buffer[b] == VCHAR
       )
     &&
-      (obj->bytecode[a] != obj->bytecode[b])
+      (obj->varstack.buffer[a] != obj->varstack.buffer[b])
     ) {
     out->value = 0;
   } else {
-    switch(obj->bytecode[a]) {
+    switch(obj->varstack.buffer[a]) {
       case VNULL: {
         out->value = 0;
 
@@ -56,16 +56,16 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
       case VINTEGER: {
         float av = 0.0;
         float bv = 0.0;
-        if(obj->bytecode[a] == VINTEGER) {
-          struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->bytecode[a];
+        if(obj->varstack.buffer[a] == VINTEGER) {
+          struct vm_vinteger_t *na = (struct vm_vinteger_t *)&obj->varstack.buffer[a];
           av = (float)na->value;
         }
-        if(obj->bytecode[b] == VFLOAT) {
-          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
+        if(obj->varstack.buffer[b] == VFLOAT) {
+          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->varstack.buffer[b];
           bv = nb->value;
         }
-        if(obj->bytecode[b] == VINTEGER) {
-          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
+        if(obj->varstack.buffer[b] == VINTEGER) {
+          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->varstack.buffer[b];
           bv = (float)nb->value;
         }
         if(av > bv || fabs(av-bv) < EPSILON) {
@@ -83,16 +83,16 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
       case VFLOAT: {
         float av = 0.0;
         float bv = 0.0;
-        if(obj->bytecode[a] == VFLOAT) {
-          struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->bytecode[a];
+        if(obj->varstack.buffer[a] == VFLOAT) {
+          struct vm_vfloat_t *na = (struct vm_vfloat_t *)&obj->varstack.buffer[a];
           av = na->value;
         }
-        if(obj->bytecode[b] == VFLOAT) {
-          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->bytecode[b];
+        if(obj->varstack.buffer[b] == VFLOAT) {
+          struct vm_vfloat_t *nb = (struct vm_vfloat_t *)&obj->varstack.buffer[b];
           bv = nb->value;
         }
-        if(obj->bytecode[b] == VINTEGER) {
-          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->bytecode[b];
+        if(obj->varstack.buffer[b] == VINTEGER) {
+          struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&obj->varstack.buffer[b];
           bv = (float)nb->value;
         }
         if(av > bv || fabs(av-bv) < EPSILON) {
@@ -112,8 +112,8 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
        */
       /* LCOV_EXCL_START*/
       case VCHAR: {
-        struct vm_vchar_t *na = (struct vm_vchar_t *)&obj->bytecode[a];
-        struct vm_vchar_t *nb = (struct vm_vchar_t *)&obj->bytecode[b];
+        struct vm_vchar_t *na = (struct vm_vchar_t *)&obj->varstack.buffer[a];
+        struct vm_vchar_t *nb = (struct vm_vchar_t *)&obj->varstack.buffer[b];
         if(na->value >= nb->value) {
           out->value = 1;
         } else {
@@ -124,7 +124,8 @@ int event_operator_ge_callback(struct rules_t *obj, int a, int b, int *ret) {
     }
   }
 
-  obj->nrbytes = size;
+  obj->varstack.nrbytes = size;
+  obj->varstack.bufsize = alignedbuffer(size);
 
   return 0;
 }

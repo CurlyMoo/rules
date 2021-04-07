@@ -21,25 +21,25 @@
 
 
 int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
-  unsigned int size = obj->nrbytes+sizeof(struct vm_vinteger_t);
-  *ret = obj->nrbytes;
+  *ret = obj->varstack.nrbytes;
 
-  if((obj->bytecode = (unsigned char *)REALLOC(obj->bytecode, alignedbytes(&obj->bufsize, size))) == NULL) {
+  unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vinteger_t));
+  if((obj->varstack.buffer = (unsigned char *)REALLOC(obj->varstack.buffer, alignedbuffer(size))) == NULL) {
     OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
   }
-  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->bytecode[obj->nrbytes];
+  struct vm_vinteger_t *out = (struct vm_vinteger_t *)&obj->varstack.buffer[obj->varstack.nrbytes];
   out->ret = 0;
   out->type = VINTEGER;
 
   /*
    * Values can only be equal when the type matches
    */
-  switch(obj->bytecode[a]) {
+  switch(obj->varstack.buffer[a]) {
     case VNULL: {
       out->value = 0;
     } break;
     case VINTEGER: {
-      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[a];
+      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->varstack.buffer[a];
       if(n->value > 0) {
         out->value = 1;
       } else {
@@ -54,7 +54,7 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
 
     } break;
     case VFLOAT: {
-      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[a];
+      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->varstack.buffer[a];
       if(n->value > 0) {
         out->value = 1;
       } else {
@@ -70,12 +70,12 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
     } break;
     /* LCOV_EXCL_STOP*/
   }
-  switch(obj->bytecode[b]) {
+  switch(obj->varstack.buffer[b]) {
     case VNULL: {
       out->value = 0;
     } break;
     case VINTEGER: {
-      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->bytecode[b];
+      struct vm_vinteger_t *n = (struct vm_vinteger_t *)&obj->varstack.buffer[b];
       if(n->value > 0 && out->value == 1) {
         out->value = 1;
       } else {
@@ -88,7 +88,7 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
 
     } break;
     case VFLOAT: {
-      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->bytecode[b];
+      struct vm_vfloat_t *n = (struct vm_vfloat_t *)&obj->varstack.buffer[b];
       if(n->value > 0 && out->value == 1) {
         out->value = 1;
       } else {
@@ -105,7 +105,8 @@ int event_operator_and_callback(struct rules_t *obj, int a, int b, int *ret) {
     /* LCOV_EXCL_STOP*/
   }
 
-  obj->nrbytes = size;
+  obj->varstack.nrbytes = size;
+  obj->varstack.bufsize = alignedbuffer(size);
 
   return 0;
 }
