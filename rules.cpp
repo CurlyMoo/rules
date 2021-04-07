@@ -4390,7 +4390,7 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
-        printf("(TEVENT)[%lu][", 7+strlen((char *)node->token)+1);
+        printf("(TEVENT)[%lu][", 5+strlen((char *)node->token)+1);
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("go: %d, ", node->go);
@@ -4459,7 +4459,7 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
-        printf("(TFUNCTION)[%lu][", 4+(node->nrgo*sizeof(node->go[0])));
+        printf("(TFUNCTION)[%lu][", 8+(node->nrgo*sizeof(node->go[0])));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("token: %d, ", node->token);
