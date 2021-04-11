@@ -17,6 +17,6 @@ struct event_function_t {
 } __attribute__((packed));
 
 extern struct event_function_t event_functions[];
-extern int nr_event_functions;
+extern unsigned int nr_event_functions;
 
 #endif

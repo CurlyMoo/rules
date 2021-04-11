@@ -45,31 +45,38 @@ struct rule_options_t rule_options;
 
 typedef struct varstack_t {
   unsigned char *buffer = NULL;
-  int nrbytes;
-  int bufsize;
+  unsigned int nrbytes;
+  unsigned int bufsize;
 } varstack_t;
 
 static struct vm_vinteger_t vinteger;
-static struct vm_vfloat_t vfloat;
 
 struct unittest_t {
   const char *rule;
   struct {
     const char *output;
-    int bytes;
+    unsigned int bytes;
   } validate[3];
   struct {
     const char *output;
-    int bytes;
+    unsigned int bytes;
   } run[3];
 } unittests[] = {
   /*
    * Valid rules
    */
   { "if 3 == 3 then $a = 6; end", { { "$a = 6", 63 } }, { { "$a = 6", 63 } } },
+  { "if $a == $a then $a = $a; end", { { "$a = NULL", 74 } }, { { "$a = NULL", 74 } } },
   { "if (3 == 3) then $a = 6; end", { { "$a = 6", 70 } }, { { "$a = 6", 70 } } },
+  { "if 10 == 10 then $a = 10; end", { { "$a = 10", 66 } }, { { "$a = 10", 66 } } },
   { "if 100 == 100 then $a = 100; end", { { "$a = 100", 69 } }, { { "$a = 100", 69 } } },
+  { "if 1000 == 1000 then $a = 1000; end", { { "$a = 1000", 69 } }, { { "$a = 1000", 69 } } },
+  { "if 3.5 == 3.5 then $a = 3.5; end", { { "$a = 3.5", 69 } }, { { "$a = 3.5", 69 } } },
+  { "if 33.5 == 33.5 then $a = 33.5; end", { { "$a = 33.5", 69 } }, { { "$a = 33.5", 69 } } },
+  { "if 333.5 == 333.5 then $a = 333.5; end", { { "$a = 333.5", 69 } }, { { "$a = 333.5", 69 } } },
+  { "if 3.335 < 33.35 then $a = 3.335; end", { { "$a = 3.335", 69 } }, { { "$a = 3.335", 69 } } },
   { "if -10 == -10 then $a = -10; end", { { "$a = -10", 69 } }, { { "$a = -10", 69 } } },
+  { "if -100 == -100 then $a = -100; end", { { "$a = -100", 69 } }, { { "$a = -100", 69 } } },
   { "if NULL == 3 then $a = 6; end", { { "$a = 6", 61 } }, { { "", 54 } } },
   { "if 1.1 == 1.1 then $a = 6; end", { { "$a = 6", 67 } }, { { "$a = 6", 67 } } },
   { "if 1.1 == 1.2 then $a = 6; end", { { "$a = 6", 67 } }, { { "", 60 } } },
@@ -151,6 +158,7 @@ struct unittest_t {
   { "if 1 == 1 == 2 then $a = 1; end", { { "$a = 1", 78 } },  { { "", 71 } } },
   { "if 1 == 1 then $a = 1; $a = $a + 2; end", { { "$a = 3", 100 } }, { { "$a = 3", 100 } } },
   { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 135 } }, { { "$a = 10", 135 } } },
+  { "if 1 == 1 then $a = 6; $a = ($a + 2 + $a / 3); end", { { "$a = 10", 142 } }, { { "$a = 10", 142 } } },
   { "if 1 == 1 then $a = NULL / 1; end", { { "$a = NULL", 72 } }, { { "$a = NULL", 72 } } },
   { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 94 } }, { { "", 87 } } },
   { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 108 } }, { { "$a = 9", 108 } } },
@@ -180,6 +188,8 @@ struct unittest_t {
   { "if 1 == 1 then $a = 3 * ((1 + 2) / 2) + 2; end", { "$a = 6.5", 137 }, { "$a = 6.5", 137 } },
   { "if 1 == 1 then $a = 3 * ((1 + 2) / 2 + 3); end", { "$a = 13.5", 137 }, { "$a = 13.5", 137 } },
   { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)); end", { "$a = 1.8", 144 }, { "$a = 1.8", 144 } },
+  { "if 1 == 1 then $a = 3 * ((((1 + 2) / (2 + 3)))); end", { "$a = 1.8", 158 }, { "$a = 1.8", 158 } },
+  { "if $a == $a then $a = $a * (((($a + $a) / ($a + $a)))); end", { "$a = NULL", 189 }, { "$a = NULL", 189 } },
   { "if 1 == 1 then $a = 3 * ((1 + 2) / (2 + 3)) + 2; end", { "$a = 3.8", 159 }, { "$a = 3.8", 159 } },
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 5 >= 4; end", { "$a = 1", 145 }, { "$a = 1", 145 } },
   { "if 1 == 1 then $a = (1 == 1 && 1 == 0) || 3 >= 4; end", { "$a = 0", 145 }, { "$a = 0", 145 } },
@@ -301,7 +311,7 @@ struct unittest_t {
 };
 
 static int strnicmp(char const *a, char const *b, size_t len) {
-  int i = 0;
+  unsigned int i = 0;
 
   if(a == NULL || b == NULL) {
     return -1;
@@ -319,7 +329,7 @@ static int strnicmp(char const *a, char const *b, size_t len) {
   return -1;
 }
 
-static int is_variable(char *text, int *pos, int size) {
+static int is_variable(char *text, unsigned int *pos, unsigned int size) {
   int i = 1;
   if(text[*pos] == '$' || text[*pos] == '@') {
     while(isalpha(text[*pos+i])) {
@@ -330,8 +340,9 @@ static int is_variable(char *text, int *pos, int size) {
   return -1;
 }
 
-static int is_event(char *text, int *pos, int size) {
-  int i = 0, len = 0;
+static int is_event(char *text, unsigned int *pos, unsigned int size) {
+  int len = 0;
+
   if(size == 3 &&
     (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
     return 0;

@@ -58,4 +58,4 @@ struct event_operator_t event_operators[] = {
   { "^", 80, 2, event_operator_power_callback },
 };
 
-int nr_event_operators = sizeof(event_operators)/sizeof(event_operators[0]);
+unsigned int nr_event_operators = sizeof(event_operators)/sizeof(event_operators[0]);

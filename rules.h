@@ -19,26 +19,29 @@ typedef enum {
   TFUNCTION = 2,
   TSTRING = 3,
   TNUMBER = 4,
-  TEOF = 5,
-  LPAREN = 6,
-  RPAREN = 7,
-  TCOMMA = 8,
-  TIF = 9,
-  TELSE = 10,
-  TTHEN = 11,
-  TEVENT = 12,
-  TCEVENT = 13,
-  TEND = 14,
-  TVAR = 15,
-  TASSIGN = 16,
-  TSEMICOLON = 17,
-  TTRUE = 18,
-  TFALSE = 19,
-  TSTART = 20,
-  VCHAR = 21,
-  VINTEGER = 22,
-  VFLOAT = 23,
-  VNULL = 24
+  TNUMBER1 = 5,
+  TNUMBER2 = 6,
+  TNUMBER3 = 7,
+  TEOF = 8,
+  LPAREN = 9,
+  RPAREN = 10,
+  TCOMMA = 11,
+  TIF = 12,
+  TELSE = 13,
+  TTHEN = 14,
+  TEVENT = 15,
+  TCEVENT = 16,
+  TEND = 17,
+  TVAR = 18,
+  TASSIGN = 19,
+  TSEMICOLON = 20,
+  TTRUE = 21,
+  TFALSE = 22,
+  TSTART = 23,
+  VCHAR = 24,
+  VINTEGER = 25,
+  VFLOAT = 26,
+  VNULL = 27,
 } token_types;
 
 typedef struct rules_t {
@@ -93,8 +96,8 @@ typedef struct rule_options_t {
   /*
    * Identifying callbacks
    */
-  int (*is_token_cb)(char *text, int *pos, int size);
-  int (*is_event_cb)(char *text, int *pos, int size);
+  int (*is_token_cb)(char *text, unsigned int *pos, unsigned int size);
+  int (*is_event_cb)(char *text, unsigned int *pos, unsigned int size);
 
   /*
    * Variables
@@ -212,7 +215,7 @@ typedef struct vm_teof_t {
 } __attribute__((packed)) vm_teof_t;
 
 int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *userdata);
-void rules_gc(struct rules_t ***obj, int nrrules);
+void rules_gc(struct rules_t ***obj, unsigned int nrrules);
 int rule_run(struct rules_t *obj, int validate);
 void valprint(struct rules_t *obj, char *out, int size);
 

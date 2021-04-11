@@ -37,4 +37,4 @@ struct event_function_t event_functions[] = {
   { "coalesce", event_function_coalesce_callback }
 };
 
-int nr_event_functions = sizeof(event_functions)/sizeof(event_functions[0]);
+unsigned int nr_event_functions = sizeof(event_functions)/sizeof(event_functions[0]);

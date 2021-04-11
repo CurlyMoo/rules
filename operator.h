@@ -19,6 +19,6 @@ struct event_operator_t {
 } __attribute__((packed));
 
 extern struct event_operator_t event_operators[];
-extern int nr_event_operators;
+extern unsigned int nr_event_operators;
 
 #endif
