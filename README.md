@@ -349,3 +349,123 @@ $a = 1;
 $b = $a;
 ```
 In this case, the integer value 1 is stored on the stack and associated to the `variable` token. When the value of `$a` is stored in `$b` the association of the value is just changed from `$a` to `$b` instead of popping the value from the stack, realigning all subsequent values on the stack, and inserting it again.
+
+### User definable functions
+
+The rules library allows the user to define their own functions, greatly reducing redundant code.
+```
+on foo then
+ #a = 1;
+ #b = 2;
+end
+
+on bar then
+  foo();
+end
+```
+
+The library implements these calls using tail-recursion as followed.
+
+A function call like `foo()` is tokenized as a `TCEVENT` token. E.g. Token which calls a defined event, where the `on` block is labeled as a `TEVENT`. So you have event blocks and event caller functions.
+
+```c
+static int is_event(char *text, int *pos, int size) {
+  for(x=0;x<nrrules;x++) {
+    if(get_event(rules[x]) > -1) {
+      if(strnicmp((char *)&text[*pos], (char *)&rules[x]->ast.buffer[get_event(rules[x])+5], strlen((char *)&rules[x]->ast.buffer[get_event(rules[x])+5])) == 0) {
+        return strlen((char *)&rules[x]->ast.buffer[get_event(rules[x])+5]);
+		  }
+    }
+  }
+  return -1;
+}
+```
+
+As soon as an event caller function has been reached, the current state of the rule is saved. That means the actual AST step we were in when we called the event and to where we need to return after the event call:
+
+```c
+case TCEVENT: {
+	struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[go];
+
+	if(rule_options.event_cb == NULL) {
+		/* LCOV_EXCL_START*/
+		fprintf(stderr, "FATAL: No 'event_cb' set to handle events\n");
+		return -1;
+		/* LCOV_EXCL_STOP*/
+	}
+
+	obj->cont.ret = go;
+	obj->cont.go = node->ret;
+
+	/*
+	 * Tail recursive
+	 */
+	return rule_options.event_cb(obj, (char *)node->token);
+} break;
+```
+
+As soon as the event is done we reached the end of the parser loop (all steps were called). At the end the `event_cb` is called again, but this time without an event name.
+```c
+/*
+ * Tail recursive
+ */
+if(obj->caller > 0) {
+	return rule_options.event_cb(obj, NULL);
+}
+```
+
+The parser calls the `event_cb` with the name of the event to be called. The callback can be programmed as prefered by the developer implementing this library. The most prefered implementation is like this:
+```
+static int event_cb(struct rules_t *obj, char *name) {
+  struct rules_t *called = NULL;
+  int i = 0, x = 0;
+
+  if(obj->caller > 0 && name == NULL) {
+    called = rules[obj->caller-1];
+
+    obj->caller = 0;
+
+    return rule_run(called, 0);
+  } else {
+    for(x=0;x<nrrules;x++) {
+      if(get_event(rules[x]) > -1) {
+        if(strnicmp(name, (char *)&rules[x]->ast.buffer[get_event(rules[x])+5], strlen((char *)&rules[x]->ast.buffer[get_event(rules[x])+5])) == 0) {
+          called = rules[x];
+          break;
+        }
+      }
+      if(called != NULL) {
+        break;
+      }
+    }
+
+    if(called != NULL) {
+      called->caller = obj->nr;
+
+      return rule_run(called, 0);
+    } else {
+      return rule_run(obj, 0);
+    }
+  }
+}
+```
+So as soon as an event needs to be called, it can be looked for in the rules list. The caller is stored in the called rule so the called rule knows where to go back to. The next time the `event_cb` is called (with the `name = NULL` we can return to the caller rule and continue running it where it left.
+
+```c
+case TSTART: {
+	struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
+	if(ret > -1) {
+		go = -1;
+	} else {
+		if(obj->cont.go > 0) {
+			go = obj->cont.go;
+			ret = obj->cont.ret;
+			obj->cont.go = 0;
+			obj->cont.ret = 0;
+		} else {
+			vm_clear_values(obj);
+			go = node->go;
+		}
+	}
+} break;
+```
