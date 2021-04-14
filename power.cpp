@@ -19,7 +19,7 @@
 #include "mem.h"
 #include "rules.h"
 
-int event_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
+int rule_operator_power_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->varstack.nrbytes;
 
   if((obj->varstack.buffer[a]) == VNULL || (obj->varstack.buffer[b]) == VNULL) {

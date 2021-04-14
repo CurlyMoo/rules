@@ -110,9 +110,9 @@ void rules_gc(struct rules_t ***rules, unsigned int nrrules) {
 
 static int is_function(char *text, unsigned int *pos, unsigned int size) {
   unsigned int i = 0, len = 0;
-  for(i=0;i<nr_event_functions;i++) {
-    len = strlen(event_functions[i].name);
-    if(size == len && strnicmp(&text[*pos], event_functions[i].name, len) == 0) {
+  for(i=0;i<nr_rule_functions;i++) {
+    len = strlen(rule_functions[i].name);
+    if(size == len && strnicmp(&text[*pos], rule_functions[i].name, len) == 0) {
       return i;
     }
   }
@@ -122,9 +122,9 @@ static int is_function(char *text, unsigned int *pos, unsigned int size) {
 
 static int is_operator(char *text, unsigned int *pos, unsigned int size) {
   unsigned int i = 0, len = 0;
-  for(i=0;i<nr_event_operators;i++) {
-    len = strlen(event_operators[i].name);
-    if(size == len && strnicmp(&text[*pos], event_operators[i].name, len) == 0) {
+  for(i=0;i<nr_rule_operators;i++) {
+    len = strlen(rule_operators[i].name);
+    if(size == len && strnicmp(&text[*pos], rule_operators[i].name, len) == 0) {
       return i;
     }
   }
@@ -1114,9 +1114,9 @@ static int lexer_parse_math_order(char **text, int *length, struct rules_t *obj,
       int idx1 = op1->token;
       int idx2 = op2->token;
 
-      int x = event_operators[idx1].precedence;
-      int y = event_operators[idx2].precedence;
-      int a = event_operators[idx2].associativity;
+      int x = rule_operators[idx1].precedence;
+      int y = rule_operators[idx2].precedence;
+      int a = rule_operators[idx2].associativity;
 
       if(y > x || (x == y && a == 2)) {
         if(a == 1) {
@@ -2832,7 +2832,7 @@ static void print_ast(struct rules_t *obj) {
       case TFUNCTION: {
         int x = 0;
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
-        printf("\"%d\"[label=\"%s\"]\n", i, event_functions[node->token].name);
+        printf("\"%d\"[label=\"%s\"]\n", i, rule_functions[node->token].name);
         for(x=0;x<node->nrgo;x++) {
           printf("\"%d\" -> \"%d\"\n", i, node->go[x]);
         }
@@ -2881,7 +2881,7 @@ static void print_ast(struct rules_t *obj) {
       case TOPERATOR: {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[i];
 
-        printf("\"%d\"[label=\"%s\"]\n", i, event_operators[node->token].name);
+        printf("\"%d\"[label=\"%s\"]\n", i, rule_operators[node->token].name);
         printf("\"%d\" -> \"%d\"\n", i, node->right);
         printf("\"%d\" -> \"%d\"\n", i, node->left);
         printf("{ rank=same edge[style=invis] \"%d\" -> \"%d\" rankdir = LR}\n", node->left, node->right);
@@ -2983,7 +2983,7 @@ static void print_steps(struct rules_t *obj) {
         int x = 0;
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
         printf("\"%d-1\"[label=\"%d\" shape=square]\n", i, i);
-        printf("\"%d-2\"[label=\"%s\"]\n", i, event_functions[node->token].name);
+        printf("\"%d-2\"[label=\"%s\"]\n", i, rule_functions[node->token].name);
         for(x=0;x<node->nrgo;x++) {
           printf("\"%d-2\" -> \"%d-%d\"\n", i, i, x+3);
           printf("\"%d-%d\"[label=\"%d\" shape=square]\n", i, x+3, node->go[x]);
@@ -3064,7 +3064,7 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%d-1\"[label=\"%d\" shape=square]\n", i, i);
         printf("\"%d-3\"[label=\"%d\" shape=square]\n", i, node->left);
         printf("\"%d-4\"[label=\"%d\" shape=square]\n", i, node->right);
-        printf("\"%d-2\"[label=\"%s\"]\n", i, event_operators[node->token].name);
+        printf("\"%d-2\"[label=\"%s\"]\n", i, rule_operators[node->token].name);
         printf("\"%d-1\" -> \"%d-2\"\n", i, i);
         printf("\"%d-5\"[label=\"%d\" shape=diamond]\n", i, node->ret);
         printf("\"%d-2\" -> \"%d-3\"\n", i, i);
@@ -3359,11 +3359,11 @@ void valprint(struct rules_t *obj, char *out, int size) {
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", event_functions[node->token].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", rule_functions[node->token].name, val->value);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %d", event_operators[node->token].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %d", rule_operators[node->token].name, val->value);
             } break;
             default: {
               // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -3381,11 +3381,11 @@ void valprint(struct rules_t *obj, char *out, int size) {
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", event_functions[node->token].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", rule_functions[node->token].name, val->value);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = %g", event_operators[node->token].name, val->value);
+              pos += snprintf(&out[pos], size - pos, "%s = %g", rule_operators[node->token].name, val->value);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -3403,11 +3403,11 @@ void valprint(struct rules_t *obj, char *out, int size) {
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_functions[node->token].name);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_functions[node->token].name);
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val->ret];
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", event_operators[node->token].name);
+              pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_operators[node->token].name);
             } break;
             default: {
               // printf("err: %s %d\n", __FUNCTION__, __LINE__);
@@ -3697,7 +3697,7 @@ int rule_run(struct rules_t *obj, int validate) {
           memset(&values, 0, node->nrgo);
 
           /* LCOV_EXCL_START*/
-          if(idx > nr_event_functions) {
+          if(idx > nr_rule_functions) {
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
           }
@@ -3775,9 +3775,9 @@ int rule_run(struct rules_t *obj, int validate) {
             }
           }
 
-          if(event_functions[idx].callback(obj, node->nrgo, values, &c) != 0) {
+          if(rule_functions[idx].callback(obj, node->nrgo, values, &c) != 0) {
             /* LCOV_EXCL_START*/
-            fprintf(stderr, "FATAL: function call '%s' failed\n", event_functions[idx].name);
+            fprintf(stderr, "FATAL: function call '%s' failed\n", rule_functions[idx].name);
             return -1;
             /* LCOV_EXCL_STOP*/
           }
@@ -3996,15 +3996,15 @@ int rule_run(struct rules_t *obj, int validate) {
           unsigned int idx = node->token;
 
           /* LCOV_EXCL_START*/
-          if(idx > nr_event_operators) {
+          if(idx > nr_rule_operators) {
             fprintf(stderr, "FATAL: Internal error in %s #%d\n", __FUNCTION__, __LINE__);
             return -1;
           }
           /* LCOV_EXCL_STOP*/
 
-          if(event_operators[idx].callback(obj, a, b, &c) != 0) {
+          if(rule_operators[idx].callback(obj, a, b, &c) != 0) {
             /* LCOV_EXCL_START*/
-            fprintf(stderr, "FATAL: operator call '%s' failed\n", event_operators[idx].name);
+            fprintf(stderr, "FATAL: operator call '%s' failed\n", rule_operators[idx].name);
             return -1;
             /* LCOV_EXCL_STOP*/
           }

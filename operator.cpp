@@ -41,21 +41,21 @@
 #include "power.h"
 #include "minus.h"
 
-struct event_operator_t event_operators[] = {
-  { "==", 30, 1, event_operator_eq_callback },
-  { "!=", 30, 1, event_operator_ne_callback },
-  { "+", 60, 1, event_operator_plus_callback },
-  { "-", 60, 1, event_operator_minus_callback },
-  { "*", 70, 1, event_operator_multiply_callback },
-  { "%", 70, 1, event_operator_mod_callback },
-  { "&&", 20, 1, event_operator_and_callback },
-  { "||", 10, 1, event_operator_or_callback },
-  { "/", 70, 1, event_operator_divide_callback },
-  { ">=", 30, 1, event_operator_ge_callback },
-  { "<=", 30, 1, event_operator_le_callback },
-  { "<", 30, 1, event_operator_lt_callback },
-  { ">", 30, 1, event_operator_gt_callback },
-  { "^", 80, 2, event_operator_power_callback },
+struct rule_operator_t rule_operators[] = {
+  { "==", 30, 1, rule_operator_eq_callback },
+  { "!=", 30, 1, rule_operator_ne_callback },
+  { "+", 60, 1, rule_operator_plus_callback },
+  { "-", 60, 1, rule_operator_minus_callback },
+  { "*", 70, 1, rule_operator_multiply_callback },
+  { "%", 70, 1, rule_operator_mod_callback },
+  { "&&", 20, 1, rule_operator_and_callback },
+  { "||", 10, 1, rule_operator_or_callback },
+  { "/", 70, 1, rule_operator_divide_callback },
+  { ">=", 30, 1, rule_operator_ge_callback },
+  { "<=", 30, 1, rule_operator_le_callback },
+  { "<", 30, 1, rule_operator_lt_callback },
+  { ">", 30, 1, rule_operator_gt_callback },
+  { "^", 80, 2, rule_operator_power_callback },
 };
 
-unsigned int nr_event_operators = sizeof(event_operators)/sizeof(event_operators[0]);
+unsigned int nr_rule_operators = sizeof(rule_operators)/sizeof(rule_operators[0]);

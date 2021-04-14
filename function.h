@@ -11,12 +11,12 @@
 
 #include "rules.h" /* rewrite */
 
-struct event_function_t {
+struct rule_function_t {
   const char *name;
   int (*callback)(struct rules_t *obj, uint16_t argc, uint16_t *argv, int *ret);
 } __attribute__((packed));
 
-extern struct event_function_t event_functions[];
-extern unsigned int nr_event_functions;
+extern struct rule_function_t rule_functions[];
+extern unsigned int nr_rule_functions;
 
 #endif

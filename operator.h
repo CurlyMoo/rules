@@ -6,19 +6,19 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifndef _EVENT_OPERATOR_H_
-#define _EVENT_OPERATOR_H_
+#ifndef _rule_operator_H_
+#define _rule_operator_H_
 
 #include "rules.h" /* rewrite */
 
-struct event_operator_t {
+struct rule_operator_t {
   const char *name;
   int precedence;
   int associativity;
   int (*callback)(struct rules_t *obj, int a, int b, int *ret);
 } __attribute__((packed));
 
-extern struct event_operator_t event_operators[];
-extern unsigned int nr_event_operators;
+extern struct rule_operator_t rule_operators[];
+extern unsigned int nr_rule_operators;
 
 #endif

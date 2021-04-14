@@ -19,7 +19,7 @@
 #include "mem.h"
 #include "rules.h"
 
-int event_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
+int rule_operator_eq_callback(struct rules_t *obj, int a, int b, int *ret) {
   *ret = obj->varstack.nrbytes;
 
   unsigned int size = alignedbytes(obj->varstack.nrbytes+sizeof(struct vm_vinteger_t));

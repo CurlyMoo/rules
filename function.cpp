@@ -31,10 +31,10 @@
 #include "min.h"
 #include "coalesce.h"
 
-struct event_function_t event_functions[] = {
-  { "max", event_function_max_callback },
-  { "min", event_function_min_callback },
-  { "coalesce", event_function_coalesce_callback }
+struct rule_function_t rule_functions[] = {
+  { "max", rule_function_max_callback },
+  { "min", rule_function_min_callback },
+  { "coalesce", rule_function_coalesce_callback }
 };
 
-unsigned int nr_event_functions = sizeof(event_functions)/sizeof(event_functions[0]);
+unsigned int nr_rule_functions = sizeof(rule_functions)/sizeof(rule_functions[0]);

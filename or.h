@@ -11,6 +11,6 @@
 
 #include "rules.h"
 
-int event_operator_or_callback(struct rules_t *obj, int a, int b, int *ret);
+int rule_operator_or_callback(struct rules_t *obj, int a, int b, int *ret);
 
 #endif
