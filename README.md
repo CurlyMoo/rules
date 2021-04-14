@@ -2,7 +2,7 @@
 
 ESP ready, high performant and low resources rules library written in C.
 
-[![Coverage Status](https://coveralls.io/repos/github/CurlyMoo/rules/badge.svg?branch=main)](https://coveralls.io/github/CurlyMoo/rules?branch=main)[![Build Status](https://travis-ci.com/CurlyMoo/rules.svg?branch=main)](https://travis-ci.com/CurlyMoo/rules) [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0)![GitHub issues](https://img.shields.io/github/issues-raw/CurlyMoo/rules)[![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=info%40pilight%2eorg&lc=US&item_name=curlymoo&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
+[![Coverage Status](https://coveralls.io/repos/github/CurlyMoo/rules/badge.svg?branch=main)](https://coveralls.io/github/CurlyMoo/rules?branch=main)[![Build Status](https://travis-ci.com/CurlyMoo/rules.svg?branch=main)](https://travis-ci.com/CurlyMoo/rules) [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0) ![GitHub issues](https://img.shields.io/github/issues-raw/CurlyMoo/rules) [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=info%40pilight%2eorg&lc=US&item_name=curlymoo&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
 
 ---
 ---
@@ -23,7 +23,7 @@ ESP ready, high performant and low resources rules library written in C.
 	 * [If blocks](#if-blocks)
 	 * [Nested if blocks](#nested-if-blocks)
 	 * [Conditions and math](#conditions-and-math)
-	 * [Events](#Events)
+	 * [Event blocks](#event-blocks)
 	 * [Functions](#functions)
 	 * [Body](#body)
 	 * [Variables](#variables)
@@ -170,17 +170,17 @@ Conditions and math are written equally. A number or function are compared or ma
 ```
 
 So
-```c
+```ruby
 1 + 1 > 5 || 1 + 2 < 6
 ```
 
 Or
-```c
+```ruby
 max(1, 2, 3) <= 6 && round(1, 2) > 5
 ```
 
 Or
-```
+```ruby
 $a + 5 * $c + max(1, $c)
 ```
 
@@ -204,7 +204,7 @@ A function is written by using the function name followed by at least one openin
 ```
 
 When trying to call a defined `on` block a function without arguments is used. the `event call`. E.g.
-```
+```ruby
 on foo then
    [body]
 end
@@ -215,18 +215,18 @@ end
 ```
 
 Functions can have one or more arguments. Arguments are given inside the parenthesis and are delimited by a `comma`. E.g.
-```
+```ruby
 max(1, 2, 3);
 ```
 Functions can be nested unlimitedly. E.g.,
-```
+```ruby
 max(round(0, 12), $hours);
 ```
 
 ### Body
 
 An `if` and `on` body can contain `variables`, `event calls`, `if blocks`. Each statement should end with a semicolon. E.g.:
-```
+```ruby
 if 1 == 1 then
   if 5 < 6 then
      $a = 1;
@@ -247,7 +247,7 @@ Variables definitions are customizable. That means just as with `on` labels that
 
 Variables can be part of a condition or math or used to store a certain value. When storing a value the variable should be followed by an equal sign. After the equal sign the condition or math is placed.
 
-```
+```ruby
 $a = $a + max(1, $c);
 ```
 
@@ -255,7 +255,7 @@ $a = $a + max(1, $c);
 
 Variables can be used in math to prioritize condition above their regular precedence. Variables can allows unlimited nesting.
 
-```
+```ruby
 (1 * (1 + 1) / 2) ^ 3
 ```
 
@@ -263,7 +263,7 @@ Variables can be used in math to prioritize condition above their regular preced
 
 ### Providing rules
 
-```
+```c
 int rule_initialize(char **text, struct rules_t ***rules, int *nrrules, void *userdata);
 void rules_gc(struct rules_t ***obj, unsigned int nrrules);
 int rule_run(struct rules_t *obj, int validate);
@@ -301,7 +301,7 @@ This also allows the library to interact with the outside world.
 1. Storing the parsed rules is done outside the library. So to call one rule block from another rule block (`events`), the called event needs to looked for in that extarnal rule list.
 2. The library only support variables stored into the local scope for the lifetime of the function call. Developers can define their own variables like globals, system variables, hardware parameters.
 
-```
+```c
 typedef struct rule_options_t {
   /*
    * Identifying callbacks
@@ -339,7 +339,7 @@ Both functions should return the length of the token found or -1 when the token 
 ### Events
 
 The rules library allows the user to define their own functions, greatly reducing redundant code.
-```
+```ruby
 on foo then
  $a = 1;
  $b = 2;
@@ -402,7 +402,7 @@ if(obj->caller > 0) {
 ```
 
 The parser calls the `event_cb` with the name of the event to be called. The callback can be programmed as prefered by the developer implementing this library. My implementation is this:
-```
+```c
 static int event_cb(struct rules_t *obj, char *name) {
   struct rules_t *called = NULL;
   int i = 0, x = 0;
@@ -579,7 +579,7 @@ Working with the value stack is the same as described in the operator modules.
 
 The first simple step to reduce the processing speed of a rule is to bring it back to its core tokens. When processing syntax, we are constantly processing if a part is a function, a variable, a operator, a number etc. That identification process is relatively slow so it's better to do it only once.
 
-```
+```ruby
 if 1 == 1 then $a = max(1, 2); end
 ```
 This rule contains some static tokens like `if`, `then`, `end`, `(`, `)`, `;`, `=`, `,` some factors like `1` and `2`, and some modular or dynamic tokens like `==`, `$a`, `max`. Factors are values we literally need to know about, just as the variable names. The `==` operator and `max` functions can be indexed by their operators and functions list position, the rest can simply be numbered.
@@ -635,7 +635,7 @@ So a token identifier (TNUMBER), the actual number, and a null terminator. The d
 A similar logic is applied to the variables. No null terminator is used. However, we only use 27 tokens. The allowed variables characters reside in the ASCII 33 to 126 range. This means that an ASCII character before 33 means we've encountered a new token. Therefor, the token identifier is used as a null termator.
 
 The last issue occurs is certain rule syntaxes. E.g.:
-```
+```ruby
 (1 + 1); end
 ```
 When replacing the syntax with tokens the `1);` sequence is problematic. Sometimes the last number `1` is being overwritten starting from the same byte. This would overwrite the closing parenthesis, since the smallest number replacement is 2 bytes. But, the space between between the semicolon and the `end` rescues us. We can move the closing parenthesis and semicolon one place fixing this issue. Both tokens are replaced taking just one byte, just as the `end` token.
@@ -646,7 +646,7 @@ Parsing the rule into an `abstract syntax tree` (AST) replaces each token with a
 
 The next step is parsing the rule in a programmatic friendly AST.
 
-```
+```ruby
 if (1 == 2 || 3 >= 4) then $a = 5; else $b = 6; end
 ```
 
@@ -656,7 +656,7 @@ So we enter the `if` node. The first branch directs us to the condition. The sec
 
 The most easy way to built and execute an AST is by using recursion. The nice thing about an AST built by using recursion is that it allows you to easily process all nested blocks such as nested `if / else` blocks as shown below, nested functions (e.g., `max(random(1, 10), 4)`), parenthesis (e.g., `(1 + 2) * ((4 - 5) ^ (2 * (3 / 4)))`) or a combination of them.
 
-```
+```ruby
 if 1 == 2 then
   if 3 >= 4 then
     $a = 5;
@@ -677,7 +677,7 @@ Building recursion on a non-recursive way requires one of more stacks. Common im
 So we want to drop recursion and we want to avoid having to rely on stack calls too much to minic recursion, but somehow we need to deal with these nested calls, which recursion is best fit for.
 
 We have determined that there are three types of blocks that can be nested. Parenthesis, If and Function blocks. To deal with these nested blocks, the parser first parses the rule from to end to the beginning.
-```
+```ruby
 if ((3 * 2) == 2) || 6 > = 5 then
   if 3 >= 4 then
     $a = 5;
@@ -698,7 +698,7 @@ The root `if` block will therefor always be parsed last. If the root `if` encoun
 
 The same counts for nested function calls:
 
-```
+```ruby
 max(1 * 2, (min(5, 6) + 1) * 6)
 ```
 
@@ -726,7 +726,7 @@ To jump back and forth between nodes, they are linked by their absolute position
 
 If we look at the nested function example again, but now expanded with (random) absolute bytecode positions, and the operators.
 
-```
+```ruby
 max(1 * 2, (min(5, 6) + 1) * 6)
 ```
 
@@ -825,7 +825,7 @@ The interpreter is nothing more than these jumps back and forth.
 #### Values and variables
 
 Until this point everything is static, while we also have dynamic values like variables and the outcome of operators and functions.
-```c
+```ruby
 1 == 0 || 5 >= 4
 ```
 To be able to parse the `||` operator it needs to know what the outcome is of the `1 == 0` and `5 >= 4` evaluations. The interpreter stores the intermediate values on a seperate value stack. These values are stored in the same way as the node types. By using a seperate stack, we just reallocate a small memory block in each interpretation, preventing memory fragmentation.
@@ -845,7 +845,7 @@ The next two bytes tells us to what token the value was linked. The next four by
 
 In the previous condition the `1 == 0` outcome is stored in an integer on the values stack. The integer value is associated to the `==` operator and the operator to the integer value. The same counts for the `5 >= 4` operator. When the `||` is called, it pops the outcome values from the left and right operator from the value stack, and places the outcome back on the stack. When the operator was called from an `if` node, the `if` node pops the value from the stack and uses it to determine if we need to continue to the `true` node or the `false` node.
 
-```c
+```ruby
 $a = 1;
 $b = $a;
 ```
