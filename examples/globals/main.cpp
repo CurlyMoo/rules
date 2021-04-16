@@ -630,6 +630,8 @@ void run_test() {
 #endif
   }
 
+  rules_gc(&rules, nrrules);
+
   FREE(global_varstack.buffer);
   global_varstack.buffer = NULL;
   global_varstack.nrbytes = 4;
