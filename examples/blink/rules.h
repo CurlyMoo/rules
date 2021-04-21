@@ -84,6 +84,11 @@ typedef struct rules_t {
   } ast;
 
   struct {
+    uint16_t *buffer;
+    uint16_t bufsize;
+  } valstack;
+
+  struct {
     unsigned char *buffer;
     unsigned int nrbytes;
     unsigned int bufsize;

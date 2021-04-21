@@ -360,7 +360,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
     vinteger.value = 5;
     return (unsigned char *)&vinteger;
   } else {
-    if(var->value == 0) {
+    if(obj->valstack.buffer[var->value] == 0) {
       int ret = varstack->nrbytes;
       unsigned int size = alignedbytes(varstack->nrbytes+sizeof(struct vm_vnull_t));
       if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, alignedbuffer(size))) == NULL) {
@@ -369,12 +369,12 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
       struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->buffer[ret];
       value->type = VNULL;
       value->ret = token;
-      var->value = ret;
+      obj->valstack.buffer[var->value] = ret;
       varstack->nrbytes = size;
       varstack->bufsize = alignedbuffer(size);
     }
 
-    return &varstack->buffer[var->value];
+    return &varstack->buffer[obj->valstack.buffer[var->value]];
   }
   return NULL;
 }
@@ -394,12 +394,12 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->buffer[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->ast.buffer[val->ret];
         if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-          var->value = foo->value;
+          obj->valstack.buffer[var->value] = obj->valstack.buffer[foo->value];
           val->ret = token;
 #ifdef DEBUG
           printf(". %s %d %d %d\n", __FUNCTION__, __LINE__, x, (int)val->value);
 #endif
-          foo->value = 0;
+          obj->valstack.buffer[foo->value] = 0;
           return;
         }
         x += sizeof(struct vm_vinteger_t)-1;
@@ -408,12 +408,12 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack->buffer[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->ast.buffer[val->ret];
         if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-          var->value = foo->value;
+          obj->valstack.buffer[var->value] = obj->valstack.buffer[foo->value];
           val->ret = token;
 #ifdef DEBUG
           printf(". %s %d %d %g\n", __FUNCTION__, __LINE__, x, val->value);
 #endif
-          foo->value = 0;
+          obj->valstack.buffer[foo->value] = 0;
           return;
         }
         x += sizeof(struct vm_vfloat_t)-1;
@@ -422,13 +422,13 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->buffer[x];
         struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->ast.buffer[val->ret];
         if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-          var->value = foo->value;
+          obj->valstack.buffer[var->value] = obj->valstack.buffer[foo->value];
           val->ret = token;
 
 #ifdef DEBUG
           printf(". %s %d %d NULL\n", __FUNCTION__, __LINE__, x);
 #endif
-          foo->value = 0;
+          obj->valstack.buffer[foo->value] = 0;
           return;
         }
         x += sizeof(struct vm_vnull_t)-1;
@@ -499,7 +499,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->buffer[x];
         if(node->ret > 0) {
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          tmp->value = x;
+          obj->valstack.buffer[tmp->value] = x;
         }
         x += sizeof(struct vm_vinteger_t)-1;
       } break;
@@ -507,7 +507,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->buffer[x];
         if(node->ret > 0) {
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          tmp->value = x;
+          obj->valstack.buffer[tmp->value] = x;
         }
         x += sizeof(struct vm_vfloat_t)-1;
       } break;
@@ -515,7 +515,7 @@ static int vm_value_del(struct rules_t *obj, uint16_t idx) {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->buffer[x];
         if(node->ret > 0) {
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          tmp->value = x;
+          obj->valstack.buffer[tmp->value] = x;
         }
         x += sizeof(struct vm_vnull_t)-1;
       } break;
@@ -549,7 +549,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->buffer[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
         if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
-          var->value = 0;
+          obj->valstack.buffer[var->value] = 0;
           vm_value_del(obj, x);
           loop = 0;
           break;
@@ -560,7 +560,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->buffer[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
         if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
-          var->value = 0;
+          obj->valstack.buffer[var->value] = 0;
           vm_value_del(obj, x);
           loop = 0;
           break;
@@ -571,7 +571,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->buffer[x];
         struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
         if(strcmp((char *)var->token, (char *)tmp->token) == 0) {
-          var->value = 0;
+          obj->valstack.buffer[var->value] = 0;
           vm_value_del(obj, x);
           loop = 0;
           break;
@@ -585,16 +585,17 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
     }
   }
 
+
   var = (struct vm_tvar_t *)&obj->ast.buffer[token];
 
-  if(var->value > 0) {
-    vm_value_del(obj, var->value);
+  if(obj->valstack.buffer[var->value] > 0) {
+    vm_value_del(obj, obj->valstack.buffer[var->value]);
   }
   var = (struct vm_tvar_t *)&obj->ast.buffer[token];
 
   ret = varstack->nrbytes;
 
-  var->value = ret;
+  obj->valstack.buffer[var->value] = ret;
 
 #ifdef DEBUG
   printf(". %s %d %d\n", __FUNCTION__, __LINE__, val);

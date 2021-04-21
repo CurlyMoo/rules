@@ -265,7 +265,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvinteger_t *node = (struct vm_gvinteger_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              tmp->value = x;
+              obj->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvinteger_t)-1;
@@ -275,7 +275,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvfloat_t *node = (struct vm_gvfloat_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              tmp->value = x;
+              obj->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvfloat_t)-1;
@@ -285,7 +285,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvnull_t *node = (struct vm_gvnull_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              tmp->value = x;
+              obj->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvnull_t)-1;
@@ -299,7 +299,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
      */
 
     ret = varstack->nrbytes;
-    var->value = ret;
+    obj->valstack.buffer[var->value] = ret;
 
     /*
      * Check the value type from the local stack
@@ -394,7 +394,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
      * If there is no value associated to the
      * variable, the value is set to NULL.
      */
-    if(node->value == 0) {
+    if(obj->valstack.buffer[node->value] == 0) {
       int ret = varstack->nrbytes;
 
       /*
@@ -409,7 +409,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
       value->type = VNULL;
       value->ret = token;
       value->rule = obj->nr;
-      node->value = ret;
+      obj->valstack.buffer[node->value] = ret;
 
       varstack->nrbytes = size;
     }
@@ -422,15 +422,15 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
      * value type is created that can be used for this cache.
      */
     const char *key = (char *)node->token;
-    switch(varstack->buffer[node->value]) {
+    switch(varstack->buffer[obj->valstack.buffer[node->value]]) {
       case VINTEGER: {
-        struct vm_gvinteger_t *na = (struct vm_gvinteger_t *)&varstack->buffer[node->value];
+        struct vm_gvinteger_t *na = (struct vm_gvinteger_t *)&varstack->buffer[obj->valstack.buffer[node->value]];
 
         memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
         vinteger.type = VINTEGER;
         vinteger.value = (int)na->value;
 
-        sprintf((char *)&out, ".. %s %d %s = %d", __FUNCTION__, node->value, key, (int)na->value);
+        sprintf((char *)&out, ".. %s %d %s = %d", __FUNCTION__, obj->valstack.buffer[node->value], key, (int)na->value);
 #ifdef ESP8266
         Serial.println(out);
 #else
@@ -440,13 +440,13 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
         return (unsigned char *)&vinteger;
       } break;
       case VFLOAT: {
-        struct vm_gvfloat_t *na = (struct vm_gvfloat_t *)&varstack->buffer[node->value];
+        struct vm_gvfloat_t *na = (struct vm_gvfloat_t *)&varstack->buffer[obj->valstack.buffer[node->value]];
 
         memset(&vfloat, 0, sizeof(struct vm_vfloat_t));
         vfloat.type = VFLOAT;
         vfloat.value = na->value;
 
-        sprintf((char *)&out, ".. %s %d %s = %g", __FUNCTION__, node->value, key, na->value);
+        sprintf((char *)&out, ".. %s %d %s = %g", __FUNCTION__, obj->valstack.buffer[node->value], key, na->value);
 #ifdef ESP8266
         Serial.println(out);
 #else
@@ -456,12 +456,12 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
         return (unsigned char *)&vfloat;
       } break;
       case VNULL: {
-        struct vm_gvnull_t *na = (struct vm_gvnull_t *)&varstack->buffer[node->value];
+        struct vm_gvnull_t *na = (struct vm_gvnull_t *)&varstack->buffer[obj->valstack.buffer[node->value]];
 
         memset(&vnull, 0, sizeof(struct vm_vnull_t));
         vnull.type = VNULL;
 
-        sprintf((char *)&out, ".. %s %d %s = NULL", __FUNCTION__, node->value, key);
+        sprintf((char *)&out, ".. %s %d %s = NULL", __FUNCTION__, obj->valstack.buffer[node->value], key);
 #ifdef ESP8266
         Serial.println(out);
 #else
@@ -502,7 +502,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
            * value from the stack.
            */
           if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-            var->value = x;
+            obj->valstack.buffer[var->value] = x;
             val->ret = token;
             val->rule = obj->nr;
             return;
@@ -514,7 +514,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
           struct vm_tvar_t *foo = (struct vm_tvar_t *)&rules[val->rule-1]->ast.buffer[val->ret];
 
           if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-            var->value = x;
+            obj->valstack.buffer[var->value] = x;
             val->ret = token;
             val->rule = obj->nr;
             return;
@@ -526,7 +526,7 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
           struct vm_tvar_t *foo = (struct vm_tvar_t *)&rules[val->rule-1]->ast.buffer[val->ret];
 
           if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
-            var->value = x;
+            obj->valstack.buffer[var->value] = x;
             val->ret = token;
             val->rule = obj->nr;
             return;
