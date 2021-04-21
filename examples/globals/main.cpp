@@ -265,7 +265,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvinteger_t *node = (struct vm_gvinteger_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              obj->valstack.buffer[tmp->value] = x;
+              rules[node->rule-1]->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvinteger_t)-1;
@@ -275,7 +275,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvfloat_t *node = (struct vm_gvfloat_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              obj->valstack.buffer[tmp->value] = x;
+              rules[node->rule-1]->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvfloat_t)-1;
@@ -285,7 +285,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
             struct vm_gvnull_t *node = (struct vm_gvnull_t *)&varstack->buffer[x];
             if(node->ret > 0) {
               struct vm_tvar_t *tmp = (struct vm_tvar_t *)&rules[node->rule-1]->ast.buffer[node->ret];
-              obj->valstack.buffer[tmp->value] = x;
+              rules[node->rule-1]->valstack.buffer[tmp->value] = x;
             }
           }
           x += sizeof(struct vm_gvnull_t)-1;
