@@ -19,6 +19,7 @@ ESP ready, high performant and low resources rules library written in C.
 * [Installation](#installation)
 	 * [Linux](#linux)
 	 * [Arduino (for ESP)](#arduino-for-esp)
+	 * [In your (Arduino) project](#in-your-arduino-project)
 * [Syntax](#syntax)
 	 * [If blocks](#if-blocks)
 	 * [Nested if blocks](#nested-if-blocks)
@@ -125,7 +126,7 @@ Upload the `build\esp8266.esp8266.d1\rules.ino.bin` file to your ESP.
 
 Or open the `rules.ino` in your Arduino GUI.
 
-### In your Arduino project
+### In your (Arduino) project
 
 1. Move the full `src` folder into your project root.
 2. Include the `#include "src/rules/rules.h"` header.
