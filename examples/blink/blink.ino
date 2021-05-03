@@ -17,8 +17,8 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "mem.h"
-#include "rules.h"
+#include "src/rules/mem.h"
+#include "src/rules/rules.h"
 
 static struct rules_t **rules = NULL;
 static int nrrules = 0;

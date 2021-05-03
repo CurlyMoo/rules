@@ -41,21 +41,9 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR})
 
-file(GLOB ${PROJECT_NAME}_sources "${PROJECT_SOURCE_DIR}/*.cpp")
-file(GLOB ${PROJECT_NAME}_headers "${PROJECT_SOURCE_DIR}/*.h")
+add_subdirectory(src)
 
-set(${PROJECT_NAME}_files ${${PROJECT_NAME}_sources} ${${PROJECT_NAME}_headers} CACHE INTERNAL "")
+set(${PROJECT_NAME}_files ${src_files} CACHE INTERNAL "")
 
-add_library(${PROJECT_NAME} OBJECT ${rules_files})
-
-add_library(${PROJECT_NAME}_shared SHARED $<TARGET_OBJECTS:${PROJECT_NAME}>)
-
-add_library(${PROJECT_NAME}_static STATIC $<TARGET_OBJECTS:${PROJECT_NAME}>)
-
-target_link_libraries(${PROJECT_NAME}_shared m)
-
-set_target_properties(${PROJECT_NAME}_shared ${PROJECT_NAME}_static PROPERTIES OUTPUT_NAME ${PROJECT_NAME})
-
-add_executable(start main.cpp)
-target_link_libraries(start ${PROJECT_NAME}_shared)
+add_executable(start main.cpp ${${PROJECT_NAME}_files} )
 

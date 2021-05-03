@@ -125,6 +125,13 @@ Upload the `build\esp8266.esp8266.d1\rules.ino.bin` file to your ESP.
 
 Or open the `rules.ino` in your Arduino GUI.
 
+### In your Arduino project
+
+1. Move the full `src` folder into your project root.
+2. Include the `#include "src/rules/rules.h"` header.
+3. Configure the rules API as described below.
+4. Parse your rules as described below.
+
 ---
 ---
 

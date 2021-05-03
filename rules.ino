@@ -17,8 +17,7 @@
 #include <sys/time.h>
 #include <time.h>
 
-#include "mem.h"
-#include "rules.h"
+#include "src/rules/rules.h"
 #include "main.h"
 
 static int testnr = 0;

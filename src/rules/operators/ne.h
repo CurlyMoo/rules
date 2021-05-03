@@ -6,11 +6,11 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifndef _MAIN_H_
-#define _MAIN_H_
+#ifndef _RULES_NE_H_
+#define _RULES_NE_H_
 
-#include "src/rules/rules.h"
+#include "../rules.h"
 
-void run_test(int *i);
+int rule_operator_ne_callback(struct rules_t *obj, int a, int b, int *ret);
 
 #endif

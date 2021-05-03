@@ -6,11 +6,12 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifndef _MAIN_H_
-#define _MAIN_H_
+#ifndef _RULES_MIN_H_
+#define _RULES_MIN_H_
 
-#include "src/rules/rules.h"
+#include <stdint.h>
+#include "../rules.h"
 
-void run_test(int *i);
+int rule_function_min_callback(struct rules_t *obj, uint16_t argc, uint16_t *argv, int *ret);
 
 #endif

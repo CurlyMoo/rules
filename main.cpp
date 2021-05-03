@@ -18,8 +18,8 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "mem.h"
-#include "rules.h"
+#include "src/rules/mem.h"
+#include "src/rules/rules.h"
 
 #ifdef ESP8266
 #include <Arduino.h>
@@ -939,19 +939,19 @@ void run_test(int *i) {
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = min(size, 45);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, 1, nrtests, size, rule, 46-size, " ");
     } else {
       size = min(size, 50);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, 1, nrtests, size, rule, 50-size, " ");
     }
     Serial.println(out);
 #else
     if(size > 49) {
       size = min(size, 45);
-      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 46-size, " ");
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, 1, nrtests, size, rule, 46-size, " ");
     } else {
       size = min(size, 50);
-      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, rule, 50-size, " ");
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, 1, nrtests, size, rule, 50-size, " ");
     }
 #endif
   } else {
