@@ -473,7 +473,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       unsigned int a = 0, b = *len-(pos)-1;
       int len1 = 0;
       for(a=(pos);a<*len;a++) {
-        if((*text)[a] == ' ' || (*text)[a] == '(' || (*text)[a] == ',') {
+        if((*text)[a] == ' ' || (*text)[a] == '(' || (*text)[a] == ')' ||
+           (*text)[a] == ',' || (*text)[a] == ';') {
           b = a-(pos);
           break;
         }

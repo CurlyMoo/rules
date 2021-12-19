@@ -136,6 +136,7 @@ struct unittest_t {
   { "if (NULL == 3) then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
   { "if (3 == NULL) then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
   { "if @a == 3 then $a = 6; end", { { "$a = 6", 68 } }, { { "", 61 } } },
+  { "if foo#bar == 3 then $a = 6; end", { { "$a = 6", 73 } }, { { "$a = 6", 73 } } },
   { "if 3 == 3 then @a = 6; end", { { "@a = 6", 63 } }, { { "@a = 6", 63 } } },
   { "if 3 == 3 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
   { "if 4 != 3 then $a = -6; end", { { "$a = -6", 64 } }, { { "$a = -6", 64 } } },
@@ -196,6 +197,7 @@ struct unittest_t {
   { "if 1 == 1 then $a = 3; end", { "$a = 3", 63 }, { "$a = 3", 63 } },
   { "if 1 == 1 then $a = 3.1; $b = $a; end", { "$a = 3.1$b = 3.1", 94 }, { "$a = 3.1$b = 3.1", 94 } },
   { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 79 }, { "$a = NULL", 79 } },
+  { "if 1 == 1 then $a = max(foo#bar); end", { "$a = 3", 83 }, { "$a = 3", 83 } },
   { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 100 }, { "$a = 1", 100 } },
   { "if 1 == 1 then $a = coalesce($a, 1.1) + 1; end", { "$a = 2.1", 102 }, { "$a = 2.1", 102 } },
   { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 138 }, { "$a = 1", 138 } },
@@ -331,7 +333,9 @@ static int strnicmp(char const *a, char const *b, size_t len) {
 
 static int is_variable(char *text, unsigned int *pos, unsigned int size) {
   int i = 1;
-  if(text[*pos] == '$' || text[*pos] == '@') {
+  if(size == 7 && strncmp(&text[*pos], "foo#bar", 7) == 0) {
+    return 7;
+  } else if(text[*pos] == '$' || text[*pos] == '@') {
     while(isalpha(text[*pos+i])) {
       i++;
     }
@@ -354,7 +358,12 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   struct varstack_t *varstack = (struct varstack_t *)obj->userdata;
   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[token];
 
-  if(var->token[0] == '@') {
+  if(strcmp((char *)var->token, "foo#bar") == 0) {
+    memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
+    vinteger.type = VINTEGER;
+    vinteger.value = 3;
+    return (unsigned char *)&vinteger;
+  } else if(var->token[0] == '@') {
     memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
     vinteger.type = VINTEGER;
     vinteger.value = 5;
