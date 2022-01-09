@@ -245,7 +245,7 @@ static int lexer_parse_skip_characters(char *text, unsigned int len, unsigned in
 static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval), unsigned int *len) {
   unsigned int pos = 0, nrblocks = 0, tpos = 0;
 
-  *nrbytes = sizeof(struct vm_tstart_t);
+  *nrbytes = alignedbytes(sizeof(struct vm_tstart_t));
 #ifdef DEBUG
   printf("TSTART: %lu\n", sizeof(struct vm_tstart_t));
 #endif
@@ -285,18 +285,18 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
 #ifdef DEBUG
           printf("TNUMBER: %lu\n", sizeof(struct vm_tnumber_t)+newlen+1);
 #endif
-          *nrbytes += sizeof(struct vm_tnumber_t)+newlen+1;
+          *nrbytes += alignedbytes(sizeof(struct vm_tnumber_t)+newlen+1);
         } else {
 #ifdef DEBUG
           printf("TNUMBER: %lu\n", sizeof(struct vm_vinteger_t));
 #endif
-          *nrbytes += sizeof(struct vm_vinteger_t);
+          *nrbytes += alignedbytes(sizeof(struct vm_vinteger_t));
         }
       } else {
 #ifdef DEBUG
         printf("TNUMBER: %lu\n", sizeof(struct vm_vfloat_t));
 #endif
-        *nrbytes += sizeof(struct vm_vfloat_t);
+        *nrbytes += alignedbytes(sizeof(struct vm_vfloat_t));
       }
 
       if(newlen < 4) {
@@ -359,8 +359,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
 
 
     } else if(strnicmp((char *)&(*text)[pos], "if", 2) == 0) {
-      *nrbytes += sizeof(struct vm_tif_t);
-      *nrbytes += sizeof(struct vm_ttrue_t);
+      *nrbytes += alignedbytes(sizeof(struct vm_tif_t));
+      *nrbytes += alignedbytes(sizeof(struct vm_ttrue_t));
 #ifdef DEBUG
       printf("TIF: %lu\n", sizeof(struct vm_tif_t));
       printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
@@ -369,7 +369,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       /*
        * An additional TTRUE slot
        */
-      *nrbytes += sizeof(uint16_t);
+      *nrbytes += alignedbytes(sizeof(uint16_t));
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
@@ -386,8 +386,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
 
       {
         unsigned int len = pos - s;
-        *nrbytes += sizeof(struct vm_tevent_t)+len+1;
-        *nrbytes += sizeof(struct vm_ttrue_t);
+        *nrbytes += alignedbytes(sizeof(struct vm_tevent_t)+len+1);
+        *nrbytes += alignedbytes(sizeof(struct vm_ttrue_t));
 #ifdef DEBUG
         printf("TEVENT: %lu\n", sizeof(struct vm_tevent_t)+len+1);
         printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
@@ -400,14 +400,14 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
         /*
          * An additional TTRUE slot
          */
-        *nrbytes += sizeof(uint16_t);
+        *nrbytes += alignedbytes(sizeof(uint16_t));
 #ifdef DEBUG
         printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
       }
       nrblocks++;
     } else if(strnicmp((char *)&(*text)[pos], "else", 4) == 0) {
-      *nrbytes += sizeof(struct vm_ttrue_t);
+      *nrbytes += alignedbytes(sizeof(struct vm_ttrue_t));
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
 #endif
@@ -423,7 +423,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       // printf("TEND: %d\n", tpos);
       (*text)[tpos++] = TEND;
     } else if(strnicmp((char *)&(*text)[pos], "NULL", 4) == 0) {
-      *nrbytes += sizeof(struct vm_vnull_t);
+      *nrbytes += alignedbytes(sizeof(struct vm_vnull_t));
 #ifdef DEBUG
       printf("VNULL: %lu\n", sizeof(struct vm_vnull_t));
 #endif
@@ -434,7 +434,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       /*
        * An additional function argument slot
        */
-      *nrbytes += sizeof(uint16_t);
+      *nrbytes += alignedbytes(sizeof(uint16_t));
 #ifdef DEBUG
       printf("TFUNCTION: %lu\n", sizeof(uint16_t));
 #endif
@@ -442,7 +442,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       (*text)[tpos++] = TCOMMA;
       pos++;
     } else if((*text)[pos] == '(') {
-      *nrbytes += sizeof(struct vm_lparen_t);
+      *nrbytes += alignedbytes(sizeof(struct vm_lparen_t));
       (*nrval)++;
 #ifdef DEBUG
       printf("LPAREN: %lu\n", sizeof(struct vm_lparen_t));
@@ -462,7 +462,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       /*
        * An additional TTRUE slot
        */
-      *nrbytes += sizeof(uint16_t);
+      *nrbytes += alignedbytes(sizeof(uint16_t));
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
@@ -481,8 +481,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
       }
 
       if((len1 = is_function((*text), &pos, b)) > -1) {
-        *nrbytes += sizeof(struct vm_tfunction_t)+sizeof(uint16_t);
-        *nrbytes -= sizeof(struct vm_lparen_t);
+        *nrbytes += alignedbytes(sizeof(struct vm_tfunction_t)+sizeof(uint16_t));
+        *nrbytes -= alignedbytes(sizeof(struct vm_lparen_t));
         (*nrval)++;
 #ifdef DEBUG
         printf("TFUNCTION: %lu\n", sizeof(struct vm_tfunction_t)+sizeof(uint16_t));
@@ -493,7 +493,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
         (*text)[tpos++] = len1;
         pos += b;
       } else if((len1 = is_operator((*text), &pos, b)) > -1) {
-        *nrbytes += sizeof(struct vm_toperator_t);
+        *nrbytes += alignedbytes(sizeof(struct vm_toperator_t));
         (*nrval)++;
 #ifdef DEBUG
         printf("TOPERATOR: %lu\n", sizeof(struct vm_toperator_t));
@@ -504,7 +504,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
         (*text)[tpos++] = TOPERATOR;
         (*text)[tpos++] = len1;
       } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb((*text), &pos, b)) > -1) {
-        *nrbytes += sizeof(struct vm_tvar_t)+len1+1;
+        *nrbytes += alignedbytes(sizeof(struct vm_tvar_t)+len1+1);
         (*nrval)++;
 #ifdef DEBUG
         printf("TVAR: %lu\n", sizeof(struct vm_tvar_t)+len1+1);
@@ -524,7 +524,7 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
           {
             unsigned int len = pos - s;
 
-            *nrbytes += sizeof(struct vm_tcevent_t)+len+1;
+            *nrbytes += alignedbytes(sizeof(struct vm_tcevent_t)+len+1);
 #ifdef DEBUG
             printf("TCEVENT: %lu\n", sizeof(struct vm_tcevent_t)+len+1);
 #endif
@@ -557,8 +557,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
        * Remove one go slot because of the root
        * if or on block
        */
-      *nrbytes -= sizeof(uint16_t);
-      *nrbytes += sizeof(struct vm_teof_t);
+      *nrbytes -= alignedbytes(sizeof(uint16_t));
+      *nrbytes += alignedbytes(sizeof(struct vm_teof_t));
 #ifdef DEBUG
       printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
 #endif
@@ -585,8 +585,8 @@ static int rule_prepare(char **text, unsigned int *nrbytes, unsigned int (*nrval
    * Remove one go slot because of the root
    * if or on block
    */
-  *nrbytes -= sizeof(uint16_t);
-  *nrbytes += sizeof(struct vm_teof_t);
+  *nrbytes -= alignedbytes(sizeof(uint16_t));
+  *nrbytes += alignedbytes(sizeof(struct vm_teof_t));
 #ifdef DEBUG
   printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
 #endif
