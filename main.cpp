@@ -18,22 +18,12 @@
 #include <ctype.h>
 #include <assert.h>
 
-#include "src/rules/mem.h"
+#include "src/common/mem.h"
 #include "src/rules/rules.h"
 
 #ifdef ESP8266
 #include <Arduino.h>
 #endif
-
-#define max(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a > _b ? _a : _b; })
-
-#define min(a,b) \
-   ({ __typeof__ (a) _a = (a); \
-       __typeof__ (b) _b = (b); \
-     _a < _b ? _a : _b; })
 
 #define OUTPUT_SIZE 512
 
@@ -42,6 +32,11 @@ static int nrrules = 0;
 static char out[OUTPUT_SIZE];
 
 struct rule_options_t rule_options;
+#ifdef ESP8266
+static unsigned char *mempool = (unsigned char *)MMU_SEC_HEAP;
+#else
+static unsigned char *mempool = NULL;
+#endif
 
 typedef struct varstack_t {
   unsigned char *buffer = NULL;
@@ -788,7 +783,7 @@ void run_test(int *i) {
   }
 #endif
 
-  int pos = 0, ppos = 0, len = strlen(unittests[(*i)].rule), offset = 0;
+  int len = strlen(unittests[(*i)].rule), oldoffset = 0;
   struct varstack_t *varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
   if(varstack == NULL) {
     OUT_OF_MEMORY
@@ -799,15 +794,21 @@ void run_test(int *i) {
 
   int ret = 0;
 
-  char *rule = STRDUP(unittests[(*i)].rule);
-  if(rule == NULL) {
-    OUT_OF_MEMORY
-  }
-  ppos = len;
+#ifndef ESP8266
+  mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE);
+#endif
 
-  while((ret = rule_initialize(&rule, &rules, &nrrules, varstack)) == 0) {
-    pos = strlen(rule);
-    int size = ppos-pos;
+  memset(mempool, 0, MEMPOOL_SIZE);
+
+  unsigned int txtoffset = alignedbuffer(MEMPOOL_SIZE-len-5);
+  memcpy(&mempool[alignedbuffer(MEMPOOL_SIZE-len-5)], unittests[(*i)].rule, len);
+  char *text = (char *)&mempool[txtoffset];
+  char *cpytxt = STRDUP(text);
+  unsigned int memoffset = 0;
+
+  oldoffset = txtoffset;
+  while((ret = rule_initialize(&text, &txtoffset, &rules, &nrrules, (unsigned char *)mempool, &memoffset, varstack)) == 0) {
+    int size = txtoffset - oldoffset;
 
     assert(rules[nrrules-1]->ast.nrbytes >= 0);
     assert(rules[nrrules-1]->ast.bufsize >= 0);
@@ -826,20 +827,20 @@ void run_test(int *i) {
 #ifdef ESP8266
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
-      size = min(size, 45);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 46-size, " ");
+      size = MIN(size, 45);
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, cpytxt, 46-size, " ");
     } else {
-      size = min(size, 50);
-      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 50-size, " ");
+      size = MIN(size, 50);
+      snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, cpytxt, 50-size, " ");
     }
     Serial.println(out);
 #else
     if(size > 49) {
-      size = min(size, 45);
-      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 46-size, " ");
+      size = MIN(size, 45);
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, cpytxt, 46-size, " ");
     } else {
-      size = min(size, 50);
-      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, &unittests[(*i)].rule[offset], 50-size, " ");
+      size = MIN(size, 50);
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, rules[nrrules-1]->nr, nrtests, size, cpytxt, 50-size, " ");
     }
 #endif
 
@@ -924,9 +925,6 @@ void run_test(int *i) {
       fflush(stdout);
     }
 
-    offset += size;
-    ppos = pos;
-
     varstack = (struct varstack_t *)MALLOC(sizeof(struct varstack_t));
     if(varstack == NULL) {
       OUT_OF_MEMORY
@@ -934,12 +932,15 @@ void run_test(int *i) {
     varstack->buffer = NULL;
     varstack->nrbytes = 4;
     varstack->bufsize = 4;
+
+    FREE(cpytxt);
+    text = (char *)&mempool[txtoffset];
+    oldoffset = txtoffset;
+    cpytxt = STRDUP(text);
   }
   if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
     exit(-1);
   }
-
-  FREE(rule);
 
   if(ret == -1) {
     const char *rule = unittests[(*i)].rule;
@@ -947,19 +948,19 @@ void run_test(int *i) {
 #ifdef ESP8266
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
-      size = min(size, 45);
+      size = MIN(size, 45);
       snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", (*i)+1, 1, nrtests, size, rule, 46-size, " ");
     } else {
-      size = min(size, 50);
+      size = MIN(size, 50);
       snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, 1, nrtests, size, rule, 50-size, " ");
     }
     Serial.println(out);
 #else
     if(size > 49) {
-      size = min(size, 45);
+      size = MIN(size, 45);
       printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", (*i)+1, 1, nrtests, size, rule, 46-size, " ");
     } else {
-      size = min(size, 50);
+      size = MIN(size, 50);
       printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", (*i)+1, 1, nrtests, size, rule, 50-size, " ");
     }
 #endif
@@ -974,9 +975,12 @@ void run_test(int *i) {
   if(nrrules > 0) {
     rules_gc(&rules, nrrules);
   }
-  nrrules = 0;
-
+  FREE(cpytxt);
   FREE(varstack);
+#ifndef ESP8266
+  FREE(mempool);
+#endif
+  nrrules = 0;
 }
 
 #ifndef ESP8266

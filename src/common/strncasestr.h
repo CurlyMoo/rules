@@ -6,12 +6,16 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifndef _RULES_MIN_H_
-#define _RULES_MIN_H_
+#ifndef STRNCASESTR
+#define STRNCASESTR
 
 #include <stdint.h>
-#include "../rules.h"
+#include <string.h>
 
-int rule_function_min_callback(struct rules_t *obj, uint16_t argc, uint16_t *argv, int *ret);
+/*
+ * Find the first occurrence of find in s, where the search is limited to the
+ * first slen characters of s.
+ */
+unsigned char *strncasestr(unsigned char *str1, const char *str2, uint16_t len);
 
 #endif

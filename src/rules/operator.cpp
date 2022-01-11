@@ -23,7 +23,7 @@
 #include <assert.h>
 #include <math.h>
 
-#include "mem.h"
+#include "../common/mem.h"
 #include "operator.h"
 
 #include "operators/eq.h"

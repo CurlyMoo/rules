@@ -6,11 +6,9 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifndef _RULES_LE_H_
-#define _RULES_LE_H_
+#ifndef STRNICMP
+#define STRNICMP
 
-#include "../rules.h"
-
-int rule_operator_le_callback(struct rules_t *obj, int a, int b, int *ret);
+int strnicmp(char const *a, char const *b, size_t len);
 
 #endif
