@@ -31,7 +31,6 @@
 
 #include "../common/mem.h"
 #include "../common/log.h"
-#include "../common/stricmp.h"
 #include "../common/strincmp.h"
 #include "../common/mem.h"
 #include "../common/log.h"
