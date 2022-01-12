@@ -794,21 +794,32 @@ void run_test(int *i) {
 
   int ret = 0;
 
+  struct pbuf mem;
+  struct pbuf input;
+  memset(&mem, 0, sizeof(struct pbuf));
+  memset(&input, 0, sizeof(struct pbuf));
+
 #ifndef ESP8266
   mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE);
 #endif
-
   memset(mempool, 0, MEMPOOL_SIZE);
+
+  mem.payload = mempool;
+  mem.len = 0;
+  mem.tot_len = MEMPOOL_SIZE;
 
   unsigned int txtoffset = alignedbuffer(MEMPOOL_SIZE-len-5);
   memcpy(&mempool[alignedbuffer(MEMPOOL_SIZE-len-5)], unittests[(*i)].rule, len);
-  char *text = (char *)&mempool[txtoffset];
-  char *cpytxt = STRDUP(text);
-  unsigned int memoffset = 0;
+
+  input.payload = &mempool[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+  char *cpytxt = STRDUP((char *)input.payload);
 
   oldoffset = txtoffset;
-  while((ret = rule_initialize(&text, &txtoffset, &rules, &nrrules, (unsigned char *)mempool, &memoffset, varstack)) == 0) {
-    int size = txtoffset - oldoffset;
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, &mem, varstack)) == 0) {
+    int size = input.len - oldoffset;
 
     assert(rules[nrrules-1]->ast.nrbytes >= 0);
     assert(rules[nrrules-1]->ast.bufsize >= 0);
@@ -934,9 +945,9 @@ void run_test(int *i) {
     varstack->bufsize = 4;
 
     FREE(cpytxt);
-    text = (char *)&mempool[txtoffset];
-    oldoffset = txtoffset;
-    cpytxt = STRDUP(text);
+    input.payload = &mempool[input.len];
+    oldoffset = input.len;
+    cpytxt = STRDUP((char *)input.payload);
   }
   if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
     exit(-1);

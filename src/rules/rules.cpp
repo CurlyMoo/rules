@@ -4456,12 +4456,12 @@ void print_bytecode(struct rules_t *obj) {
 #endif
 /*LCOV_EXCL_STOP*/
 
-int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rules, int *nrrules, unsigned char *mempool, unsigned int *memoffset, void *userdata) {
-  unsigned int nrbytes = 0, nrval = 0, len = strlen(*text), newlen = len;
+int rule_initialize(struct pbuf *input, struct rules_t ***rules, int *nrrules, struct pbuf *mempool, void *userdata) {
+  unsigned int nrbytes = 0, nrval = 0, len = strlen((char *)input->payload), newlen = len;
   unsigned int suggested_varstack_size = 0;
 
-  if(*memoffset < 512) {
-    *memoffset = 512;
+  if(mempool->len < 512) {
+    mempool->len = 512;
   }
   if(*nrrules >= 64) {
 #ifdef ESP8266
@@ -4470,7 +4470,8 @@ int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rule
     printf("more than the maximum of 64 rule blocks defined\n");
 #endif
   }
-  if(*txtoffset < alignedbuffer(*memoffset)) {
+
+  if(input->len < alignedbuffer(mempool->len)) {
 #ifdef ESP8266
     Serial1.println(PSTR("not enough free space in rules mempool"));
 #else
@@ -4481,10 +4482,10 @@ int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rule
   if(len == 0) {
     return 1;
   }
-  *rules = (struct rules_t **)&mempool[0];
-  (*rules)[*nrrules] = (struct rules_t *)&mempool[alignedbuffer(*memoffset)];
+  *rules = (struct rules_t **)&((unsigned char *)mempool->payload)[0];
+  (*rules)[*nrrules] = (struct rules_t *)&((unsigned char *)mempool->payload)[alignedbuffer(mempool->len)];
   memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
-  *memoffset += sizeof(struct rules_t);
+  mempool->len += sizeof(struct rules_t);
 
   (*rules)[*nrrules]->userdata = userdata;
 
@@ -4508,7 +4509,7 @@ int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rule
 #endif
 /*LCOV_EXCL_STOP*/
 
-  if(rule_prepare(text, &nrbytes, &nrval, &newlen) == -1) {
+  if(rule_prepare((char **)&input->payload, &nrbytes, &nrval, &newlen) == -1) {
     return -1;
   }
 
@@ -4543,32 +4544,32 @@ int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rule
     obj->ast.bufsize = alignedbuffer(nrbytes);
     obj->valstack.bufsize = nrval;
 
-    obj->ast.buffer = (unsigned char *)&mempool[alignedbuffer(*memoffset)];
-    *memoffset += obj->ast.bufsize;
+    obj->ast.buffer = (unsigned char *)&((unsigned char *)mempool->payload)[alignedbuffer(mempool->len)];
+    mempool->len += obj->ast.bufsize;
 
-    obj->valstack.buffer = (uint16_t *)&mempool[alignedbuffer(*memoffset)];
-    *memoffset += nrval*(sizeof(uint16_t));
+    obj->valstack.buffer = (uint16_t *)&((unsigned char *)mempool->payload)[alignedbuffer(mempool->len)];
+    mempool->len += nrval*(sizeof(uint16_t));
 
-    suggested_varstack_size = (*txtoffset-*memoffset);
+    suggested_varstack_size = (input->len-mempool->len);
 
     /*
      * The memoffset will be increased below
      * as soon as we know how many bytes
      * we maximally need.
      */
-    obj->varstack.buffer = &mempool[*memoffset];
+    obj->varstack.buffer = &((unsigned char *)mempool->payload)[mempool->len];
 
     memset(obj->ast.buffer, 0, obj->ast.bufsize);
     memset(obj->valstack.buffer, 0, nrval*(sizeof(uint16_t)));
     memset(obj->varstack.buffer, 0, suggested_varstack_size);
 
-    if(rule_parse(text, (int *)&newlen, obj) == -1) {
+    if(rule_parse((char **)&input->payload, (int *)&newlen, obj) == -1) {
       return -1;
     }
 
-    *txtoffset += newlen;
-    if((*text)[newlen] == 0 && len > newlen) {
-      *txtoffset += 1;
+    input->len += newlen;
+    if(((char *)input->payload)[newlen] == 0 && len > newlen) {
+      input->len += 1;
     }
   }
 
@@ -4628,7 +4629,7 @@ int rule_initialize(char **text, unsigned int *txtoffset, struct rules_t ***rule
    * Reserve space for the actual maximum
    * varstack buffer size
    */
-  *memoffset += alignedbuffer(obj->varstack.bufsize);
+  mempool->len += alignedbuffer(obj->varstack.bufsize);
 
 /*LCOV_EXCL_START*/
 #if defined(DEBUG) or defined(ESP8266)
