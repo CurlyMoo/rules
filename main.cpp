@@ -19,6 +19,7 @@
 #include <assert.h>
 
 #include "src/common/mem.h"
+#include "src/common/strnicmp.h"
 #include "src/rules/rules.h"
 
 #ifdef ESP8266
@@ -306,25 +307,6 @@ struct unittest_t {
   { "on foo then bar() $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if ( ; == 1 ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
 };
-
-static int strnicmp(char const *a, char const *b, size_t len) {
-  unsigned int i = 0;
-
-  if(a == NULL || b == NULL) {
-    return -1;
-  }
-  if(len == 0) {
-    return 0;
-  }
-
-  for(;i++<len; a++, b++) {
-    int d = tolower(*a) - tolower(*b);
-    if(d != 0 || !*a || i == len) {
-      return d;
-    }
-  }
-  return -1;
-}
 
 static int is_variable(char *text, unsigned int *pos, unsigned int size) {
   int i = 1;
@@ -727,9 +709,11 @@ static int event_cb(struct rules_t *obj, char *name) {
     called = rules[obj->caller-1];
 
 #ifdef ESP8266
+    /*LCOV_EXCL_START*/
     memset(&out, 0, OUTPUT_SIZE);
     snprintf((char *)&out, OUTPUT_SIZE, "- continuing with caller #%d at step #%d", obj->caller, called->cont.go);
     Serial.println(out);
+    /*LCOV_EXCL_STOP*/
 #else
     printf("- continuing with caller #%d at step #%d\n", obj->caller, called->cont.go);
 #endif
@@ -753,9 +737,11 @@ static int event_cb(struct rules_t *obj, char *name) {
     called->caller = obj->nr;
 
 #ifdef ESP8266
+    /*LCOV_EXCL_START*/
     memset(&out, 0, OUTPUT_SIZE);
     snprintf((char *)&out, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
     Serial.println(out);
+    /*LCOV_EXCL_STOP*/
 #else
     printf("- running event \"%s\" called from caller #%d\n", name, obj->nr);
 #endif
@@ -777,10 +763,12 @@ void run_test(int *i) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), x = 0;
 
 #ifdef ESP8266
+  /*LCOV_EXCL_START*/
   if(*i >= nrtests) {
     delay(3);
     *i = 0;
   }
+  /*LCOV_EXCL_STOP*/
 #endif
 
   int len = strlen(unittests[(*i)].rule), oldoffset = 0;
@@ -836,6 +824,7 @@ void run_test(int *i) {
     assert(varstack->nrbytes <= varstack->bufsize);
 
 #ifdef ESP8266
+    /*LCOV_EXCL_START*/
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = MIN(size, 45);
@@ -845,6 +834,7 @@ void run_test(int *i) {
       snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, rules[nrrules-1]->nr, nrtests, size, cpytxt, 50-size, " ");
     }
     Serial.println(out);
+    /*LCOV_EXCL_STOP*/
 #else
     if(size > 49) {
       size = MIN(size, 45);
@@ -868,23 +858,23 @@ void run_test(int *i) {
       snprintf((char *)&out, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output, out);
       Serial.println(out);
 #else
+      /*LCOV_EXCL_START*/
       printf("Expected: %s\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].output);
       printf("Was: %s\n", out);
+      /*LCOV_EXCL_STOP*/
 #endif
       exit(-1);
     }
 
 #ifndef ESP8266
+    /*LCOV_EXCL_START*/
     if((rules[nrrules-1]->ast.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes) {
-      // memset(&out, 0, OUTPUT_SIZE);
-      // snprintf((char *)&out, OUTPUT_SIZE, "Expected: %d\nWas: %d", unittests[(*i)].validate.bytes, rule.nrbytes);
-      // Serial.println(out);
-// #else
       printf("Expected: %d\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes);
       printf("Was: %d\n", rules[nrrules-1]->ast.nrbytes + (varstack->nrbytes - 4));
 
       exit(-1);
     }
+    /*LCOV_EXCL_STOP*/
 #endif
 
     for(x=0;x<5;x++) {
@@ -909,24 +899,24 @@ void run_test(int *i) {
 #endif
 
 #ifndef ESP8266
+      /*LCOV_EXCL_START*/
       if((rules[nrrules-1]->ast.nrbytes + (varstack->nrbytes - 4)) != unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes) {
-        // memset(&out, 0, OUTPUT_SIZE);
-        // snprintf((char *)&out, OUTPUT_SIZE, "Expected: %d\nWas: %d", unittests[(*i)].run.bytes, rule.nrbytes);
-        // Serial.println(out);
-// #else
         printf("Expected: %d\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].bytes);
         printf("Was: %d\n", rules[nrrules-1]->ast.nrbytes + (varstack->nrbytes - 4));
 
         exit(-1);
       }
+      /*LCOV_EXCL_STOP*/
 #endif
 
       valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
       if(strcmp(out, unittests[(*i)].run[rules[nrrules-1]->nr-1].output) != 0) {
 #ifdef ESP8266
+        /*LCOV_EXCL_START*/
         memset(&out, 0, OUTPUT_SIZE);
         snprintf((char *)&out, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].run[rules[nrrules-1]->nr-1].output, out);
         Serial.println(out);
+        /*LCOV_EXCL_STOP*/
 #else
         printf("Expected: %s\n", unittests[(*i)].run[rules[nrrules-1]->nr-1].output);
         printf("Was: %s\n", out);
@@ -950,13 +940,16 @@ void run_test(int *i) {
     cpytxt = STRDUP((char *)input.payload);
   }
   if(unittests[(*i)].run[0].bytes > 0 && ret == -1) {
+    /*LCOV_EXCL_START*/
     exit(-1);
+    /*LCOV_EXCL_STOP*/
   }
 
   if(ret == -1) {
     const char *rule = unittests[(*i)].rule;
     int size = strlen(unittests[(*i)].rule);
 #ifdef ESP8266
+    /*LCOV_EXCL_START*/
     memset(&out, 0, OUTPUT_SIZE);
     if(size > 49) {
       size = MIN(size, 45);
@@ -966,6 +959,7 @@ void run_test(int *i) {
       snprintf((char *)&out, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", (*i)+1, 1, nrtests, size, rule, 50-size, " ");
     }
     Serial.println(out);
+    /*LCOV_EXCL_STOP*/
 #else
     if(size > 49) {
       size = MIN(size, 45);
