@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.8)
 
-project(rules)
+project(rules CXX)
 set(VERSION 0.1)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
