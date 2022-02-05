@@ -36,4 +36,4 @@ struct rule_function_t rule_functions[] = {
   { "coalesce", rule_function_coalesce_callback }
 };
 
-unsigned int nr_rule_functions = sizeof(rule_functions)/sizeof(rule_functions[0]);
+uint16_t nr_rule_functions = sizeof(rule_functions)/sizeof(rule_functions[0]);

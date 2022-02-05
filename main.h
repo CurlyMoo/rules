@@ -11,6 +11,6 @@
 
 #include "src/rules/rules.h"
 
-void run_test(int *i);
+void run_test(int *i, unsigned char *mempool, uint16_t size);
 
 #endif
