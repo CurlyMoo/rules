@@ -194,6 +194,7 @@ struct unittest_t {
   { "if 1 == 1 then $a = 3.1; $b = $a; end", { "$a = 3.1$b = 3.1", 94 }, { "$a = 3.1$b = 3.1", 94 } },
   { "if 1 == 1 then $a = $a + 1; end", { "$a = NULL", 79 }, { "$a = NULL", 79 } },
   { "if 1 == 1 then $a = max(foo#bar); end", { "$a = 3", 83 }, { "$a = 3", 83 } },
+  { "if 1 == 1 then $a = max(1200); end", { "$a = 1200", 75 }, { "$a = 1200", 75 } },
   { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "$a = 1", 100 }, { "$a = 1", 100 } },
   { "if 1 == 1 then $a = coalesce($a, 1.1) + 1; end", { "$a = 2.1", 102 }, { "$a = 2.1", 102 } },
   { "if 1 == 1 then if $a == NULL then $a = 0; end $a = $a + 1; end", { "$a = 1", 138 }, { "$a = 1", 138 } },
