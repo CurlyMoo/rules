@@ -3489,29 +3489,12 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   vm_cache_del(oldpos);
                 } break;
+                case VINTEGER:
+                case VNULL:
+                case TVAR:
                 case TNUMBER1:
                 case TNUMBER2:
                 case TNUMBER3: {
-                  int16_t a = vm_parent(text, obj, type, start, len, 0);
-
-                  pos++;
-
-                  node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&node->go[arg++], a);
-                  } else {
-                    node->go[arg++] = a;
-                  }
-
-                  struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[a];
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&tmp->ret, step);
-                  } else {
-                    tmp->ret = step;
-                  }
-                } break;
-                case VNULL:
-                case TVAR: {
                   int16_t a = vm_parent(text, obj, type, start, len, 0);
 
                   pos++;
