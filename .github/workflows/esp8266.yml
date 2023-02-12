@@ -1,4 +1,4 @@
-name: Build binary
+name: ESP8266
 
 on: [push, pull_request]
 
@@ -30,4 +30,4 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: rules.ino.bin
-          path: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\arduino-sketch-*\\*.ino.bin
+          path: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\arduino\\sketch-*/*.ino.bin
