@@ -153,6 +153,17 @@ if [condition] then
 end
 ```
 
+The syntax also supports `elseif` statements.
+```
+if [condition] then
+  [body]
+[elseif] [condition] [then]
+  [body]
+[else]
+  [body]
+end
+```
+
 ### Nested if blocks
 
 The `if` body can contain (multiple) if body's. You can nest an unlimited number of `if` blocks. Each if block should have a accompanied `end` token.
