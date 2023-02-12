@@ -1403,7 +1403,7 @@ static int rule_parse(char **text, int *length, struct rules_t *obj) {
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 } break;
-                case TEOF:
+                // case TEOF:
                 case TEND: {
                   go = -1;
 
@@ -1699,7 +1699,7 @@ static int rule_parse(char **text, int *length, struct rules_t *obj) {
                   }
                   continue;
                 } break;
-                case TEOF:
+                // case TEOF:
                 case TEND: {
                   go = -1;
 
