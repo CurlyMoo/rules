@@ -246,6 +246,10 @@ struct unittest_t {
   { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 178 }, { "$a = 2$b = 15", 178 } },
   { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 84 }, { "$a = 1", 84 } },
   { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 140 }, { "$a = 3", 140 } },
+  { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 2; end", { "$a = 2", 119 }, { "$a = 2", 119 } },
+  { "if 1 == 2 then $a = 1; elseif 3 == 2 then $a = 2; elseif 4 == 4 then $a = 4; end", { "$a = 4", 175 }, { "$a = 4", 175 } },
+  { "if 1 == 2 then $a = 1; elseif 3 == 2 then if 1 > 4 then $a = 2; else $a = 1; end end", { "$a = 1", 175 }, { "", 168 } },
+  { "if 1 == 2 then $a = 1; if 2 < 3 then $a = 5; end elseif 3 == 2 then if 1 > 4 then $a = 2; else $a = 1; end end", { "$a = 1", 227 }, { "", 220 } },
   { "if 1 == 1 then if 2 == 2 then $a = 1; end else $a = 2; end", { "$a = 2", 119 }, { "$a = 1", 119 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 276 }, { "$a = 4$b = 14", 276 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 293 }, { "$a = 4$b = 3", 293 } },
@@ -275,8 +279,10 @@ struct unittest_t {
   { "if foo then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1.1.1 == 1 then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == ) then $a = 1", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == ) then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "elseif 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if (1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if () then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -307,6 +313,8 @@ struct unittest_t {
   { "if 1 == 1 then $a = $a $a; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then bar() $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if ( ; == 1 ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 2 then $a = 1; else $a = 3; elseif $a = 2; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then elseif $a = 2; else $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
 };
 
 static int is_variable(char *text, unsigned int *pos, unsigned int size) {

@@ -623,10 +623,12 @@ static int lexer_peek(char **text, int skip, int *type, int *start, int *len) {
         }
         *len = i - *start - 1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     if(skip == nr++) {
       return i;
