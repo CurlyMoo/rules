@@ -2,7 +2,10 @@
 
 ESP ready, high performant and low resources rules library written in C.
 
-[![Coverage Status](https://coveralls.io/repos/github/CurlyMoo/rules/badge.svg?branch=main)](https://coveralls.io/github/CurlyMoo/rules?branch=main) [![Build Status](https://travis-ci.com/CurlyMoo/rules.svg?branch=main)](https://travis-ci.com/CurlyMoo/rules) [![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0) ![GitHub issues](https://img.shields.io/github/issues-raw/CurlyMoo/rules) [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=info%40pilight%2eorg&lc=US&item_name=curlymoo&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
+[![Coverage Status](https://coveralls.io/repos/github/CurlyMoo/rules/badge.svg?branch=main)](https://coveralls.io/github/CurlyMoo/rules?branch=main)
+[![Build Status](https://github.com/curlymoo/rules/actions/workflows/esp8266.yml/badge.svg)]()
+[![Build Status](https://github.com/curlymoo/rules/actions/workflows/coveralls.yml/badge.svg)]()
+[![License: MPL 2.0](https://img.shields.io/badge/License-MPL%202.0-brightgreen.svg)](https://opensource.org/licenses/MPL-2.0) ![GitHub issues](https://img.shields.io/github/issues-raw/CurlyMoo/rules) [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_SM.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=info%40pilight%2eorg&lc=US&item_name=curlymoo&no_note=0&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHostedGuest)
 
 ---
 ---
@@ -147,6 +150,17 @@ If blocks start with a condition defining when either the `if` block should exec
 The body's are not optional. So you can't define an empty `if` / `else` blocks.
 ```
 if [condition] then
+  [body]
+[else]
+  [body]
+end
+```
+
+The syntax also supports `elseif` statements.
+```
+if [condition] then
+  [body]
+[elseif] [condition] [then]
   [body]
 [else]
   [body]

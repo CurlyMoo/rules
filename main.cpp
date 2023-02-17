@@ -274,8 +274,10 @@ struct unittest_t {
   { "if foo then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1.1.1 == 1 then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == ) then $a = 1", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == ) then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "elseif 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if (1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if () then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -306,6 +308,8 @@ struct unittest_t {
   { "if 1 == 1 then $a = $a $a; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then bar() $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if ( ; == 1 ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 2 then $a = 1; else $a = 3; elseif $a = 2; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then elseif $a = 2; else $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
 };
 
 static int8_t is_variable(char *text, uint16_t size) {

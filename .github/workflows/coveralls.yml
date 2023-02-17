@@ -1,0 +1,46 @@
+name: coveralls
+
+on: [push, pull_request]
+
+env:
+  ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: http://arduino.esp8266.com/stable/package_esp8266com_index.json
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.0.0
+
+      - name: Install Packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y gcc-multilib lcov
+
+      - name: Configure CMake
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCOVERALLS=ON
+          cd ..
+
+      - name: Build
+        run: |
+          cd build
+          make -j4
+          ./start
+          cd ..
+
+      - name: Coveralls
+        run: |
+          cd build
+          gem install coveralls-lcov
+          lcov -c -d CMakeFiles/start.dir -o coverage.info
+          lcov -r coverage.info '/usr/include/*' '*log.cpp' '*main.cpp' -o coverage-filtered.info
+          lcov --list coverage-filtered.info
+          genhtml coverage-filtered.info
+          coveralls-lcov --repo-token ${{ secrets.COVERALLS }} coverage.info
