@@ -474,6 +474,53 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 
       pos += 2;
       nrblocks++;
+    } else if(tolower(current) == 'e' && tolower(next) == 'l' &&
+              pos+4 < *len &&
+              (
+                (is_mmu == 1 &&
+                  tolower(mmu_get_uint8(&(*text)[pos+2])) == 's' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+3])) == 'e' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+4])) == 'i' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+5])) == 'f'
+                )
+              ||
+                (is_mmu == 0 &&
+                  tolower((*text)[pos+2]) == 's' &&
+                  tolower((*text)[pos+3]) == 'e' &&
+                  tolower((*text)[pos+4]) == 'i' &&
+                  tolower((*text)[pos+5]) == 'f'
+                )
+              )
+            ) {
+      *nrbytes += sizeof(struct vm_tif_t);
+      *nrbytes += sizeof(struct vm_ttrue_t);
+      /*
+       * ELSEIF enforces a false statement to the previous
+       * IF block (which shouldn't already be there if
+       * the syntax is correct).
+       */
+      *nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+      printf("TELSEIF: %lu\n", sizeof(struct vm_tif_t));
+      printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+
+      /*
+       * An additional TTRUE slot
+       */
+       *nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+      printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      // printf("TIF: %d\n", tpos);
+      if(is_mmu == 1) {
+        mmu_set_uint8(&(*text)[tpos++], TELSEIF);
+      } else {
+        (*text)[tpos++] = TELSEIF;
+      }
+
+      pos+=6;
+      nrblocks++;
     } else if(tolower(current) == 'o' && tolower(next) == 'n') {
       pos+=2;
       lexer_parse_skip_characters((*text), *len, &pos);
@@ -919,14 +966,12 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         }
         *len = i - *start - 1;
       } break;
-      /* LCOV_EXCL_START*/
       default: {
         /* LCOV_EXCL_START*/
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
         /* LCOV_EXCL_STOP*/
       } break;
-      /* LCOV_EXCL_STOP*/
     }
     if(skip == nr++) {
       return i;
@@ -1363,7 +1408,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
   return ret;
 }
 
-static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2) {
+static int16_t vm_rewind3(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2, uint8_t type3) {
   uint16_t tmp = step;
   while(1) {
     uint8_t tmp_type = 0;
@@ -1372,13 +1417,14 @@ static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8
     } else {
       tmp_type = obj->ast.buffer[tmp];
     }
-    if(tmp_type == type || (type2 > -1 && tmp_type == type2)) {
+    if(tmp_type == type || (type2 > -1 && tmp_type == type2) || (type3 > -1 && tmp_type == type3)) {
       return tmp;
     } else {
       switch(tmp_type) {
         case TSTART: {
           return 0;
         } break;
+        case TELSEIF:
         case TIF:
         case TEVENT:
         case LPAREN:
@@ -1413,7 +1459,11 @@ static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8
   return 0;
 }
 
-static int16_t vm_rewind(struct rules_t *obj, int step, int type) {
+static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2) {
+  return vm_rewind3(obj, step, type, type2, -1);
+}
+
+static int16_t vm_rewind(struct rules_t *obj, int16_t step, uint8_t type) {
   return vm_rewind2(obj, step, type, -1);
 }
 
@@ -1800,8 +1850,9 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
 
 static int16_t rule_parse(char **text, struct rules_t *obj) {
   uint16_t step = 0, start = 0, len = 0, pos = 0;
-  int16_t go = -1, step_out = -1, loop = 1, startnode = 0, r_rewind = -1, offset = 0;
-  int16_t has_paren = -1, has_function = -1, has_if = -1, has_on = -1;
+  int16_t go = -1, step_out = -1, loop = 1, startnode = 0, r_rewind = -1;
+  int16_t has_elseif = -1, offset = 0, has_paren = -1, has_function = -1;
+  int16_t has_if = -1, has_on = -1;
   uint8_t type = 0, type1 = 0;
 
   /* LCOV_EXCL_START*/
@@ -2200,7 +2251,6 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             if(cache == NULL) {
               cache = vm_cache_get(TELSEIF, pos);
             }
-
             if(cache != NULL) {
               step = cache->step;
 
@@ -2211,28 +2261,69 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 /* LCOV_EXCL_STOP*/
               }
               struct vm_tif_t *i = (struct vm_tif_t *)&obj->ast.buffer[step];
+
               /*
                * Relabel ELSEIF to just IF
                */
-              i->type = TIF;
+              if(is_mmu == 1) {
+                mmu_set_uint8(&i->type, TIF);
+              } else {
+                i->type = TIF;
+              }
 
               /*
                * An ELSEIF is always attached to the FALSE node of
                * the previous if block. For proper syntax this FALSE
                * node should not be present, so it's created here.
                */
+              if(cache->type == TELSEIF) {
+                int16_t tmp = vm_rewind2(obj, step_out, TIF, TELSEIF);
+                if(tmp == 0) {
+                  /* LCOV_EXCL_START*/
+                  logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+
+                /*
+                 * The last parameter is used for
+                 * for the number of operations the
+                 * TRUE of FALSE will forward to.
+                 */
+                int16_t step1 = vm_parent(text, obj, TFALSE, 0, 0, 1);
+                struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->ast.buffer[step1];
+                struct vm_tif_t *b = (struct vm_tif_t *)&obj->ast.buffer[tmp];
+                if(is_mmu == 1) {
+                  if(mmu_get_uint16(&b->false_) > 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  mmu_set_uint16(&b->false_, step1);
+                  mmu_set_uint16(&a->ret, tmp);
+                } else {
+                  if(b->false_ > 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  b->false_ = step1;
+                  a->ret = tmp;
+                }
+
+                step_out = step1;
+              }
+
+              /*
+               * Attach IF block to TRUE / FALSE node
+               */
               if(is_mmu == 1) {
                 mmu_set_uint16(&i->ret, step_out);
               } else {
                 i->ret = step_out;
               }
-              pos = cache->end;
-
-              /*
-               * Attach IF block to TRUE / FALSE node
-               */
-
-              i->ret = step_out;
               pos = cache->end;
 
               uint8_t step_out_type = 0;
@@ -2317,7 +2408,6 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
             if(type == TIF || type == TELSEIF) {
               step = vm_parent(text, obj, type, start, len, 0);
-
               struct vm_tif_t *a = (struct vm_tif_t *)&obj->ast.buffer[step];
 
               if(pos == 0) {
@@ -2495,8 +2585,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 // case TEOF:
                 case TEND: {
                   go = -1;
-                  int16_t tmp = vm_rewind(obj, step_out, TIF);
-                  if(has_if > 0) {
+                  int16_t tmp = vm_rewind2(obj, step_out, TIF, TELSEIF);
+                  if(MAX(has_if, has_elseif) == has_elseif) {
+                    r_rewind = has_elseif;
+                  }
+                  if(MAX(has_if, has_elseif) == has_if) {
                     r_rewind = has_if;
                   }
                   if(has_elseif > 0 || has_if > 0) {
@@ -2684,6 +2777,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 mmu_set_uint16(&b->false_, step);
               }
               mmu_set_uint16(&a->ret, step_out);
+              go = mmu_get_uint8(&b->type);
             } else {
               if(t == TTRUE) {
                 b->true_ = step;
@@ -2691,8 +2785,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 b->false_ = step;
               }
               a->ret = step_out;
+              go = b->type;
             }
-            go = TIF;
 
             step_out = step;
           }
@@ -2768,6 +2862,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             }
 
             switch(source_type) {
+              case TELSEIF:
               case TIF: {
                 struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[source];
                 if(is_mmu == 1) {
@@ -2826,7 +2921,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           if(lexer_peek(text, pos, &type, &start, &len) >= 0) {
             switch(type) {
               case TTHEN: {
-                go = obj->ast.buffer[source]; // TIF or TELSEIF
+                if(is_mmu == 1) {
+                  go = mmu_get_uint8(&obj->ast.buffer[source]);
+                } else {
+                  go = obj->ast.buffer[source];
+                }
               } break;
               case TSEMICOLON: {
                 go = TVAR;
@@ -3157,7 +3256,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   step_out_type = obj->ast.buffer[tmp];
                 }
               } else {
-                int16_t tmp1 = vm_rewind2(obj, tmp, TIF, TEVENT);
+                int16_t tmp1 = vm_rewind3(obj, tmp, TIF, TELSEIF, TEVENT);
                 if(is_mmu == 1) {
                   go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
                 } else {
@@ -3236,7 +3335,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             node->ret = step_out;
           }
 
-          int16_t tmp1 = vm_rewind2(obj, step_out, TIF, TEVENT);
+          int16_t tmp1 = vm_rewind3(obj, step_out, TIF, TELSEIF, TEVENT);
           if(is_mmu == 1) {
             go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
           } else {
@@ -3572,9 +3671,6 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   vm_cache_del(oldpos);
                 } break;
-                case VINTEGER:
-                case VNULL:
-                case TVAR:
                 case TNUMBER1:
                 case TNUMBER2:
                 case TNUMBER3: {
@@ -3713,7 +3809,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
         has_paren = pos-1;
       }
 
-      if(has_function != -1 || has_paren != -1 || has_if != -1 || has_on != -1) {
+      if(has_function != -1 || has_paren != -1 || has_if != -1 || has_elseif != -1 || has_on != -1) {
         if(type == TEOF || r_rewind > -1) {
           if(MAX(has_function, MAX(has_paren, MAX(has_if, MAX(has_on, has_elseif)))) == has_function) {
             offset = (pos = has_function)+1;
@@ -3969,11 +4065,13 @@ static void print_steps(struct rules_t *obj) {
       case TELSEIF:
       case TIF: {
         struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[i];
+        printf("\"%d-2\"[label=\"IF\"]\n", i);
         if(obj->ast.buffer[i] == TELSEIF) {
           printf("\"%d-2\"[label=\"ELSEIF\"]\n", i);
         } else {
           printf("\"%d-2\"[label=\"IF\"]\n", i);
         }
+        printf("\"%d-2\"[label=\"IF\"]\n", i);
         printf("\"%d-2\" -> \"%d-4\"\n", i, i);
         if(node->true_ > 0) {
           printf("\"%d-2\" -> \"%d-6\"\n", i, i);
@@ -4674,9 +4772,11 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
         }
         x += sizeof(struct vm_vnull_t)-1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     pos += snprintf(&out[pos], size - pos, "\n");
   }

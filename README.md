@@ -145,7 +145,7 @@ This library is looze typed.
 
 ### If blocks
 
-If blocks start with a condition defining when either the `if` block should execute or the `else` block should execute. The `else` block is optional. An if / else block always ends with a `end` token. The `elseif` token is not supported.
+If blocks start with a condition defining when either the `if` block should execute or the `else` block should execute. The `else` block is optional. An if / else block always ends with a `end` token.
 
 The body's are not optional. So you can't define an empty `if` / `else` blocks.
 ```
