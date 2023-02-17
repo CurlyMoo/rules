@@ -966,12 +966,12 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         }
         *len = i - *start - 1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
-        /* LCOV_EXCL_START*/
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
-        /* LCOV_EXCL_STOP*/
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     if(skip == nr++) {
       return i;
