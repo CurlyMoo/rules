@@ -9,6 +9,9 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "(Release|Debug)")
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -Wall") # debug, no optimisation
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -Wall") # debug, no optimisation
+
 if(COVERALLS)
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O0 -Wall") # debug, no optimisation
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall") # debug, no optimisation
