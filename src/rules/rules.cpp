@@ -32,7 +32,6 @@
 
 #include "../common/mem.h"
 #include "../common/log.h"
-#include "../common/strnicmp.h"
 #include "../common/mem.h"
 #include "../common/log.h"
 #include "../common/uint32float.h"
@@ -920,8 +919,10 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         *len = i - *start - 1;
       } break;
       default: {
+        /* LCOV_EXCL_START*/
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
+        /* LCOV_EXCL_STOP*/
       } break;
     }
     if(skip == nr++) {
@@ -5592,11 +5593,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         ret = go;
         go = tmp;
       } break;
-      case TSTRING: {
-        int tmp = ret;
-        ret = go;
-        go = tmp;
-      } break;
+      // case TSTRING: {
+        // int tmp = ret;
+        // ret = go;
+        // go = tmp;
+      // } break;
       case VNULL: {
         int tmp = ret;
         ret = go;
@@ -6162,7 +6163,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 }
 
 /*LCOV_EXCL_START*/
-// #ifdef DEBUG
+#ifdef DEBUG
 static void print_bytecode_mmu(struct rules_t *obj) {
   uint16_t i = 0, nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
 

@@ -91,7 +91,6 @@ int8_t rule_operator_divide_callback(struct rules_t *obj, uint16_t a, uint16_t b
 
     *ret = rule_stack_push(&obj->varstack, &out);
   } else {
-    struct vm_vinteger_t out;
     struct vm_vinteger_t *na = (struct vm_vinteger_t *)&nodeA[0];
     struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&nodeB[0];
 

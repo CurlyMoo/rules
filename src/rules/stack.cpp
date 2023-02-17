@@ -17,6 +17,7 @@
 
 #include "stack.h"
 #include "rules.h"
+#include "../common/uint32float.h"
 
 uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
   uint16_t ret = 0;
