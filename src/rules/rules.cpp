@@ -5151,7 +5151,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               } break;
               case TVAR: {
                 if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  rule_options.cpy_token_val_cb(obj, node_go); // TESTME
+                  if(rule_options.cpy_token_val_cb(obj, node_go) == -1) { // TESTME
+                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                    return -1;
+                  }
+
                   unsigned char *val = rule_options.get_token_val_cb(obj, node_go);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
@@ -5359,7 +5363,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * If vars are seperate steps
                */
               if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                rule_options.cpy_token_val_cb(obj, step); // TESTME
+                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
+                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                  return -1;
+                }
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
 
                 /* LCOV_EXCL_START*/
@@ -5444,7 +5451,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * If vars are seperate steps
                */
               if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                rule_options.cpy_token_val_cb(obj, step); // TESTME
+                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
+                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                  return -1;
+                }
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
 
                 /* LCOV_EXCL_START*/
@@ -5771,7 +5781,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
         if(node_go == 0) {
           if(rule_options.cpy_token_val_cb != NULL) {
-            rule_options.cpy_token_val_cb(obj, go);
+            if(rule_options.cpy_token_val_cb(obj, go) == -1) { // TESTME
+              logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+              return -1;
+            }
           }
 
           /*
@@ -5863,7 +5876,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                */
               case TVAR: {
                 if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  rule_options.cpy_token_val_cb(obj, ret); // TESTME
+                  if(rule_options.cpy_token_val_cb(obj, ret) == -1) { // TESTME
+                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                    return -1;
+                  }
                   unsigned char *val = rule_options.get_token_val_cb(obj, ret);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
