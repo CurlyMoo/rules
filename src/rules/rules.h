@@ -92,6 +92,31 @@ typedef enum {
 } token_types;
 
 typedef struct rules_t {
+  /* --- PUBLIC MEMBERS --- */
+
+  /*
+   * caller and nr can be considered
+   * public members. They are
+   * intentionally of uint32_t type
+   * in case of 2nd heap usage so
+   * developer can manipulate them
+   * without having to fallback on
+   * memory safe helpers
+   */
+
+  /* To what rule do we return after
+   * being called from another rule.
+   */
+#ifndef NON32XFER_HANDLER
+  uint8_t caller;
+  uint8_t nr;
+#else
+  uint32_t caller;
+  uint32_t nr;
+#endif
+
+  /* --- PRIVATE MEMBERS --- */
+
   struct {
 #ifdef ESP8266
     uint32_t first;
@@ -115,12 +140,6 @@ typedef struct rules_t {
     uint16_t ret;
   } __attribute__((aligned(4))) cont;
 
-  /* To which rule do we return after
-   * being called from another rule.
-   */
-  uint8_t caller;
-
-  uint8_t nr;
   void *userdata;
 
   struct rule_stack_t ast;
@@ -139,15 +158,15 @@ typedef struct rule_options_t {
    * Variables
    */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
-  void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
+  int8_t (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
-  void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
+  int8_t (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, uint16_t size);
 
   /*
    * Events
    */
-  int (*event_cb)(struct rules_t *obj, char *name);
+  int8_t (*event_cb)(struct rules_t *obj, char *name);
 } rule_options_t;
 
 extern struct rule_options_t rule_options;
@@ -250,9 +269,9 @@ typedef struct vm_teof_t {
   uint8_t type;
 } __attribute__((aligned(4))) vm_teof_t;
 
-unsigned int alignedvarstack(int v);
-int rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
-int rule_run(struct rules_t *obj, int validate);
+int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out);
+int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
+int8_t rule_run(struct rules_t *obj, uint8_t validate);
 void valprint(struct rules_t *obj, char *out, uint16_t size);
 
 #endif

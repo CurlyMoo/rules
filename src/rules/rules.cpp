@@ -4723,7 +4723,7 @@ static void vm_clear_values(struct rules_t *obj) {
   }
 }
 
-int rule_run(struct rules_t *obj, int validate) {
+int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 #ifdef DEBUG
   printf("-----------------------\n");
   if(is_mmu == 1) {
@@ -4739,7 +4739,7 @@ int rule_run(struct rules_t *obj, int validate) {
   printf("-----------------------\n");
 #endif
 
-  int go = 0, ret = -1, i = -1, start = -1;
+  int16_t go = 0, ret = -1, i = -1, start = -1;
   go = start = 0;
 
   while(go != -1) {
@@ -6358,10 +6358,12 @@ static void print_bytecode_mmu(struct rules_t *obj) {
 }
 
 void print_bytecode(struct rules_t *obj) {
+#ifdef ESP8266
   if(is_mmu == 1) {
     print_bytecode_mmu(obj);
     return;
   }
+#endif
   uint16_t i = 0;
   for(i=0;i<obj->ast.nrbytes;i++) {
     printf("%d", i);
@@ -6512,10 +6514,160 @@ void print_bytecode(struct rules_t *obj) {
     }
   }
 }
-// #endif
+#endif
 /*LCOV_EXCL_STOP*/
 
-int rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
+int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
+  if(out[0] == 0) {
+    uint8_t out_type = 0;
+    if(is_mmu == 1) {
+      out_type = mmu_get_uint8(&obj->buffer[pos]);
+    } else {
+      out_type = obj->buffer[pos];
+    }
+
+    switch(out_type) {
+      case TVAR: {
+        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)&obj->buffer[pos];
+        struct vm_tvar_t *nodeB = (struct vm_tvar_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->go = mmu_get_uint16(&nodeA->go);
+          nodeB->value = mmu_get_uint16(&nodeA->value);
+
+          uint16_t x = 0, len = 0;
+          while(mmu_get_uint8(&nodeA->token[++x]) != 0);
+          len = x;
+          x = 0;
+
+          while(x < len) {
+            nodeB->token[x] = mmu_get_uint8(&nodeA->token[x]);
+            x++;
+          }
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->go = nodeA->go;
+          nodeB->value = nodeA->value;
+
+          strcpy((char *)nodeB->token, (char *)nodeA->token);
+        }
+      } break;
+      case VINTEGER: {
+        struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)&obj->buffer[pos];
+        struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VFLOAT: {
+        struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)&obj->buffer[pos];
+        struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VNULL: {
+        struct vm_vnull_t *nodeA = (struct vm_vnull_t *)&obj->buffer[pos];
+        struct vm_vnull_t *nodeB = (struct vm_vnull_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+        }
+      } break;
+      default: {
+        return -1;
+      } break;
+    }
+  } else {
+    switch(out[0]) {
+      case TVAR: {
+        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)out;
+        struct vm_tvar_t *nodeB = (struct vm_tvar_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          mmu_set_uint16(&nodeB->go, nodeA->go);
+          mmu_set_uint16(&nodeB->value, nodeA->value);
+
+          uint16_t x = 0, len = strlen((char *)nodeA->token);
+
+          while(x < len) {
+            mmu_set_uint8(&nodeB->token[x], nodeA->token[x]);
+            x++;
+          }
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->go = nodeA->go;
+          nodeB->value = nodeA->value;
+
+          strcpy((char *)nodeB->token, (char *)nodeA->token);
+        }
+      } break;
+      case VINTEGER: {
+        struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)out;
+        struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VFLOAT: {
+        struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)out;
+        struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VNULL: {
+        struct vm_vnull_t *nodeA = (struct vm_vnull_t *)out;
+        struct vm_vnull_t *nodeB = (struct vm_vnull_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+        }
+      } break;
+      default: {
+        return -1;
+      } break;
+    }
+  }
+
+  return 0;
+}
+
+int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
   assert(nrcache == 0);
   assert(vmcache == NULL);
 
