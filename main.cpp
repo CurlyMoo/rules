@@ -323,10 +323,8 @@ static int8_t is_variable(char *text, uint16_t size) {
 }
 
 static int8_t is_event(char *text, uint16_t *pos, uint16_t size) {
-  uint16_t len = 0;
-
   if(size == 3 &&
-    (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
+    (strnicmp(&text[*pos], "foo", 3) == 0 || strnicmp(&text[*pos], "bar", 3) == 0)) {
     return 0;
   }
   return -1;
