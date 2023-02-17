@@ -57,6 +57,13 @@ static void print_bytecode(struct rules_t *obj);
 #endif
 /*LCOV_EXCL_STOP*/
 
+#ifndef ESP8266
+uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
+uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
+uint16_t mmu_set_uint16(void *ptr, uint16_t src) { *(uint16_t *)ptr = src; return src; }
+uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
+#endif
+
 static uint32_t align(uint32_t p, uint8_t b) {
   return (p + b) - ((p + b) % b);
 }

@@ -37,10 +37,10 @@ static char out[OUTPUT_SIZE];
 
 #ifndef ESP8266
 struct serial_t Serial;
+void *MMU_SEC_HEAP = NULL;
 #endif
 
 struct rule_options_t rule_options;
-static unsigned char *mempool = NULL;
 static struct vm_vinteger_t vinteger;
 
 struct unittest_t {
@@ -1249,15 +1249,29 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 int main(int argc, char **argv) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
 
-  unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE);
+  unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
   if(mempool == NULL) {
     fprintf(stderr, "OUT_OF_MEMORY\n");
     exit(-1);
   }
+  MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
 
   for(i=0;i<nrtests;i++) {
-    memset(mempool, 0, MEMPOOL_SIZE);
-    run_test(&i, mempool, MEMPOOL_SIZE);
+    memset(mempool, 0, MEMPOOL_SIZE*2);
+    run_test(&i, &mempool[MEMPOOL_SIZE], MEMPOOL_SIZE);
+  }
+  FREE(mempool);
+
+  mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
+  if(mempool == NULL) {
+    fprintf(stderr, "OUT_OF_MEMORY\n");
+    exit(-1);
+  }
+  MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
+
+  for(i=0;i<nrtests;i++) {
+    memset(mempool, 0, MEMPOOL_SIZE*2);
+    run_test(&i, &mempool[0], MEMPOOL_SIZE);
   }
   FREE(mempool);
 }

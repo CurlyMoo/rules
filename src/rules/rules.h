@@ -26,10 +26,6 @@
     uint8_t flags;
     uint16_t ref;
   } pbuf;
-  static uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
-  static uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
-  static uint16_t mmu_set_uint16(void *ptr, uint16_t src) { *(uint16_t *)ptr = src; return src; }
-  static uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
 
   typedef struct serial_t {
     void (*printf)(const char *fmt, ...);
@@ -37,7 +33,11 @@
     void (*flush)(void);
   } serial_t;
   extern struct serial_t Serial;
-  #define MMU_SEC_HEAP 0
+  extern void *MMU_SEC_HEAP;
+  uint8_t mmu_set_uint8(void *ptr, uint8_t src);
+  uint8_t mmu_get_uint8(void *ptr);
+  uint16_t mmu_set_uint16(void *ptr, uint16_t src);
+  uint16_t mmu_get_uint16(void *ptr);
 #else
   #include <Arduino.h>
   #include "lwip/pbuf.h"
