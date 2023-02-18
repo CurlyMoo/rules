@@ -65,6 +65,9 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+/*
+ * Max 32 tokens are allowed
+ */
 typedef enum {
   TOPERATOR = 1,
   TFUNCTION = 2,

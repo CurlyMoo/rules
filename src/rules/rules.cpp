@@ -512,7 +512,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
-      // printf("TIF: %d\n", tpos);
+      // printf("TELSEIF: %d\n", tpos);
       if(is_mmu == 1) {
         mmu_set_uint8(&(*text)[tpos++], TELSEIF);
       } else {
@@ -957,6 +957,9 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         } else {
           current = (*text)[i];
         }
+        /*
+         * Consider tokens above 32 as regular characters
+         */
         while(current > 32 && current < 126) {
           if(is_mmu == 1) {
             current = mmu_get_uint8(&(*text)[++i]);
