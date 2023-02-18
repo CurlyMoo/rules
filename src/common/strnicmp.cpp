@@ -8,6 +8,13 @@
 
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdio.h>
+
+#include "../rules/rules.h"
+
+#ifdef ESP8266
+#include <Arduino.h>
+#endif
 
 int strnicmp(char const *a, char const *b, size_t len) {
   unsigned int i = 0;
@@ -20,8 +27,19 @@ int strnicmp(char const *a, char const *b, size_t len) {
   }
 
   for(;i++<len; a++, b++) {
-    int d = tolower(*a) - tolower(*b);
-    if(d != 0 || !*a || i == len) {
+    uint8_t x = 0, y = 0;
+    if((void *)a >= (void *)MMU_SEC_HEAP) {
+      x = mmu_get_uint8((void *)&(*a));
+    } else {
+      x = *a;
+    }
+    if((void *)b >= (void *)MMU_SEC_HEAP) {
+      y = mmu_get_uint8((void *)&(*b));
+    } else {
+      y = *b;
+    }
+    int d = tolower(x) - tolower(y);
+    if(d != 0 || !x || i == len) {
       return d;
     }
   }
