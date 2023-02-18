@@ -145,11 +145,11 @@ typedef struct rules_t {
    * being called from another rule.
    */
 #ifndef NON32XFER_HANDLER
-  uint8_t caller;
-  uint8_t nr;
-#else
   uint32_t caller;
   uint32_t nr;
+#else
+  uint8_t caller;
+  uint8_t nr;
 #endif
 
   /* --- PRIVATE MEMBERS --- */

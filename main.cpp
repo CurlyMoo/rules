@@ -780,7 +780,7 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
 
 static int8_t event_cb(struct rules_t *obj, char *name) {
   struct rules_t *called = NULL;
-  uint16_t caller = 0;
+  uint32_t caller = 0;
 
   caller = obj->caller;
 
@@ -805,8 +805,8 @@ static int8_t event_cb(struct rules_t *obj, char *name) {
     if(strcmp(name, "bar") == 0) {
       return rule_run(obj, 0);
     }
-    int i = 0;
 
+    uint i = 0;
     for(i=0;i<nrrules;i++) {
       if(i+1 == obj->nr) {
         called = rules[i-1];

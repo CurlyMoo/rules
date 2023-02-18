@@ -6364,13 +6364,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   /*
    * Tail recursive
    */
-  uint8_t obj_caller = 0;
-  if(is_mmu == 1) {
-    obj_caller = mmu_get_uint8(&obj->caller);
-  } else {
-    obj_caller = obj->caller;
-  }
-  if(obj_caller > 0) {
+  if(obj->caller > 0) {
     return rule_options.event_cb(obj, NULL);
   }
 
@@ -6747,7 +6741,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_tvar_t *nodeA = (struct vm_tvar_t *)&obj->buffer[pos];
         struct vm_tvar_t *nodeB = (struct vm_tvar_t *)out;
         if(is_mmu == 1) {
-          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->go = mmu_get_uint16(&nodeA->go);
           nodeB->value = mmu_get_uint16(&nodeA->value);
@@ -6774,7 +6768,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)&obj->buffer[pos];
         struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)out;
         if(is_mmu == 1) {
-          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
@@ -6787,7 +6781,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)&obj->buffer[pos];
         struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)out;
         if(is_mmu == 1) {
-          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
@@ -6800,7 +6794,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vnull_t *nodeA = (struct vm_vnull_t *)&obj->buffer[pos];
         struct vm_vnull_t *nodeB = (struct vm_vnull_t *)out;
         if(is_mmu == 1) {
-          nodeB->type = mmu_get_uint16(&nodeA->type);
+          nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
         } else {
           nodeB->type = nodeA->type;
@@ -6817,7 +6811,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_tvar_t *nodeA = (struct vm_tvar_t *)out;
         struct vm_tvar_t *nodeB = (struct vm_tvar_t *)&obj->buffer[pos];
         if(is_mmu == 1) {
-          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
           mmu_set_uint16(&nodeB->go, nodeA->go);
           mmu_set_uint16(&nodeB->value, nodeA->value);
@@ -6841,7 +6835,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)out;
         struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)&obj->buffer[pos];
         if(is_mmu == 1) {
-          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
@@ -6854,7 +6848,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)out;
         struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)&obj->buffer[pos];
         if(is_mmu == 1) {
-          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
@@ -6867,7 +6861,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
         struct vm_vnull_t *nodeA = (struct vm_vnull_t *)out;
         struct vm_vnull_t *nodeB = (struct vm_vnull_t *)&obj->buffer[pos];
         if(is_mmu == 1) {
-          mmu_set_uint16(&nodeB->type, nodeA->type);
+          mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
         } else {
           nodeB->type = nodeA->type;
