@@ -24,8 +24,8 @@ jobs:
       # Finally, we compile the sketch, using the FQBN that was set
       # in the build matrix.
       - name: Compile Sketch
-        run: arduino-cli compile --fqbn esp8266:esp8266:d1_mini rules.ino -v 
-      
+        run: arduino-cli compile --fqbn esp8266:esp8266:d1_mini rules.ino -v
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v2
         with:
