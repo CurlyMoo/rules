@@ -28,20 +28,20 @@ int strnicmp(char const *a, char const *b, size_t len) {
 
   for(;i++<len; a++, b++) {
     uint8_t x = 0, y = 0;
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if((void *)a >= (void *)MMU_SEC_HEAP) {
       x = mmu_get_uint8((void *)&(*a));
     } else {
 #endif
       x = *a;
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
     if((void *)b >= (void *)MMU_SEC_HEAP) {
       y = mmu_get_uint8((void *)&(*b));
     } else {
 #endif
       y = *b;
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 #endif
     int d = tolower(x) - tolower(y);

@@ -4413,13 +4413,13 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
     ret = obj->varstack.nrbytes;
   }
 
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)val >= (void *)MMU_SEC_HEAP) {
     valtype = mmu_get_uint8(&val[0]);
   } else {
 #endif
     valtype = val[0];
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 
@@ -6901,13 +6901,13 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
   }
 
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool->payload >= (void *)MMU_SEC_HEAP) {
     is_mmu = 1;
   } else {
 #endif
     is_mmu = 0;
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 

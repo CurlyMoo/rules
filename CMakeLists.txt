@@ -17,6 +17,7 @@ if(COVERALLS)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -Wall") # debug, no optimisation
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --coverage") # enabling coverage
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --coverage") # enabling coverage
+  add_definitions(-DCOVERALLS)
 endif()
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)

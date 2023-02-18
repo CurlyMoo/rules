@@ -23,18 +23,18 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
   uint16_t ret = 0;
 
 #ifdef DEBUG
-  #if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+  #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)stack >= (void *)MMU_SEC_HEAP) {
     printf("%s %d %d\n", __FUNCTION__, __LINE__, mmu_get_uint16(&stack->nrbytes));
   } else {
   #endif
     printf("%s %d %d\n", __FUNCTION__, __LINE__, stack->nrbytes);
-  #if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+  #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
   #endif
 #endif
 
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)stack >= (void *)MMU_SEC_HEAP) {
 		if(in != NULL) {
 			uint8_t type = mmu_get_uint8(&((unsigned char *)in)[0]);
@@ -110,14 +110,14 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 			stack->nrbytes = size;
 			stack->bufsize = MAX(stack->bufsize, size);
 		}
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
 	}
 #endif
   return ret;
 }
 
 int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char buf[8]) {
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)stack >= (void *)MMU_SEC_HEAP) {
     uint8_t type = mmu_get_uint8(&stack->buffer[idx]);
     switch(type) {
@@ -179,7 +179,7 @@ int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char b
         return 0;
       }
     }
-#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
   return -1;
