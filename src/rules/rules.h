@@ -41,7 +41,11 @@
 #else
   #include <Arduino.h>
   #include "lwip/pbuf.h"
-  #define MEMPOOL_SIZE MMU_SEC_HEAP_SIZE
+  #ifdef MMU_SEC_HEAP_SIZE
+    #define MEMPOOL_SIZE MMU_SEC_HEAP_SIZE
+  #else
+    #define MEMPOOL_SIZE 16000
+  #endif
 #endif
 
 #define EPSILON  0.000001

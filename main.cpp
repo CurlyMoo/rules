@@ -878,7 +878,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
   uint8_t y = 0;
   uint16_t txtoffset = alignedbuffer(size-len-5);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
     for(y=0;y<len;y++) {
       mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)unittests[(*i)].rule[y]);
@@ -888,7 +888,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     for(y=0;y<len;y++) {
       mempool[txtoffset+y] = (uint8_t)unittests[(*i)].rule[y];
     }
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
   }
 #endif
 
@@ -901,7 +901,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     OUT_OF_MEMORY
   }
   memset(cpytxt, 0, len+1);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
     for(y=0;y<len;y++) {
       cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
@@ -909,7 +909,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   } else {
 #endif
     memcpy(cpytxt, input.payload, len);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
   }
 #endif
   oldoffset = txtoffset;
@@ -917,7 +917,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   while((ret = rule_initialize(&input, &rules, &nrrules, &mem, varstack)) == 0) {
     uint16_t size = 0;
     uint8_t rule_nr = 0;
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       rule_nr = mmu_get_uint8(&rules[nrrules-1]->nr);
       size = mmu_get_uint16(&input.len) - oldoffset;
@@ -925,7 +925,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 #endif
       rule_nr = rules[nrrules-1]->nr;
       size = input.len - oldoffset;
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     }
 
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
@@ -957,7 +957,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       assert(varstack->nrbytes >= 0);
       assert(varstack->bufsize >= 0);
       assert(varstack->nrbytes <= varstack->bufsize);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     }
 #endif
 
@@ -1078,7 +1078,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     varstack->bufsize = 4;
 
     FREE(cpytxt);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       input.payload = &mempool[mmu_get_uint16(&input.len)];
       oldoffset = mmu_get_uint16(&input.len);
@@ -1088,7 +1088,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       input.payload = &mempool[input.len];
       oldoffset = input.len;
       len = input.tot_len;
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     }
 #endif
 
@@ -1100,7 +1100,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       OUT_OF_MEMORY
     }
     memset(cpytxt, 0, len+1);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       for(y=0;y<len;y++) {
         cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
@@ -1108,7 +1108,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     } else {
 #endif
       memcpy(cpytxt, input.payload, len);
-#ifndef NON32XFER_HANDLER
+#if !defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)
     }
 #endif
   }

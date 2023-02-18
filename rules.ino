@@ -23,7 +23,9 @@
 
 static int testnr = 0;
 static int fail = 0;
+#ifdef MMU_SEC_HEAP
 static int heap = 0;
+#endif
 static unsigned int nexttime = 0;
 static unsigned char *mempool = NULL;
 
@@ -60,18 +62,23 @@ void loop() {
 
       ESP.wdtFeed();
 
+#ifdef MMU_SEC_HEAP
       if(heap == 0) {
+#endif
         Serial.println(F("Running from 1st heap"));
         memset(mempool, 0, MEMPOOL_SIZE);
         run_test(&testnr, mempool, MEMPOOL_SIZE);
+#ifdef MMU_SEC_HEAP
       } else {
         Serial.println(F("Running from 2nd heap"));
         memset((unsigned char *)MMU_SEC_HEAP, 0, MEMPOOL_SIZE);
         run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
       }
-
       testnr += heap;
       heap ^= 1;
+#else
+      testnr++;
+#endif
     }
   }
 }

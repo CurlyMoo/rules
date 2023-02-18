@@ -3,6 +3,7 @@
 ESP ready, high performant and low resources rules library written in C.
 
 [![Coverage Status](https://coveralls.io/repos/github/CurlyMoo/rules/badge.svg?branch=main)](https://coveralls.io/github/CurlyMoo/rules?branch=main)
+[![Build Status](https://github.com/curlymoo/rules/actions/workflows/esp8266.yml/badge.svg)]()
 [![Build Status](https://github.com/curlymoo/rules/actions/workflows/esp8266-safe.yml/badge.svg)]()
 [![Build Status](https://github.com/curlymoo/rules/actions/workflows/esp8266-fast.yml/badge.svg)]()
 [![Build Status](https://github.com/curlymoo/rules/actions/workflows/coveralls.yml/badge.svg)]()
