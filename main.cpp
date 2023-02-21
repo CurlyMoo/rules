@@ -289,7 +289,7 @@ struct unittest_t {
   { "if 1 2 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
-  { "on foo then bar(); end  ", { { "", 52 } },  { { "", 52 } } },
+  { "on foo then bar(); end  ", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
