@@ -885,7 +885,7 @@ if 1 == 1 then $a = max(1 * 2, (min(5, 6) + 1) * 6); end
 
 This translates to the following AST but now printed in a different view.
 
-![](ast2.png)
+![](ast3.png)
 
 The to squares refer to position inside the AST, which are literally positions in an bytecode array. The bottom square shows the goto posiitons and the diamonds are return to positions. In each oval you can find the type of token that is resembled.
 
