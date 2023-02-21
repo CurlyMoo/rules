@@ -76,7 +76,7 @@ int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
     struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
     if(is_mmu == 1) {
       go = mmu_get_uint16(&start->go);
-      type = mmu_get_uint16(&obj->ast.buffer[go]);
+      type = mmu_get_uint8(&obj->ast.buffer[go]);
     } else {
       go = start->go;
       type = obj->ast.buffer[go];
