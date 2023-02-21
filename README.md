@@ -63,7 +63,7 @@ The downside of all these algoritms are that they - in their common implementati
 
 ## Features
 
-- No classic and no tail recursion
+- No classic, but only tail recursion
 - Mempool usage; minimal memory footprint and minimal fragmentation
 - Unlimited number of if / else nesting
 - Functions
