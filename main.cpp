@@ -243,6 +243,7 @@ struct unittest_t {
   { "if 1 == 1 then $a = max(0, 1) + max(1, 2) * max(2, 3) / max(3, 4) ^ max(1, 2) ^ max(0, 1) * max(2, 3) ^ max(3, 4); end", { "$a = 31.375", 424 }, { "$a = 31.375", 424 } },
   { "if 3 == 3 then $a = 2; $b = max((($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 236 }, { "$a = 2$b = 15", 236 } },
   { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 240 }, { "$a = 2$b = 15", 240 } },
+  { "if 1 == 1 then $a = max(1 * 2, (min(5, 6) + 1) * 6); end", { { "$a = 36", 208 } }, { { "$a = 36", 208 } } },
   { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 124 }, { "$a = 1", 124 } },
   { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 208 }, { "$a = 3", 208 } },
   { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 2; end", { "$a = 2", 176 }, { "$a = 2", 176 } },
@@ -262,7 +263,6 @@ struct unittest_t {
   { "on foo then $a = 1 + 2; end", { { "$a = 3", 88 } }, { { "$a = 3", 88 } } },
   { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 144 }, { "$a = 2", 144 } },
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 224 }, { "$a = 2", 216 } },
-  { "on foo then bar(); end  ", { { "", 52 } },  { { "", 52 } } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 68 }, { "$b = 3" , 92 } },  { { "$a = 6", 68 }, { "$b = 3" , 92 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 68 }, { "$b = 3", 108 } },  { { "$a = 6", 68 }, { "$b = 3", 108 } } },
   { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 100 } },  { { "$b = NULL$a = 0", 100 } } }, // FIXME
@@ -289,6 +289,7 @@ struct unittest_t {
   { "if 1 2 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then bar(); end  ", { { "", 52 } },  { { "", 52 } } },
   { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },

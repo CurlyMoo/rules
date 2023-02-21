@@ -3605,7 +3605,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
            * list.
            */
           if(type != RPAREN) {
-            while(1) {
+            uint8_t stop = 0;
+            while(1 && stop == 0) {
               if(lexer_peek(text, pos + 1, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -3641,15 +3642,35 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
                   struct vm_lparen_t *paren = (struct vm_lparen_t *)&obj->ast.buffer[cache->step];
                   int16_t oldpos = pos;
-                  pos = cache->end;
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&node->go[arg++], cache->step);
-                    mmu_set_uint16(&paren->ret, step);
-                  } else {
-                    node->go[arg++] = cache->step;
-                    paren->ret = step;
+
+                  if(lexer_peek(text, cache->end, &type, &start, &len) < 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
                   }
-                  vm_cache_del(oldpos);
+                  /*
+                   * In case the LPAREN / RPAREN combination is part
+                   * of another operator, let the operator eat the
+                   * LPAREN.
+                   */
+                  if(type == TOPERATOR) {
+                    go = TOPERATOR;
+                    pos = oldpos;
+                    step_out = step;
+                    stop = 1;
+                    break;
+                  } else {
+                    pos = cache->end;
+                    if(is_mmu == 1) {
+                      mmu_set_uint16(&node->go[arg++], cache->step);
+                      mmu_set_uint16(&paren->ret, step);
+                    } else {
+                      node->go[arg++] = cache->step;
+                      paren->ret = step;
+                    }
+                    vm_cache_del(oldpos);
+                  }
                 } break;
                 case TFUNCTION: {
                   struct vm_cache_t *cache = vm_cache_get(TFUNCTION, pos);
@@ -3674,29 +3695,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   vm_cache_del(oldpos);
                 } break;
+                case VNULL:
+                case TVAR:
                 case TNUMBER1:
                 case TNUMBER2:
                 case TNUMBER3: {
-                  int16_t a = vm_parent(text, obj, type, start, len, 0);
-
-                  pos++;
-
-                  node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&node->go[arg++], a);
-                  } else {
-                    node->go[arg++] = a;
-                  }
-
-                  struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[a];
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&tmp->ret, step);
-                  } else {
-                    tmp->ret = step;
-                  }
-                } break;
-                case VNULL:
-                case TVAR: {
                   int16_t a = vm_parent(text, obj, type, start, len, 0);
 
                   pos++;
@@ -3720,6 +3723,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   return -1;
                 } break;
               }
+              if(stop == 1) {
+                break;
+              }
 
               if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
@@ -3734,6 +3740,10 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                */
               if(type == RPAREN) {
                 pos++;
+                break;
+              } else if(type == TOPERATOR) {
+                pos--;
+                go = TOPERATOR;
                 break;
               } else if(type != TCOMMA) {
                 logprintf_P(F("ERROR: Expected a closing parenthesis"));
