@@ -803,18 +803,12 @@ static int8_t event_cb(struct rules_t *obj, char *name) {
 
     return rule_run(called, 0);
   } else {
-    if(strcmp(name, "bar") == 0) {
-      return rule_run(obj, 0);
+    int8_t nr = rule_by_name(rules, nrrules, name);
+    if(nr == -1) {
+      return -1;
     }
 
-    uint i = 0;
-    for(i=0;i<nrrules;i++) {
-      if(i+1 == obj->nr) {
-        called = rules[i-1];
-        break;
-      }
-    }
-
+    called = rules[nr];
     called->caller = obj->nr;
 
     {

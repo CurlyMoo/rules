@@ -9,6 +9,12 @@
 #ifndef _RULE_STACK_T_
 #define _RULE_STACK_T_
 
+/*
+ * max(sizeof(vm_vfloat_t), sizeof(vm_vinteger_t), sizeof(vm_vnull_t))
+ */
+#define MAX_VARSTACK_NODE_SIZE 7
+#define MAX_TOKEN_SIZE 32
+
 typedef struct rule_stack_t {
   uint16_t nrbytes;
   uint16_t bufsize;
@@ -17,6 +23,6 @@ typedef struct rule_stack_t {
 } __attribute__((aligned(4))) rule_stack_t;
 
 uint16_t rule_stack_push(struct rule_stack_t *stack, void *in);
-int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char val[8]);
+int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char val[MAX_VARSTACK_NODE_SIZE+1]);
 
 #endif

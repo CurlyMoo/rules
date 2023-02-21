@@ -50,11 +50,6 @@
 
 #define EPSILON  0.000001
 
-/*
- * max(sizeof(vm_vfloat_t), sizeof(vm_vinteger_t), sizeof(vm_vnull_t))
- */
-#define MAX_VARSTACK_NODE_SIZE 7
-
 #define MAX(a,b) \
    ({ __typeof__ (a) _a = (a); \
        __typeof__ (b) _b = (b); \
@@ -314,6 +309,7 @@ typedef struct vm_teof_t {
 } __attribute__((aligned(4))) vm_teof_t;
 
 int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out);
+int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name);
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
 int8_t rule_run(struct rules_t *obj, uint8_t validate);
 void valprint(struct rules_t *obj, char *out, uint16_t size);

@@ -35,6 +35,7 @@
 #include "../common/mem.h"
 #include "../common/log.h"
 #include "../common/uint32float.h"
+#include "../common/strnicmp.h"
 #include "rules.h"
 #include "operator.h"
 #include "function.h"
@@ -65,6 +66,50 @@ uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
 
 static uint32_t align(uint32_t p, uint8_t b) {
   return (p + b) - ((p + b) % b);
+}
+
+int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
+  uint8_t a = 0;
+  uint16_t go = 0, type = 0;
+  for(a=0;a<nrrules;a++) {
+    struct rules_t *obj = rules[a];
+    struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
+    if(is_mmu == 1) {
+      go = mmu_get_uint16(&start->go);
+      type = mmu_get_uint16(&obj->ast.buffer[go]);
+    } else {
+      go = start->go;
+      type = obj->ast.buffer[go];
+    }
+    if(type != TEVENT) {
+      return -1;
+    } else {
+      uint16_t len = 0, x = 0;
+      struct vm_tevent_t *ev = (struct vm_tevent_t *)&obj->ast.buffer[go];
+
+      if(is_mmu == 1) {
+        while(mmu_get_uint8(&ev->token[++len]) != 0);
+        char cpy[len+1];
+        memset(&cpy, 0, len+1);
+        for(x=0;x<len;x++) {
+          cpy[x] = mmu_get_uint8(&ev->token[x]);
+        }
+
+        if(len == strlen(name) && strnicmp(name, cpy, len) == 0) {
+          return a;
+        }
+      } else {
+        len = strlen((char *)ev->token);
+        char cpy[len+1];
+        memset(&cpy, 0, len+1);
+        strcpy(cpy, (char *)ev->token);
+        if(len == strlen(name) && strnicmp(name, cpy, len) == 0) {
+          return a;
+        }
+      }
+    }
+  }
+  return -1;
 }
 
 static int8_t is_function(char *text, uint16_t *pos, uint16_t size) {
