@@ -445,7 +445,7 @@ static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
         } break;
         case VFLOAT: {
           struct vm_vfloat_t *val = (struct vm_vfloat_t *)&varstack->buffer[x];
-          printf(". %s %d %d %d\n", __FUNCTION__, __LINE__, x, (double)val->value);
+          printf(". %s %d %d %g\n", __FUNCTION__, __LINE__, x, (double)val->value);
         } break;
         case VNULL: {
           printf(". %s %d %d NULL\n", __FUNCTION__, __LINE__, x);
