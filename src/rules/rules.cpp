@@ -6663,7 +6663,7 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
-        printf("(TVAR)[%lu][", 8+align(strlen((char *)node->token)+1, 4));
+        printf("(TVAR)[%u][", 8+align(strlen((char *)node->token)+1, 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("go: %d, ", node->go);
@@ -6671,9 +6671,17 @@ void print_bytecode(struct rules_t *obj) {
         printf("token: %s]\n", node->token);
         i += sizeof(struct vm_tvar_t)+align(strlen((char *)node->token)+1, 4)-1;
       } break;
+      case TSTRING: {
+        struct vm_vchar_t *node = (struct vm_vchar_t *)&obj->ast.buffer[i];
+        printf("(TSTRING)[%u][", 8+align(strlen((char *)node->value)+1, 4));
+        printf("type: %d, ", node->type);
+        printf("ret: %d, ", node->ret);
+        printf("value: %s]\n", node->value);
+        i += sizeof(struct vm_vchar_t)+align(strlen((char *)node->value)+1, 4)-1;
+      } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
-        printf("(TEVENT)[%lu][", 8+align(strlen((char *)node->token)+1, 4));
+        printf("(TEVENT)[%u][", 8+align(strlen((char *)node->token)+1, 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("go: %d, ", node->go);
@@ -6682,7 +6690,7 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TCEVENT: {
         struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[i];
-        printf("(TCEVENT)[%lu][", 4+align(strlen((char *)node->token)+1, 4));
+        printf("(TCEVENT)[%u][", 4+align(strlen((char *)node->token)+1, 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("token: %s]\n", node->token);
@@ -6699,7 +6707,7 @@ void print_bytecode(struct rules_t *obj) {
       /* LCOV_EXCL_START*/
       case TNUMBER: {
         struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[i];
-        printf("(TNUMBER)[%lu][", 4+align(strlen((char *)node->token)+1, 4));
+        printf("(TNUMBER)[%u][", 4+align(strlen((char *)node->token)+1, 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("token: %s]\n", node->token);
@@ -6728,7 +6736,7 @@ void print_bytecode(struct rules_t *obj) {
       case TFALSE:
       case TTRUE: {
         struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[i];
-        printf("(TTRUE)[%lu][", 4+align((node->nrgo*sizeof(node->go[0])), 4));
+        printf("(TTRUE)[%u][", 4+align((node->nrgo*sizeof(node->go[0])), 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("nrgo: %d, ", node->nrgo);
@@ -6745,7 +6753,7 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
-        printf("(TFUNCTION)[%lu][", 8+align((node->nrgo*sizeof(node->go[0])), 4));
+        printf("(TFUNCTION)[%u][", 8+align((node->nrgo*sizeof(node->go[0])), 4));
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("token: %d, ", node->token);
