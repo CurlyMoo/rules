@@ -341,12 +341,12 @@ static int8_t is_event(char *text, uint16_t *pos, uint16_t size) {
 
 static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-  uint16_t ret = 0;
+  uint16_t ret = 0, s_out = 32;
 
-  unsigned char out[32];
-  memset(&out, 0, 32);
+  unsigned char out[s_out];
+  memset(&out, 0, s_out);
 
-  if(rule_token(&obj->ast, token, (unsigned char *)&out) != 0) {
+  if(rule_token(&obj->ast, token, (unsigned char *)&out, &s_out) < 0) {
     return NULL;
   }
 
@@ -381,7 +381,8 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
 
       var->value = ret;
 
-      if(rule_token(&obj->ast, token, (unsigned char *)&out) != 0) {
+      s_out = 32;
+      if(rule_token(&obj->ast, token, (unsigned char *)&out, &s_out) < 0) {
         return NULL;
       }
 
@@ -397,12 +398,12 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
 
 static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-  uint16_t x = 0;
+  uint16_t x = 0, s_outA = 32, s_outB = 32;
 
-  unsigned char outA[32], outB[32];
-  memset(&outA, 0, 32);
+  unsigned char outA[s_outA], outB[s_outB];
+  memset(&outA, 0, s_outA);
 
-  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA, &s_outA) < 0) {
     return -1;
   }
 
@@ -418,9 +419,9 @@ static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
 #endif
     struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&varstack->buffer[x];
 
-    memset(&outB, 0, 32);
+    memset(&outB, 0, s_outB);
 
-    if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB) != 0) {
+    if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB, &s_outB) < 0) {
       return -1;
     }
 
@@ -430,7 +431,8 @@ static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
       var->value = foo->value;
       foo->value = 0;
 
-      if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB) != 0) {
+      s_outB = 32;
+      if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB, &s_outB) < 0) {
         return -1;
       }
 
@@ -450,7 +452,8 @@ static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
         } break;
       }
 #endif
-      if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+      s_outA = 32;
+      if(rule_token(&obj->ast, token, (unsigned char *)&outA, &s_outA) < 0) {
         return -1;
       }
       return 0;
@@ -535,17 +538,19 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VINTEGER: {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          unsigned char out[32];
-          memset(&out, 0, 32);
+          uint16_t s_out = 32;
+          unsigned char out[s_out];
+          memset(&out, 0, s_out);
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
 
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
           tmp->value = x;
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          s_out = 32;
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
         }
@@ -554,17 +559,19 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VFLOAT: {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          unsigned char out[32];
-          memset(&out, 0, 32);
+          uint16_t s_out = 32;
+          unsigned char out[s_out];
+          memset(&out, 0, s_out);
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
 
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
           tmp->value = x;
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          s_out = 32;
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
         }
@@ -573,17 +580,19 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VNULL: {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          unsigned char out[32];
-          memset(&out, 0, 32);
+          uint16_t s_out = 32;
+          unsigned char out[s_out];
+          memset(&out, 0, s_out);
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
 
           struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
           tmp->value = x;
 
-          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+          s_out = 32;
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out, &s_out) < 0) {
             return -1;
           }
         }
@@ -603,11 +612,11 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
   uint16_t ret = 0;
 
-  unsigned char outA[32], outB[32];
-  memset(&outA, 0, 32);
-  memset(&outB, 0, 32);
+  uint16_t outAsize = 32;
+  unsigned char outA[outAsize];
+  memset(&outA, 0, outAsize);
 
-  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA, &outAsize) < 0) {
     return -1;
   }
 
@@ -621,17 +630,28 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 
   var->value = ret;
 
-  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+  outAsize = 32;
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA, &outAsize) < 0) {
     return -1;
   }
-
 
 #ifdef DEBUG
   printf(". %s %d %d\n", __FUNCTION__, __LINE__, val);
 #endif
 
-  if(rule_token(&obj->varstack, val, (unsigned char *)&outB) != 0) {
+  unsigned char *outB = NULL;
+  uint16_t outBsize = 0;
+
+  int8_t r = rule_token(&obj->varstack, val, NULL, &outBsize);
+  if(r == -1) {
     return -1;
+  } else if(r == -2) {
+    outB = (unsigned char *)REALLOC(outB, outBsize);
+    memset(outB, 0, outBsize);
+    if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
+      FREE(outB);
+      return -1;
+    }
   }
 
   switch(outB[0]) {
@@ -688,13 +708,17 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
     } break;
     default: {
       printf("err: %s %d\n", __FUNCTION__, __LINE__);
+      FREE(outB);
       exit(-1);
     } break;
   }
 
-  if(rule_token(&obj->varstack, val, (unsigned char *)&outB) != 0) {
+  if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
+    FREE(outB);
     return -1;
   }
+
+  FREE(outB);
   return 0;
 }
 
@@ -707,10 +731,11 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
       case VINTEGER: {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->buffer[x];
 
-        char foo[32];
-        memset(&foo, 0, 32);
+        uint16_t s_out = 32;
+        unsigned char foo[s_out];
+        memset(&foo, 0, s_out);
 
-        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo, &s_out) < 0) {
           return;
         }
 
@@ -731,10 +756,11 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
         float a = 0;
         uint322float(val->value, &a);
 
-        char foo[32];
-        memset(&foo, 0, 32);
+        uint16_t s_out = 32;
+        unsigned char foo[s_out];
+        memset(&foo, 0, s_out);
 
-        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo, &s_out) < 0) {
           return;
         }
 
@@ -752,10 +778,12 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
       } break;
       case VNULL: {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->buffer[x];
-        char foo[32];
-        memset(&foo, 0, 32);
 
-        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+        uint16_t s_out = 32;
+        unsigned char foo[s_out];
+        memset(&foo, 0, s_out);
+
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo, &s_out) < 0) {
           return;
         }
 
