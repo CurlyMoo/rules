@@ -2071,9 +2071,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                           }
                           if(go == 0) {
                             if(is_mmu == 1) {
-                              mmu_set_uint16(&t->go[i], step);
+                              mmu_set_uint16(&t->go[i], x->step);
                             } else {
-                              t->go[i] = step;
+                              t->go[i] = x->step;
                             }
                             break;
                           }
@@ -2599,9 +2599,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                           }
                           if(go == 0) {
                             if(is_mmu == 1) {
-                              mmu_set_uint16(&t->go[i], step);
+                              mmu_set_uint16(&t->go[i], x->step);
                             } else {
-                              t->go[i] = step;
+                              t->go[i] = x->step;
                             }
                             break;
                           }

@@ -233,6 +233,7 @@ struct unittest_t {
   { "if max(1, 3) == 3 then $a = 1; end", { "$a = 1", 116 }, { "$a = 1", 116 } },
   { "if max(1, 3) == max(1, 3) then $a = 1; end", { "$a = 1", 140 }, { "$a = 1", 140 } },
   { "if 3 == 3 then max(1, 2); end", { "", 96 }, { "", 96 } },
+  { "if 3 == 3 then $a = 1; $b = $a; max(1, 2); end", { "$a = 1$b = 1", 160 }, { "$a = 1$b = 1", 160 } },
   { "if 3 == 3 then $a = max(1 + 1, 2 + 2); end", { "$a = 4", 156 }, { "$a = 4", 156 } },
   { "if 1 == 1 then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 124 } },  { { "$b = NULL$a = 0", 124 } } }, // FIXME
   { "if 3 == 3 then $a = max((1 + 3), 2); end", { "$a = 4", 144 }, { "$a = 4", 144 } },
