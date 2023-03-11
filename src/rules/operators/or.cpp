@@ -15,6 +15,7 @@
 #include <string.h>
 #include <math.h>
 
+#include "../../common/uint32float.h"
 #include "../rules.h"
 
 int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, uint16_t *ret) {
@@ -22,7 +23,7 @@ int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
   out.ret = 0;
   out.type = VINTEGER;
 
-  unsigned char nodeA[8], nodeB[8];
+  unsigned char nodeA[MAX_VARSTACK_NODE_SIZE+1], nodeB[MAX_VARSTACK_NODE_SIZE+1];
   rule_stack_pull(&obj->varstack, a, nodeA);
   rule_stack_pull(&obj->varstack, b, nodeB);
 
@@ -56,7 +57,10 @@ int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
     } break;
     case VFLOAT: {
       struct vm_vfloat_t *n = (struct vm_vfloat_t *)&nodeA[0];
-      if(n->value > 0) {
+      float av = 0.0;
+      uint322float(n->value, &av);
+
+      if(av > 0) {
         out.value = 1;
       } else {
         out.value = 0;
@@ -64,8 +68,6 @@ int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-      float av = 0.0;
-      uint322float(n->value, &av);
       printf("%s %g\n", __FUNCTION__, av);
 #endif
 /* LCOV_EXCL_STOP*/
@@ -103,7 +105,10 @@ int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
     } break;
     case VFLOAT: {
       struct vm_vfloat_t *n = (struct vm_vfloat_t *)&nodeB[0];
-      if(n->value > 0 || out.value == 1) {
+      float av = 0.0;
+      uint322float(n->value, &av);
+
+      if(av > 0 || out.value == 1) {
         out.value = 1;
       } else {
         out.value = 0;
@@ -111,8 +116,6 @@ int8_t rule_operator_or_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
-      float av = 0.0;
-      uint322float(n->value, &av);
       printf("%s %g\n", __FUNCTION__, av);
 #endif
 /* LCOV_EXCL_STOP*/

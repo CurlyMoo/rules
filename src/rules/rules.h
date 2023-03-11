@@ -26,10 +26,6 @@
     uint8_t flags;
     uint16_t ref;
   } pbuf;
-  static uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
-  static uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
-  static uint16_t mmu_set_uint16(void *ptr, uint16_t src) { *(uint16_t *)ptr = src; return src; }
-  static uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
 
   typedef struct serial_t {
     void (*printf)(const char *fmt, ...);
@@ -37,19 +33,22 @@
     void (*flush)(void);
   } serial_t;
   extern struct serial_t Serial;
-  #define MMU_SEC_HEAP 0
+  extern void *MMU_SEC_HEAP;
+  uint8_t mmu_set_uint8(void *ptr, uint8_t src);
+  uint8_t mmu_get_uint8(void *ptr);
+  uint16_t mmu_set_uint16(void *ptr, uint16_t src);
+  uint16_t mmu_get_uint16(void *ptr);
 #else
   #include <Arduino.h>
   #include "lwip/pbuf.h"
-  #define MEMPOOL_SIZE MMU_SEC_HEAP_SIZE
+  #ifdef MMU_SEC_HEAP_SIZE
+    #define MEMPOOL_SIZE MMU_SEC_HEAP_SIZE
+  #else
+    #define MEMPOOL_SIZE 16000
+  #endif
 #endif
 
 #define EPSILON  0.000001
-
-/*
- * max(sizeof(vm_vfloat_t), sizeof(vm_vinteger_t), sizeof(vm_vnull_t))
- */
-#define MAX_VARSTACK_NODE_SIZE 7
 
 #define MAX(a,b) \
    ({ __typeof__ (a) _a = (a); \
@@ -61,6 +60,9 @@
        __typeof__ (b) _b = (b); \
      _a < _b ? _a : _b; })
 
+/*
+ * Max 32 tokens are allowed
+ */
 typedef enum {
   TOPERATOR = 1,
   TFUNCTION = 2,
@@ -75,23 +77,85 @@ typedef enum {
   TCOMMA = 11,
   TIF = 12,
   TELSE = 13,
-  TTHEN = 14,
-  TEVENT = 15,
-  TCEVENT = 16,
-  TEND = 17,
-  TVAR = 18,
-  TASSIGN = 19,
-  TSEMICOLON = 20,
-  TTRUE = 21,
-  TFALSE = 22,
-  TSTART = 23,
-  VCHAR = 24,
-  VINTEGER = 25,
-  VFLOAT = 26,
-  VNULL = 27,
+  TELSEIF = 14,
+  TTHEN = 15,
+  TEVENT = 16,
+  TCEVENT = 17,
+  TEND = 18,
+  TVAR = 19,
+  TASSIGN = 20,
+  TSEMICOLON = 21,
+  TTRUE = 22,
+  TFALSE = 23,
+  TSTART = 24,
+  VCHAR = 25,
+  VINTEGER = 26,
+  VFLOAT = 27,
+  VNULL = 28,
 } token_types;
 
+#ifdef DEBUG
+struct {
+  const char *name;
+} token_names[] = {
+  "",
+  "TOPERATOR",
+  "TFUNCTION",
+  "TSTRING",
+  "TNUMBER",
+  "TNUMBER1",
+  "TNUMBER2",
+  "TNUMBER3",
+  "TEOF",
+  "LPAREN",
+  "RPAREN",
+  "TCOMMA",
+  "TIF",
+  "TELSE",
+  "TELSEIF",
+  "TTHEN",
+  "TEVENT",
+  "TCEVENT",
+  "TEND",
+  "TVAR",
+  "TASSIGN",
+  "TSEMICOLON",
+  "TTRUE",
+  "TFALSE",
+  "TSTART",
+  "VCHAR",
+  "VINTEGER",
+  "VFLOAT",
+  "VNULL",
+};
+#endif
+
 typedef struct rules_t {
+  /* --- PUBLIC MEMBERS --- */
+
+  /*
+   * caller and nr can be considered
+   * public members. They are
+   * intentionally of uint32_t type
+   * in case of 2nd heap usage so
+   * developer can manipulate them
+   * without having to fallback on
+   * memory safe helpers
+   */
+
+  /* To what rule do we return after
+   * being called from another rule.
+   */
+#ifndef NON32XFER_HANDLER
+  uint32_t caller;
+  uint32_t nr;
+#else
+  uint8_t caller;
+  uint8_t nr;
+#endif
+
+  /* --- PRIVATE MEMBERS --- */
+
   struct {
 #ifdef ESP8266
     uint32_t first;
@@ -115,12 +179,6 @@ typedef struct rules_t {
     uint16_t ret;
   } __attribute__((aligned(4))) cont;
 
-  /* To which rule do we return after
-   * being called from another rule.
-   */
-  uint8_t caller;
-
-  uint8_t nr;
   void *userdata;
 
   struct rule_stack_t ast;
@@ -139,15 +197,15 @@ typedef struct rule_options_t {
    * Variables
    */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
-  void (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
+  int8_t (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
-  void (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
+  int8_t (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, uint16_t size);
 
   /*
    * Events
    */
-  int (*event_cb)(struct rules_t *obj, char *name);
+  int8_t (*event_cb)(struct rules_t *obj, char *name);
 } rule_options_t;
 
 extern struct rule_options_t rule_options;
@@ -250,9 +308,10 @@ typedef struct vm_teof_t {
   uint8_t type;
 } __attribute__((aligned(4))) vm_teof_t;
 
-unsigned int alignedvarstack(int v);
-int rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
-int rule_run(struct rules_t *obj, int validate);
+int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out);
+int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name);
+int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
+int8_t rule_run(struct rules_t *obj, uint8_t validate);
 void valprint(struct rules_t *obj, char *out, uint16_t size);
 
 #endif

@@ -32,10 +32,10 @@
 
 #include "../common/mem.h"
 #include "../common/log.h"
-#include "../common/strnicmp.h"
 #include "../common/mem.h"
 #include "../common/log.h"
 #include "../common/uint32float.h"
+#include "../common/strnicmp.h"
 #include "rules.h"
 #include "operator.h"
 #include "function.h"
@@ -57,8 +57,59 @@ static void print_bytecode(struct rules_t *obj);
 #endif
 /*LCOV_EXCL_STOP*/
 
+#ifndef ESP8266
+uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
+uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
+uint16_t mmu_set_uint16(void *ptr, uint16_t src) { *(uint16_t *)ptr = src; return src; }
+uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
+#endif
+
 static uint32_t align(uint32_t p, uint8_t b) {
   return (p + b) - ((p + b) % b);
+}
+
+int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
+  uint8_t a = 0;
+  uint16_t go = 0, type = 0;
+  for(a=0;a<nrrules;a++) {
+    struct rules_t *obj = rules[a];
+    struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
+    if(is_mmu == 1) {
+      go = mmu_get_uint16(&start->go);
+      type = mmu_get_uint8(&obj->ast.buffer[go]);
+    } else {
+      go = start->go;
+      type = obj->ast.buffer[go];
+    }
+    if(type != TEVENT) {
+      return -1;
+    } else {
+      uint16_t len = 0, x = 0;
+      struct vm_tevent_t *ev = (struct vm_tevent_t *)&obj->ast.buffer[go];
+
+      if(is_mmu == 1) {
+        while(mmu_get_uint8(&ev->token[++len]) != 0);
+        char cpy[len+1];
+        memset(&cpy, 0, len+1);
+        for(x=0;x<len;x++) {
+          cpy[x] = mmu_get_uint8(&ev->token[x]);
+        }
+
+        if(len == strlen(name) && strnicmp(name, cpy, len) == 0) {
+          return a;
+        }
+      } else {
+        len = strlen((char *)ev->token);
+        char cpy[len+1];
+        memset(&cpy, 0, len+1);
+        strcpy(cpy, (char *)ev->token);
+        if(len == strlen(name) && strnicmp(name, cpy, len) == 0) {
+          return a;
+        }
+      }
+    }
+  }
+  return -1;
 }
 
 static int8_t is_function(char *text, uint16_t *pos, uint16_t size) {
@@ -468,6 +519,53 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 
       pos += 2;
       nrblocks++;
+    } else if(tolower(current) == 'e' && tolower(next) == 'l' &&
+              pos+4 < *len &&
+              (
+                (is_mmu == 1 &&
+                  tolower(mmu_get_uint8(&(*text)[pos+2])) == 's' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+3])) == 'e' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+4])) == 'i' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+5])) == 'f'
+                )
+              ||
+                (is_mmu == 0 &&
+                  tolower((*text)[pos+2]) == 's' &&
+                  tolower((*text)[pos+3]) == 'e' &&
+                  tolower((*text)[pos+4]) == 'i' &&
+                  tolower((*text)[pos+5]) == 'f'
+                )
+              )
+            ) {
+      *nrbytes += sizeof(struct vm_tif_t);
+      *nrbytes += sizeof(struct vm_ttrue_t);
+      /*
+       * ELSEIF enforces a false statement to the previous
+       * IF block (which shouldn't already be there if
+       * the syntax is correct).
+       */
+      *nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+      printf("TELSEIF: %lu\n", sizeof(struct vm_tif_t));
+      printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+
+      /*
+       * An additional TTRUE slot
+       */
+       *nrbytes += sizeof(struct vm_ttrue_t);
+#ifdef DEBUG
+      printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      // printf("TELSEIF: %d\n", tpos);
+      if(is_mmu == 1) {
+        mmu_set_uint8(&(*text)[tpos++], TELSEIF);
+      } else {
+        (*text)[tpos++] = TELSEIF;
+      }
+
+      pos+=6;
+      nrblocks++;
     } else if(tolower(current) == 'o' && tolower(next) == 'n') {
       pos+=2;
       lexer_parse_skip_characters((*text), *len, &pos);
@@ -854,7 +952,8 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
       case LPAREN:
       case TELSE:
       case TTHEN:
-      case TIF: {
+      case TIF:
+      case TELSEIF: {
         i += 1;
       } break;
       case TNUMBER1: {
@@ -903,6 +1002,9 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         } else {
           current = (*text)[i];
         }
+        /*
+         * Consider tokens above 32 as regular characters
+         */
         while(current > 32 && current < 126) {
           if(is_mmu == 1) {
             current = mmu_get_uint8(&(*text)[++i]);
@@ -912,10 +1014,12 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
         }
         *len = i - *start - 1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     if(skip == nr++) {
       return i;
@@ -953,6 +1057,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         obj->ast.nrbytes = size;
       }
     } break;
+    case TELSEIF:
     case TIF: {
       size = ret+sizeof(struct vm_tif_t);
       if(is_mmu == 1) {
@@ -1351,7 +1456,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
   return ret;
 }
 
-static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2) {
+static int16_t vm_rewind3(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2, uint8_t type3) {
   uint16_t tmp = step;
   while(1) {
     uint8_t tmp_type = 0;
@@ -1360,13 +1465,14 @@ static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8
     } else {
       tmp_type = obj->ast.buffer[tmp];
     }
-    if(tmp_type == type || (type2 > -1 && tmp_type == type2)) {
+    if(tmp_type == type || (type2 > -1 && tmp_type == type2) || (type3 > -1 && tmp_type == type3)) {
       return tmp;
     } else {
       switch(tmp_type) {
         case TSTART: {
           return 0;
         } break;
+        case TELSEIF:
         case TIF:
         case TEVENT:
         case LPAREN:
@@ -1401,7 +1507,11 @@ static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8
   return 0;
 }
 
-static int16_t vm_rewind(struct rules_t *obj, int step, int type) {
+static int16_t vm_rewind2(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2) {
+  return vm_rewind3(obj, step, type, type2, -1);
+}
+
+static int16_t vm_rewind(struct rules_t *obj, int16_t step, uint8_t type) {
   return vm_rewind2(obj, step, type, -1);
 }
 
@@ -1788,8 +1898,9 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
 
 static int16_t rule_parse(char **text, struct rules_t *obj) {
   uint16_t step = 0, start = 0, len = 0, pos = 0;
-  int16_t go = -1, step_out = -1, loop = 1, startnode = 0, r_rewind = -1, offset = 0;
-  int16_t has_paren = -1, has_function = -1, has_if = -1, has_on = -1;
+  int16_t go = -1, step_out = -1, loop = 1, startnode = 0, r_rewind = -1;
+  int16_t has_elseif = -1, offset = 0, has_paren = -1, has_function = -1;
+  int16_t has_if = -1, has_on = -1;
   uint8_t type = 0, type1 = 0;
 
   /* LCOV_EXCL_START*/
@@ -1864,6 +1975,12 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   if(type == TIF) {
                     struct vm_cache_t *cache = vm_cache_get(TIF, y-1);
+                    nrexpressions++;
+                    y = cache->end;
+                    continue;
+                  }
+                  if(type == TELSEIF) {
+                    struct vm_cache_t *cache = vm_cache_get(TELSEIF, y-1);
                     nrexpressions++;
                     y = cache->end;
                     continue;
@@ -1987,6 +2104,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 } break;
                 case TIF: {
                   struct vm_cache_t *cache = vm_cache_get(TIF, pos);
+                  if(cache == NULL) {
+                    cache = vm_cache_get(TELSEIF, pos);
+                  }
                   /* LCOV_EXCL_START*/
                   if(cache == NULL) {
                     logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -2069,7 +2189,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 } break;
-                case TEOF:
+                // case TEOF:
                 case TEND: {
                   go = -1;
 
@@ -2131,6 +2251,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   has_paren = -1;
                   has_function = -1;
                   has_if = -1;
+                  has_elseif = -1;
                   has_on = -1;
                   step_out = -1;
 
@@ -2149,6 +2270,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             /* LCOV_EXCL_STOP*/
           }
         } break;
+        case TELSEIF:
         case TIF: {
           char current = 0;
           if(lexer_peek(text, pos, &type, &start, &len) < 0) {
@@ -2174,6 +2296,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
              * Link cached IF blocks together
              */
             struct vm_cache_t *cache = vm_cache_get(TIF, pos);
+            if(cache == NULL) {
+              cache = vm_cache_get(TELSEIF, pos);
+            }
             if(cache != NULL) {
               step = cache->step;
 
@@ -2186,6 +2311,60 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               struct vm_tif_t *i = (struct vm_tif_t *)&obj->ast.buffer[step];
 
               /*
+               * Relabel ELSEIF to just IF
+               */
+              if(is_mmu == 1) {
+                mmu_set_uint8(&i->type, TIF);
+              } else {
+                i->type = TIF;
+              }
+
+              /*
+               * An ELSEIF is always attached to the FALSE node of
+               * the previous if block. For proper syntax this FALSE
+               * node should not be present, so it's created here.
+               */
+              if(cache->type == TELSEIF) {
+                int16_t tmp = vm_rewind2(obj, step_out, TIF, TELSEIF);
+                if(tmp == 0) {
+                  /* LCOV_EXCL_START*/
+                  logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+
+                /*
+                 * The last parameter is used for
+                 * for the number of operations the
+                 * TRUE of FALSE will forward to.
+                 */
+                int16_t step1 = vm_parent(text, obj, TFALSE, 0, 0, 1);
+                struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->ast.buffer[step1];
+                struct vm_tif_t *b = (struct vm_tif_t *)&obj->ast.buffer[tmp];
+                if(is_mmu == 1) {
+                  if(mmu_get_uint16(&b->false_) > 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  mmu_set_uint16(&b->false_, step1);
+                  mmu_set_uint16(&a->ret, tmp);
+                } else {
+                  if(b->false_ > 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
+                  }
+                  b->false_ = step1;
+                  a->ret = tmp;
+                }
+
+                step_out = step1;
+              }
+
+              /*
                * Attach IF block to TRUE / FALSE node
                */
               if(is_mmu == 1) {
@@ -2194,12 +2373,6 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 i->ret = step_out;
               }
               pos = cache->end;
-
-              /*
-               * After an cached IF block has been linked
-               * it can be removed from cache
-               */
-              vm_cache_del(cache->start);
 
               uint8_t step_out_type = 0;
               if(is_mmu == 1) {
@@ -2257,14 +2430,32 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               /*
                * An IF block directly followed by another IF block
                */
-              if(lexer_peek(text, pos, &type, &start, &len) >= 0 && type == TIF) {
+              if(lexer_peek(text, pos, &type, &start, &len) >= 0 && (type == TIF || type == TELSEIF)) {
                 go = TIF;
+
+                /*
+                 * After a cached IF block has been linked
+                 * it can be removed from cache
+                 */
+                vm_cache_del(cache->start);
                 continue;
               }
+
+              if(cache->type == TELSEIF) {
+                if(type == TEOF) {
+                  lexer_peek(text, pos-1, &type, &start, &len);
+                  pos--;
+                }
+              }
+              /*
+               * After a cached IF block has been linked
+               * it can be removed from cache
+               */
+              vm_cache_del(cache->start);
             }
 
-            if(type == TIF) {
-              step = vm_parent(text, obj, TIF, start, len, 0);
+            if(type == TIF || type == TELSEIF) {
+              step = vm_parent(text, obj, type, start, len, 0);
               struct vm_tif_t *a = (struct vm_tif_t *)&obj->ast.buffer[step];
 
               if(pos == 0) {
@@ -2439,13 +2630,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   continue;
                 } break;
-                case TEOF:
+                // case TEOF:
                 case TEND: {
                   go = -1;
-                  int16_t tmp = vm_rewind(obj, step_out, TIF);
-                  if(has_if > 0) {
+                  int16_t tmp = vm_rewind2(obj, step_out, TIF, TELSEIF);
+                  if(MAX(has_if, has_elseif) == has_elseif) {
+                    r_rewind = has_elseif;
+                  }
+                  if(MAX(has_if, has_elseif) == has_if) {
                     r_rewind = has_if;
-
+                  }
+                  if(has_elseif > 0 || has_if > 0) {
                     if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TEND) {
                       /* LCOV_EXCL_START*/
                       logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -2455,9 +2650,14 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
                     pos++;
 
-                    vm_cache_add(TIF, tmp, has_if, pos);
+                    if(MAX(has_if, has_elseif) == has_if) {
+                      vm_cache_add(TIF, tmp, has_if, pos);
+                    }
+                    if(MAX(has_if, has_elseif) == has_elseif) {
+                      vm_cache_add(TELSEIF, tmp, has_elseif, pos);
+                    }
                   }
-                  if(has_if == 0) {
+                  if(has_if == 0 && has_elseif == -1) {
                     struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->ast.buffer[startnode];
                     struct vm_tif_t *a = (struct vm_tif_t *)&obj->ast.buffer[tmp];
 
@@ -2495,7 +2695,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   /*
                    * If we are the root IF block
                    */
-                  if(has_if == 0) {
+                  if(has_if == 0 && has_elseif == -1) {
                     loop = 0;
                   }
 
@@ -2503,6 +2703,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   has_paren = -1;
                   has_function = -1;
                   has_if = -1;
+                  has_elseif = -1;
                   has_on = -1;
                   step_out = -1;
 
@@ -2554,6 +2755,28 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 y = cache->end;
                 continue;
               }
+              if(type == TELSEIF) {
+                struct vm_cache_t *cache = vm_cache_get(TELSEIF, y-1);
+                if(cache == NULL) {
+                  /* LCOV_EXCL_START*/
+                  logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                /*
+                 * The ELSEIF block is attached to a seperate FALSE
+                 * node and therefor doesn't count for the current TRUE
+                 * node.
+                 */
+                if(t == TFALSE) {
+                  /* LCOV_EXCL_START*/
+                  logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                  return -1;
+                  /* LCOV_EXCL_STOP*/
+                }
+                y = cache->end;
+                continue;
+              }
               if(type == TEND) {
                 break;
               }
@@ -2577,7 +2800,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
              * make sure we hook our 'then' and 'else'
              * to the last condition.
              */
-            step_out = vm_rewind(obj, step_out, TIF);
+            step_out = vm_rewind2(obj, step_out, TIF, TELSEIF);
 
             if(lexer_peek(text, pos, &type, &start, &len) < 0) {
               /* LCOV_EXCL_START*/
@@ -2602,6 +2825,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 mmu_set_uint16(&b->false_, step);
               }
               mmu_set_uint16(&a->ret, step_out);
+              go = mmu_get_uint8(&b->type);
             } else {
               if(t == TTRUE) {
                 b->true_ = step;
@@ -2609,8 +2833,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 b->false_ = step;
               }
               a->ret = step_out;
+              go = b->type;
             }
-            go = TIF;
 
             step_out = step;
           }
@@ -2686,6 +2910,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             }
 
             switch(source_type) {
+              case TELSEIF:
               case TIF: {
                 struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[source];
                 if(is_mmu == 1) {
@@ -2744,7 +2969,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           if(lexer_peek(text, pos, &type, &start, &len) >= 0) {
             switch(type) {
               case TTHEN: {
-                go = TIF;
+                if(is_mmu == 1) {
+                  go = mmu_get_uint8(&obj->ast.buffer[source]);
+                } else {
+                  go = obj->ast.buffer[source];
+                }
               } break;
               case TSEMICOLON: {
                 go = TVAR;
@@ -3075,7 +3304,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   step_out_type = obj->ast.buffer[tmp];
                 }
               } else {
-                int16_t tmp1 = vm_rewind2(obj, tmp, TIF, TEVENT);
+                int16_t tmp1 = vm_rewind3(obj, tmp, TIF, TELSEIF, TEVENT);
                 if(is_mmu == 1) {
                   go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
                 } else {
@@ -3154,7 +3383,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             node->ret = step_out;
           }
 
-          int16_t tmp1 = vm_rewind2(obj, step_out, TIF, TEVENT);
+          int16_t tmp1 = vm_rewind3(obj, step_out, TIF, TELSEIF, TEVENT);
           if(is_mmu == 1) {
             go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
           } else {
@@ -3283,6 +3512,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           has_paren = -1;
           has_function = -1;
           has_if = -1;
+          has_elseif = -1;
           has_on = -1;
           step_out = -1;
         } break;
@@ -3420,7 +3650,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
            * list.
            */
           if(type != RPAREN) {
-            while(1) {
+            uint8_t stop = 0;
+            while(1 && stop == 0) {
               if(lexer_peek(text, pos + 1, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
                 logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -3456,15 +3687,35 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
                   struct vm_lparen_t *paren = (struct vm_lparen_t *)&obj->ast.buffer[cache->step];
                   int16_t oldpos = pos;
-                  pos = cache->end;
-                  if(is_mmu == 1) {
-                    mmu_set_uint16(&node->go[arg++], cache->step);
-                    mmu_set_uint16(&paren->ret, step);
-                  } else {
-                    node->go[arg++] = cache->step;
-                    paren->ret = step;
+
+                  if(lexer_peek(text, cache->end, &type, &start, &len) < 0) {
+                    /* LCOV_EXCL_START*/
+                    logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+                    return -1;
+                    /* LCOV_EXCL_STOP*/
                   }
-                  vm_cache_del(oldpos);
+                  /*
+                   * In case the LPAREN / RPAREN combination is part
+                   * of another operator, let the operator eat the
+                   * LPAREN.
+                   */
+                  if(type == TOPERATOR) {
+                    go = TOPERATOR;
+                    pos = oldpos;
+                    step_out = step;
+                    stop = 1;
+                    break;
+                  } else {
+                    pos = cache->end;
+                    if(is_mmu == 1) {
+                      mmu_set_uint16(&node->go[arg++], cache->step);
+                      mmu_set_uint16(&paren->ret, step);
+                    } else {
+                      node->go[arg++] = cache->step;
+                      paren->ret = step;
+                    }
+                    vm_cache_del(oldpos);
+                  }
                 } break;
                 case TFUNCTION: {
                   struct vm_cache_t *cache = vm_cache_get(TFUNCTION, pos);
@@ -3489,7 +3740,6 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   vm_cache_del(oldpos);
                 } break;
-                case VINTEGER:
                 case VNULL:
                 case TVAR:
                 case TNUMBER1:
@@ -3518,6 +3768,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   return -1;
                 } break;
               }
+              if(stop == 1) {
+                break;
+              }
 
               if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                 /* LCOV_EXCL_START*/
@@ -3532,6 +3785,10 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                */
               if(type == RPAREN) {
                 pos++;
+                break;
+              } else if(type == TOPERATOR) {
+                pos--;
+                go = TOPERATOR;
                 break;
               } else if(type != TCOMMA) {
                 logprintf_P(F("ERROR: Expected a closing parenthesis"));
@@ -3567,6 +3824,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             has_paren = -1;
             has_function = -1;
             has_if = -1;
+            has_elseif = -1;
             has_on = -1;
             step_out = -1;
           }
@@ -3599,6 +3857,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
         has_function = pos-1;
       } else if(type == TIF) {
         has_if = pos-1;
+      } else if(type == TELSEIF) {
+        has_elseif = pos-1;
       } else if(type == TEVENT) {
         has_on = pos-1;
       } else if(type == LPAREN &&
@@ -3607,20 +3867,27 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
         has_paren = pos-1;
       }
 
-      if(has_function != -1 || has_paren != -1 || has_if != -1 || has_on != -1) {
+      if(has_function != -1 || has_paren != -1 || has_if != -1 || has_elseif != -1 || has_on != -1) {
         if(type == TEOF || r_rewind > -1) {
-          if(MAX(has_function, MAX(has_paren, MAX(has_if, has_on))) == has_function) {
+          if(MAX(has_function, MAX(has_paren, MAX(has_if, MAX(has_on, has_elseif)))) == has_function) {
             offset = (pos = has_function)+1;
             go = TFUNCTION;
             continue;
-          } else if(MAX(has_function, MAX(has_paren, MAX(has_if, has_on))) == has_if) {
+          } else if(MAX(has_function, MAX(has_paren, MAX(has_if, MAX(has_on, has_elseif)))) == has_if) {
             offset = (pos = has_if);
             if(has_if > 0) {
               offset++;
             }
             go = TIF;
             continue;
-          } else if(MAX(has_function, MAX(has_paren, MAX(has_if, has_on))) == has_on) {
+          } else if(MAX(has_function, MAX(has_paren, MAX(has_if, MAX(has_on, has_elseif)))) == has_elseif) {
+            offset = (pos = has_elseif);
+            if(has_elseif > 0) {
+              offset++;
+            }
+            go = TELSEIF;
+            continue;
+          } else if(MAX(has_function, MAX(has_paren, MAX(has_if, MAX(has_on, has_elseif)))) == has_on) {
             offset = (pos = has_on);
             go = TEVENT;
             if(has_on > 0) {
@@ -3634,6 +3901,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           }
           has_paren = -1;
           has_if = -1;
+          has_elseif = -1;
           has_on = -1;
           has_function = -1;
           step_out = -1;
@@ -3699,9 +3967,14 @@ static void print_ast(struct rules_t *obj) {
         printf("\"%d\"[label=\"NULL\"]\n", i);
         i+=sizeof(struct vm_vnull_t)-1;
       } break;
+      case TELSEIF:
       case TIF: {
         struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[i];
-        printf("\"%d\"[label=\"IF\"]\n", i);
+        if(obj->ast.buffer[i] == TELSEIF) {
+          printf("\"%d\"[label=\"ELSEIF\"]\n", i);
+        } else {
+          printf("\"%d\"[label=\"IF\"]\n", i);
+        }
         printf("\"%d\" -> \"%d\"\n", i, node->go);
         // printf("\"%i\" -> \"%i\"\n", i, node->ret);
         if(node->true_ > 0) {
@@ -3847,8 +4120,15 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%d-1\" -> \"%d-2\"\n", i, i);
         i+=sizeof(struct vm_vnull_t)-1;
       } break;
+      case TELSEIF:
       case TIF: {
         struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[i];
+        printf("\"%d-2\"[label=\"IF\"]\n", i);
+        if(obj->ast.buffer[i] == TELSEIF) {
+          printf("\"%d-2\"[label=\"ELSEIF\"]\n", i);
+        } else {
+          printf("\"%d-2\"[label=\"IF\"]\n", i);
+        }
         printf("\"%d-2\"[label=\"IF\"]\n", i);
         printf("\"%d-2\" -> \"%d-4\"\n", i, i);
         if(node->true_ > 0) {
@@ -4191,13 +4471,13 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
     ret = obj->varstack.nrbytes;
   }
 
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)val >= (void *)MMU_SEC_HEAP) {
     valtype = mmu_get_uint8(&val[0]);
   } else {
 #endif
     valtype = val[0];
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 
@@ -4550,9 +4830,11 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
         }
         x += sizeof(struct vm_vnull_t)-1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
       } break;
+      /* LCOV_EXCL_STOP*/
     }
     pos += snprintf(&out[pos], size - pos, "\n");
   }
@@ -4699,7 +4981,7 @@ static void vm_clear_values(struct rules_t *obj) {
   }
 }
 
-int rule_run(struct rules_t *obj, int validate) {
+int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 #ifdef DEBUG
   printf("-----------------------\n");
   if(is_mmu == 1) {
@@ -4715,7 +4997,7 @@ int rule_run(struct rules_t *obj, int validate) {
   printf("-----------------------\n");
 #endif
 
-  int go = 0, ret = -1, i = -1, start = -1;
+  int16_t go = 0, ret = -1, i = -1, start = -1;
   go = start = 0;
 
   while(go != -1) {
@@ -5126,7 +5408,11 @@ int rule_run(struct rules_t *obj, int validate) {
               } break;
               case TVAR: {
                 if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  rule_options.cpy_token_val_cb(obj, node_go); // TESTME
+                  if(rule_options.cpy_token_val_cb(obj, node_go) == -1) { // TESTME
+                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                    return -1;
+                  }
+
                   unsigned char *val = rule_options.get_token_val_cb(obj, node_go);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
@@ -5334,7 +5620,10 @@ int rule_run(struct rules_t *obj, int validate) {
                * If vars are seperate steps
                */
               if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                rule_options.cpy_token_val_cb(obj, step); // TESTME
+                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
+                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                  return -1;
+                }
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
 
                 /* LCOV_EXCL_START*/
@@ -5419,7 +5708,10 @@ int rule_run(struct rules_t *obj, int validate) {
                * If vars are seperate steps
                */
               if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                rule_options.cpy_token_val_cb(obj, step); // TESTME
+                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
+                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                  return -1;
+                }
                 unsigned char *val = rule_options.get_token_val_cb(obj, step);
 
                 /* LCOV_EXCL_START*/
@@ -5568,11 +5860,11 @@ int rule_run(struct rules_t *obj, int validate) {
         ret = go;
         go = tmp;
       } break;
-      case TSTRING: {
-        int tmp = ret;
-        ret = go;
-        go = tmp;
-      } break;
+      // case TSTRING: {
+        // int tmp = ret;
+        // ret = go;
+        // go = tmp;
+      // } break;
       case VNULL: {
         int tmp = ret;
         ret = go;
@@ -5746,7 +6038,10 @@ int rule_run(struct rules_t *obj, int validate) {
 
         if(node_go == 0) {
           if(rule_options.cpy_token_val_cb != NULL) {
-            rule_options.cpy_token_val_cb(obj, go);
+            if(rule_options.cpy_token_val_cb(obj, go) == -1) { // TESTME
+              logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+              return -1;
+            }
           }
 
           /*
@@ -5838,7 +6133,10 @@ int rule_run(struct rules_t *obj, int validate) {
                */
               case TVAR: {
                 if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  rule_options.cpy_token_val_cb(obj, ret); // TESTME
+                  if(rule_options.cpy_token_val_cb(obj, ret) == -1) { // TESTME
+                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
+                    return -1;
+                  }
                   unsigned char *val = rule_options.get_token_val_cb(obj, ret);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
@@ -6124,13 +6422,7 @@ int rule_run(struct rules_t *obj, int validate) {
   /*
    * Tail recursive
    */
-  uint8_t obj_caller = 0;
-  if(is_mmu == 1) {
-    obj_caller = mmu_get_uint8(&obj->caller);
-  } else {
-    obj_caller = obj->caller;
-  }
-  if(obj_caller > 0) {
+  if(obj->caller > 0) {
     return rule_options.event_cb(obj, NULL);
   }
 
@@ -6138,7 +6430,7 @@ int rule_run(struct rules_t *obj, int validate) {
 }
 
 /*LCOV_EXCL_START*/
-// #ifdef DEBUG
+#ifdef DEBUG
 static void print_bytecode_mmu(struct rules_t *obj) {
   uint16_t i = 0, nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
 
@@ -6334,10 +6626,12 @@ static void print_bytecode_mmu(struct rules_t *obj) {
 }
 
 void print_bytecode(struct rules_t *obj) {
+#ifdef ESP8266
   if(is_mmu == 1) {
     print_bytecode_mmu(obj);
     return;
   }
+#endif
   uint16_t i = 0;
   for(i=0;i<obj->ast.nrbytes;i++) {
     printf("%d", i);
@@ -6488,10 +6782,160 @@ void print_bytecode(struct rules_t *obj) {
     }
   }
 }
-// #endif
+#endif
 /*LCOV_EXCL_STOP*/
 
-int rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
+int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out) {
+  if(out[0] == 0) {
+    uint8_t out_type = 0;
+    if(is_mmu == 1) {
+      out_type = mmu_get_uint8(&obj->buffer[pos]);
+    } else {
+      out_type = obj->buffer[pos];
+    }
+
+    switch(out_type) {
+      case TVAR: {
+        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)&obj->buffer[pos];
+        struct vm_tvar_t *nodeB = (struct vm_tvar_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint8(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->go = mmu_get_uint16(&nodeA->go);
+          nodeB->value = mmu_get_uint16(&nodeA->value);
+
+          uint16_t x = 0, len = 0;
+          while(mmu_get_uint8(&nodeA->token[++x]) != 0);
+          len = x;
+          x = 0;
+
+          while(x < len) {
+            nodeB->token[x] = mmu_get_uint8(&nodeA->token[x]);
+            x++;
+          }
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->go = nodeA->go;
+          nodeB->value = nodeA->value;
+
+          strcpy((char *)nodeB->token, (char *)nodeA->token);
+        }
+      } break;
+      case VINTEGER: {
+        struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)&obj->buffer[pos];
+        struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint8(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VFLOAT: {
+        struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)&obj->buffer[pos];
+        struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint8(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VNULL: {
+        struct vm_vnull_t *nodeA = (struct vm_vnull_t *)&obj->buffer[pos];
+        struct vm_vnull_t *nodeB = (struct vm_vnull_t *)out;
+        if(is_mmu == 1) {
+          nodeB->type = mmu_get_uint8(&nodeA->type);
+          nodeB->ret = mmu_get_uint16(&nodeA->ret);
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+        }
+      } break;
+      default: {
+        return -1;
+      } break;
+    }
+  } else {
+    switch(out[0]) {
+      case TVAR: {
+        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)out;
+        struct vm_tvar_t *nodeB = (struct vm_tvar_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint8(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          mmu_set_uint16(&nodeB->go, nodeA->go);
+          mmu_set_uint16(&nodeB->value, nodeA->value);
+
+          uint16_t x = 0, len = strlen((char *)nodeA->token);
+
+          while(x < len) {
+            mmu_set_uint8(&nodeB->token[x], nodeA->token[x]);
+            x++;
+          }
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->go = nodeA->go;
+          nodeB->value = nodeA->value;
+
+          strcpy((char *)nodeB->token, (char *)nodeA->token);
+        }
+      } break;
+      case VINTEGER: {
+        struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)out;
+        struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint8(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VFLOAT: {
+        struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)out;
+        struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint8(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+          nodeB->value = nodeA->value;
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+          nodeB->value = nodeA->value;
+        }
+      } break;
+      case VNULL: {
+        struct vm_vnull_t *nodeA = (struct vm_vnull_t *)out;
+        struct vm_vnull_t *nodeB = (struct vm_vnull_t *)&obj->buffer[pos];
+        if(is_mmu == 1) {
+          mmu_set_uint8(&nodeB->type, nodeA->type);
+          mmu_set_uint16(&nodeB->ret, nodeA->ret);
+        } else {
+          nodeB->type = nodeA->type;
+          nodeB->ret = nodeA->ret;
+        }
+      } break;
+      default: {
+        return -1;
+      } break;
+    }
+  }
+
+  return 0;
+}
+
+int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
   assert(nrcache == 0);
   assert(vmcache == NULL);
 
@@ -6515,13 +6959,13 @@ int rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrule
 #endif
   }
 
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool->payload >= (void *)MMU_SEC_HEAP) {
     is_mmu = 1;
   } else {
 #endif
     is_mmu = 0;
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 

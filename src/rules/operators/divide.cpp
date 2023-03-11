@@ -19,7 +19,7 @@
 #include "../rules.h"
 
 int8_t rule_operator_divide_callback(struct rules_t *obj, uint16_t a, uint16_t b, uint16_t *ret) {
-  unsigned char nodeA[8], nodeB[8];
+  unsigned char nodeA[MAX_VARSTACK_NODE_SIZE+1], nodeB[MAX_VARSTACK_NODE_SIZE+1];
   rule_stack_pull(&obj->varstack, a, nodeA);
   rule_stack_pull(&obj->varstack, b, nodeB);
 
@@ -91,7 +91,6 @@ int8_t rule_operator_divide_callback(struct rules_t *obj, uint16_t a, uint16_t b
 
     *ret = rule_stack_push(&obj->varstack, &out);
   } else {
-    struct vm_vinteger_t out;
     struct vm_vinteger_t *na = (struct vm_vinteger_t *)&nodeA[0];
     struct vm_vinteger_t *nb = (struct vm_vinteger_t *)&nodeB[0];
 

@@ -27,7 +27,7 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint1
 
   uint16_t i = 0;
   for(i=0;i<argc;i++) {
-    unsigned char nodeA[8];
+    unsigned char nodeA[MAX_VARSTACK_NODE_SIZE+1];
     rule_stack_pull(&obj->varstack, argv[i], nodeA);
     if(nodeA[0] == VNULL) {
       continue;

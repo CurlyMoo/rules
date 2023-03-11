@@ -37,10 +37,10 @@ static char out[OUTPUT_SIZE];
 
 #ifndef ESP8266
 struct serial_t Serial;
+void *MMU_SEC_HEAP = NULL;
 #endif
 
 struct rule_options_t rule_options;
-static unsigned char *mempool = NULL;
 static struct vm_vinteger_t vinteger;
 
 struct unittest_t {
@@ -112,14 +112,15 @@ struct unittest_t {
   { "if 1 && 1 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if 1.1 && 1.2 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if 0.0 && 1.2 then $a = -6; end", { { "$a = -6", 96 } }, { { "", 88 } } },
-  { "if -1.1 && 1.2 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
+  { "if -1.1 && 1.2 then $a = -6; end", { { "$a = -6", 92 } }, { { "", 84 } } },
   { "if 1.2 && 0.0 then $a = -6; end", { { "$a = -6", 96 } }, { { "", 88 } } },
   { "if 1.2 && -1.1 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if NULL || NULL then $a = -6; end", { { "$a = -6", 84 } }, { { "", 76 } } },
   { "if 0 || 0 then $a = -6; end", { { "$a = -6", 92 } }, { { "", 84 } } },
   { "if 1 || 1 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if 1.1 || 1.2 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
-  { "if -0.1 || -0.1 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
+  { "if -0.1 || -0.1 then $a = -6; end", { { "$a = -6", 92 } }, { { "", 84 } } },
+  { "if -0.5 || 1 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if 0.0 || 1.2 then $a = -6; end", { { "$a = -6", 96 } }, { { "$a = -6", 96 } } },
   { "if -1.1 || 1.2 then $a = -6; end", { { "$a = -6", 92 } }, { { "$a = -6", 92 } } },
   { "if 1.2 || 0.0 then $a = -6; end", { { "$a = -6", 96 } }, { { "$a = -6", 96 } } },
@@ -153,6 +154,10 @@ struct unittest_t {
   { "if 1 == 1 then $a = 6; $a = $a + 2 + $a / 3; end", { { "$a = 10", 184 } }, { { "$a = 10", 184 } } },
   { "if 1 == 1 then $a = 6; $a = ($a + 2 + $a / 3); end", { { "$a = 10", 192 } }, { { "$a = 10", 192 } } },
   { "if 1 == 1 then $a = NULL / 1; end", { { "$a = NULL", 104 } }, { { "$a = NULL", 104 } } },
+  { "if 1 == 1 then $a = 2.5 / 7.5; end", { { "$a = 0.333333", 112 } }, { { "$a = 0.333333", 112 } } },
+  { "if 1 == 1 then $a = 5 / 2.5; end", { { "$a = 2", 112 } }, { { "$a = 2", 112 } } },
+  { "if 1 == 1 then $a = 2.5 / 5; end", { { "$a = 0.5", 112 } }, { { "$a = 0.5", 112 } } },
+  { "if 1 == 1 then $a = 2.5 * 2.5; end", { { "$a = 6.25", 112 } }, { { "$a = 6.25", 112 } } },
   { "if 12 == 1 then $a = 1 + 2 * 3; end", { { "$a = 7", 132 } }, { { "", 124 } } },
   { "if 1 == 1 then $a = 3 * 1 + 2 * 3; end", { { "$a = 9", 152 } }, { { "$a = 9", 152 } } },
   { "if 1 == 1 then $a = (3 * 1 + 2 * 3); end", { { "$a = 9", 160 } }, { { "$a = 9", 160 } } },
@@ -238,8 +243,13 @@ struct unittest_t {
   { "if 1 == 1 then $a = max(0, 1) + max(1, 2) * max(2, 3) / max(3, 4) ^ max(1, 2) ^ max(0, 1) * max(2, 3) ^ max(3, 4); end", { "$a = 31.375", 424 }, { "$a = 31.375", 424 } },
   { "if 3 == 3 then $a = 2; $b = max((($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 236 }, { "$a = 2$b = 15", 236 } },
   { "if 3 == 3 then $a = 2; $b = max((max($a + 3) * 3), (3 * 4)); end", { "$a = 2$b = 15", 240 }, { "$a = 2$b = 15", 240 } },
+  { "if 1 == 1 then $a = max(1 * 2, (min(5, 6) + 1) * 6); end", { { "$a = 36", 208 } }, { { "$a = 36", 208 } } },
   { "if 1 == 1 then $a = 1; else $a = 2; end", { "$a = 2", 124 }, { "$a = 1", 124 } },
   { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end", { "$a = 2", 208 }, { "$a = 3", 208 } },
+  { "if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 2; end", { "$a = 2", 176 }, { "$a = 2", 176 } },
+  { "if 1 == 2 then $a = 1; elseif 3 == 2 then $a = 2; elseif 4 == 4 then $a = 4; end", { "$a = 4", 260 }, { "$a = 4", 260} },
+  { "if 1 == 2 then $a = 1; elseif 3 == 2 then if 1 > 4 then $a = 2; else $a = 1; end end", { "$a = 1", 260 }, { "", 252 } },
+  { "if 1 == 2 then $a = 1; if 2 < 3 then $a = 5; end elseif 3 == 2 then if 1 > 4 then $a = 2; else $a = 1; end end", { "$a = 1", 336 }, { "", 328 } },
   { "if 1 == 1 then if 2 == 2 then $a = 1; end else $a = 2; end", { "$a = 2", 176 }, { "$a = 1", 176 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; else $a = 7; end", { "$b = 16$a = 7", 376 }, { "$a = 4$b = 14", 376 } },
   { "if (1 == 1) || 5 >= 4 then $a = 1; if 6 == 5 then $a = 2; end $a = $a + 3; $b = (3 + $a) * 2; $b = 3; else $a = 7; end", { "$b = 3$a = 7", 396 }, { "$a = 4$b = 3", 396 } },
@@ -253,7 +263,6 @@ struct unittest_t {
   { "on foo then $a = 1 + 2; end", { { "$a = 3", 88 } }, { { "$a = 3", 88 } } },
   { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 144 }, { "$a = 2", 144 } },
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 224 }, { "$a = 2", 216 } },
-  { "on foo then bar(); end  ", { { "", 52 } },  { { "", 52 } } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 68 }, { "$b = 3" , 92 } },  { { "$a = 6", 68 }, { "$b = 3" , 92 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 68 }, { "$b = 3", 108 } },  { { "$a = 6", 68 }, { "$b = 3", 108 } } },
   { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 100 } },  { { "$b = NULL$a = 0", 100 } } }, // FIXME
@@ -269,8 +278,10 @@ struct unittest_t {
   { "if foo then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1.1.1 == 1 then", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == ) then $a = 1", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == ) then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1 end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "elseif 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if (1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if () then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -278,6 +289,7 @@ struct unittest_t {
   { "if 1 2 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then bar(); end  ", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } },  { { NULL, 0 } } },
@@ -301,6 +313,8 @@ struct unittest_t {
   { "if 1 == 1 then $a = $a $a; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then bar() $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if ( ; == 1 ) then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "if 1 == 2 then $a = 1; else $a = 3; elseif $a = 2; end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then elseif $a = 2; else $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
 };
 
 static int8_t is_variable(char *text, uint16_t size) {
@@ -318,10 +332,8 @@ static int8_t is_variable(char *text, uint16_t size) {
 }
 
 static int8_t is_event(char *text, uint16_t *pos, uint16_t size) {
-  uint16_t len = 0;
-
   if(size == 3 &&
-    (strnicmp(&text[*pos], "foo", len) == 0 || strnicmp(&text[*pos], "bar", len) == 0)) {
+    (strnicmp(&text[*pos], "foo", 3) == 0 || strnicmp(&text[*pos], "bar", 3) == 0)) {
     return 0;
   }
   return -1;
@@ -329,64 +341,35 @@ static int8_t is_event(char *text, uint16_t *pos, uint16_t size) {
 
 static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-  struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[token];
   uint16_t ret = 0;
-  uint8_t match = 1, is_mmu = 0;
 
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
-  }
-#endif
+  unsigned char out[32];
+  memset(&out, 0, 32);
 
-  if(is_mmu == 1) {
-    uint16_t a = 0, b = 0;
-    char str[] = "foo#bar";
-
-    ret = mmu_get_uint16(&var->value);
-
-    while(
-      str[a] != 0 && mmu_get_uint8(&var->token[b]) != 0 &&
-      str[a] == mmu_get_uint8(&var->token[b])) {
-      a++; b++;
-    }
-    if(str[a] != 0 || mmu_get_uint8(&var->token[b]) != 0) { match = 0; }
-    if(match == 0) {
-      if(mmu_get_uint8(&var->token[0]) == '@') {
-        match = 2;
-      } else if(mmu_get_uint16(&var->value) == 0) {
-        match = 3;
-      }
-    }
-  } else {
-    ret = var->value;
-    if(strcmp((char *)var->token, "foo#bar") == 0) {
-      match = 1;
-    } else if(var->token[0] == '@') {
-      match = 2;
-    } else if(var->value == 0) {
-      match = 3;
-    } else {
-      match = 0;
-    }
+  if(rule_token(&obj->ast, token, (unsigned char *)&out) != 0) {
+    return NULL;
   }
 
-  if(match == 1) {
+  if(out[0] != TVAR) {
+    return NULL;
+  }
+
+  struct vm_tvar_t *var = (struct vm_tvar_t *)out;
+
+  ret = var->value;
+
+  if(strcmp((char *)var->token, "foo#bar") == 0) {
     memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
     vinteger.type = VINTEGER;
     vinteger.value = 3;
     return (unsigned char *)&vinteger;
-  } else if(match == 2) {
+  } else if(var->token[0] == '@') {
     memset(&vinteger, 0, sizeof(struct vm_vinteger_t));
     vinteger.type = VINTEGER;
     vinteger.value = 5;
     return (unsigned char *)&vinteger;
   } else {
-    if(match == 3) {
+    if(var->value == 0) {
       ret = varstack->nrbytes;
       uint16_t size = varstack->nrbytes+sizeof(struct vm_vnull_t);
       if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, size)) == NULL) {
@@ -395,64 +378,62 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
       struct vm_vnull_t *value = (struct vm_vnull_t *)&varstack->buffer[ret];
       value->type = VNULL;
       value->ret = token;
-      if(is_mmu == 1) {
-        mmu_set_uint16(&var->value, ret);
-      } else {
-        var->value = ret;
+
+      var->value = ret;
+
+      if(rule_token(&obj->ast, token, (unsigned char *)&out) != 0) {
+        return NULL;
       }
+
       varstack->nrbytes = size;
       varstack->bufsize = size;
     }
 
     return &varstack->buffer[ret];
   }
+
   return NULL;
 }
 
-static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
+static int8_t vm_value_cpy(struct rules_t *obj, uint16_t token) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-  struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[token];
   uint16_t x = 0;
-  uint8_t is_mmu = 0;
 
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
+  unsigned char outA[32], outB[32];
+  memset(&outA, 0, 32);
+
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+    return -1;
   }
-#endif
+
+  if(outA[0] != TVAR) {
+    return -1;
+  }
+
+  struct vm_tvar_t *var = (struct vm_tvar_t *)outA;
 
   for(x=4;x<varstack->nrbytes;x++) {
 #ifdef DEBUG
     printf(". %s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
     struct vm_tgeneric_t *val = (struct vm_tgeneric_t *)&varstack->buffer[x];
-    struct vm_tvar_t *foo = (struct vm_tvar_t *)&obj->ast.buffer[val->ret];
 
-    uint8_t match = 1;
-    if(is_mmu == 1) {
-      uint16_t a = 0, b = 0;
-      while(
-        mmu_get_uint8(&foo->token[a]) != 0 && mmu_get_uint8(&var->token[b]) != 0 &&
-        mmu_get_uint8(&foo->token[a]) == mmu_get_uint8(&var->token[b])) {
-        a++; b++;
-      }
-      if(mmu_get_uint8(&foo->token[a]) != 0 || mmu_get_uint8(&var->token[b]) != 0) { match = 0; };
-    } else {
-      if(strcmp((char *)foo->token, (char *)var->token) != 0) { match = 0; };
+    memset(&outB, 0, 32);
+
+    if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB) != 0) {
+      return -1;
     }
 
-    if(match == 1 && val->ret != token) {
-      if(is_mmu == 1) {
-        mmu_set_uint16(&var->value, mmu_get_uint16(&foo->value));
-        mmu_set_uint16(&foo->value, 0);
-      } else {
-        var->value = foo->value;
-        foo->value = 0;
+    struct vm_tvar_t *foo = (struct vm_tvar_t *)outB;
+
+    if(strcmp((char *)foo->token, (char *)var->token) == 0 && val->ret != token) {
+      var->value = foo->value;
+      foo->value = 0;
+
+      if(rule_token(&obj->ast, val->ret, (unsigned char *)&outB) != 0) {
+        return -1;
       }
+
       val->ret = token;
 #ifdef DEBUG
       switch(varstack->buffer[x]) {
@@ -469,7 +450,10 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
         } break;
       }
 #endif
-      return;
+      if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+        return -1;
+      }
+      return 0;
     }
     switch(varstack->buffer[x]) {
       case VINTEGER: {
@@ -487,22 +471,13 @@ static void vm_value_cpy(struct rules_t *obj, uint16_t token) {
       } break;
     }
   }
+
+  return 0;
 }
 
 static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
   uint16_t x = 0, ret = 0;
-  uint8_t is_mmu = 0;
-
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
-  }
-#endif
 
   if(idx >= varstack->nrbytes) {
     return -1;
@@ -560,11 +535,18 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VINTEGER: {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          if(is_mmu == 1) {
-            mmu_set_uint16(&tmp->value, x);
-          } else {
-            tmp->value = x;
+          unsigned char out[32];
+          memset(&out, 0, 32);
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
+          }
+
+          struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
+          tmp->value = x;
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
           }
         }
         x += sizeof(struct vm_vinteger_t)-1;
@@ -572,11 +554,18 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VFLOAT: {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          if(is_mmu == 1) {
-            mmu_set_uint16(&tmp->value, x);
-          } else {
-            tmp->value = x;
+          unsigned char out[32];
+          memset(&out, 0, 32);
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
+          }
+
+          struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
+          tmp->value = x;
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
           }
         }
         x += sizeof(struct vm_vfloat_t)-1;
@@ -584,11 +573,18 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VNULL: {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&varstack->buffer[x];
         if(node->ret > 0) {
-          struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[node->ret];
-          if(is_mmu == 1) {
-            mmu_set_uint16(&tmp->value, x);
-          } else {
-            tmp->value = x;
+          unsigned char out[32];
+          memset(&out, 0, 32);
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
+          }
+
+          struct vm_tvar_t *tmp = (struct vm_tvar_t *)out;
+          tmp->value = x;
+
+          if(rule_token(&obj->ast, node->ret, (unsigned char *)&out) != 0) {
+            return -1;
           }
         }
         x += sizeof(struct vm_vnull_t)-1;
@@ -603,68 +599,52 @@ static int8_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   return ret;
 }
 
-static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
+static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-  struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[token];
   uint16_t ret = 0;
-  uint8_t is_mmu = 0;
 
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
+  unsigned char outA[32], outB[32];
+  memset(&outA, 0, 32);
+  memset(&outB, 0, 32);
+
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+    return -1;
   }
-#endif
 
-  var = (struct vm_tvar_t *)&obj->ast.buffer[token];
+  if(outA[0] != TVAR) {
+    return -1;
+  }
 
-  // if(is_mmu == 1) {
-    // if(mmu_get_uint16(&var->value) > 0) {
-      // vm_value_del(obj, mmu_get_uint16(&var->value));
-    // }
-  // } else {
-    // if(var->value > 0) {
-      // vm_value_del(obj, var->value);
-    // }
-  // }
-
-  var = (struct vm_tvar_t *)&obj->ast.buffer[token];
+  struct vm_tvar_t *var = (struct vm_tvar_t *)outA;
 
   ret = varstack->nrbytes;
 
-  if(is_mmu == 1) {
-    mmu_set_uint16(&var->value, ret);
-  } else {
-    var->value = ret;
+  var->value = ret;
+
+  if(rule_token(&obj->ast, token, (unsigned char *)&outA) != 0) {
+    return -1;
   }
+
 
 #ifdef DEBUG
   printf(". %s %d %d\n", __FUNCTION__, __LINE__, val);
 #endif
-  uint8_t valtype = 0;
-  if(is_mmu == 1) {
-    valtype = mmu_get_uint8(&obj->varstack.buffer[val]);
-  } else {
-    valtype = obj->varstack.buffer[val];
+
+  if(rule_token(&obj->varstack, val, (unsigned char *)&outB) != 0) {
+    return -1;
   }
-  switch(valtype) {
+
+  switch(outB[0]) {
     case VINTEGER: {
       uint16_t size = varstack->nrbytes+sizeof(struct vm_vinteger_t);
       if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->varstack.buffer[val];
+      struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)outB;
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&varstack->buffer[ret];
       value->type = VINTEGER;
       value->ret = token;
-      if(is_mmu == 1) {
-        value->value = cpy->value;
-      } else {
-        value->value = (int)cpy->value;
-      }
+      value->value = cpy->value;
 
 #ifdef DEBUG
       printf(". %s %d %d %d\n", __FUNCTION__, __LINE__, varstack->nrbytes, (int)cpy->value);
@@ -677,7 +657,7 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, size)) == NULL) {
         OUT_OF_MEMORY /*LCOV_EXCL_LINE*/
       }
-      struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->varstack.buffer[val];
+      struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)outB;
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&varstack->buffer[ret];
       value->type = VFLOAT;
       value->ret = token;
@@ -711,48 +691,33 @@ static void vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
       exit(-1);
     } break;
   }
+
+  if(rule_token(&obj->varstack, val, (unsigned char *)&outB) != 0) {
+    return -1;
+  }
+  return 0;
 }
 
 static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
   struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
   uint16_t x = 0, pos = 0;
-  uint8_t is_mmu = 1;
-
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
-  }
-#endif
 
   for(x=4;x<varstack->nrbytes;x++) {
-    uint16_t val_ret = 0;
-    uint8_t type_ret = 0;
     switch(varstack->buffer[x]) {
       case VINTEGER: {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&varstack->buffer[x];
-        if(is_mmu == 1) {
-          val_ret = mmu_get_uint16(&val->ret);
-          type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
-        } else {
-          val_ret = val->ret;
-          type_ret = obj->ast.buffer[val_ret];
+
+        char foo[32];
+        memset(&foo, 0, 32);
+
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+          return;
         }
-        switch(type_ret) {
+
+        switch(foo[0]) {
           case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
-              uint16_t i = 0;
-              while(mmu_get_uint8(&node->token[i]) != 0) {
-                pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
-              }
-              pos += snprintf(&out[pos], size - pos, " = %d", (int)val->value);
-            } else {
-              pos += snprintf(&out[pos], size - pos, "%s = %d", node->token, (int)val->value);
-            }
+            struct vm_tvar_t *node = (struct vm_tvar_t *)foo;
+            pos += snprintf(&out[pos], size - pos, "%s = %d", node->token, (int)val->value);
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -766,25 +731,17 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
         float a = 0;
         uint322float(val->value, &a);
 
-        if(is_mmu == 1) {
-          val_ret = mmu_get_uint16(&val->ret);
-          type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
-        } else {
-          val_ret = val->ret;
-          type_ret = obj->ast.buffer[val_ret];
+        char foo[32];
+        memset(&foo, 0, 32);
+
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+          return;
         }
-        switch(type_ret) {
+
+        switch(foo[0]) {
           case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
-              uint16_t i = 0;
-              while(mmu_get_uint8(&node->token[i]) != 0) {
-                pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
-              }
-              pos += snprintf(&out[pos], size - pos, " = %g", a);
-            } else {
-              pos += snprintf(&out[pos], size - pos, "%s = %g", node->token, a);
-            }
+            struct vm_tvar_t *node = (struct vm_tvar_t *)foo;
+            pos += snprintf(&out[pos], size - pos, "%s = %g", node->token, a);
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -795,25 +752,17 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
       } break;
       case VNULL: {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&varstack->buffer[x];
-        if(is_mmu == 1) {
-          val_ret = mmu_get_uint16(&val->ret);
-          type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
-        } else {
-          val_ret = val->ret;
-          type_ret = obj->ast.buffer[val_ret];
+        char foo[32];
+        memset(&foo, 0, 32);
+
+        if(rule_token(&obj->ast, val->ret, (unsigned char *)&foo) != 0) {
+          return;
         }
-        switch(type_ret) {
+
+        switch(foo[0]) {
           case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
-              uint16_t i = 0;
-              while(mmu_get_uint8(&node->token[i]) != 0) {
-                pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
-              }
-              pos += snprintf(&out[pos], size - pos, " = NULL");
-            } else {
-              pos += snprintf(&out[pos], size - pos, "%s = NULL", node->token);
-            }
+            struct vm_tvar_t *node = (struct vm_tvar_t *)foo;
+            pos += snprintf(&out[pos], size - pos, "%s = NULL", node->token);
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -830,81 +779,44 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
   }
 }
 
-static int event_cb(struct rules_t *obj, char *name) {
+static int8_t event_cb(struct rules_t *obj, char *name) {
   struct rules_t *called = NULL;
-  uint16_t caller = 0;
-  uint8_t is_mmu = 0;
+  uint32_t caller = 0;
 
-#ifndef NON32XFER_HANDLER
-  if((void *)obj >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
-  } else {
-#endif
-    is_mmu = 0;
-#ifndef NON32XFER_HANDLER
-  }
-#endif
-
-  if(is_mmu == 1) {
-    caller = mmu_get_uint8(&obj->caller);
-  } else {
-    caller = obj->caller;
-  }
+  caller = obj->caller;
 
   if(caller > 0 && name == NULL) {
     called = rules[caller-1];
 
-    char str[OUTPUT_SIZE];
 #ifdef ESP8266
+    char str[OUTPUT_SIZE];
     /*LCOV_EXCL_START*/
     memset(&str, 0, OUTPUT_SIZE);
-    if(is_mmu == 1) {
-      snprintf((char *)&str, OUTPUT_SIZE, "- continuing with caller #%d at step #%d", caller, mmu_get_uint16(&called->cont.go));
-    } else {
-      snprintf((char *)&str, OUTPUT_SIZE, "- continuing with caller #%d at step #%d", caller, called->cont.go);
-    }
+    snprintf((char *)&str, OUTPUT_SIZE, "- continuing with caller #%d", caller);
     Serial.println(str);
     /*LCOV_EXCL_STOP*/
 #else
-    printf("- continuing with caller #%d at step #%d\n", caller, called->cont.go);
+    printf("- continuing with caller #%d\n", caller);
 #endif
 
-    if(is_mmu == 1) {
-      mmu_set_uint8(&obj->caller, 0);
-    } else {
-      obj->caller = 0;
-    }
+    obj->caller = 0;
 
     return rule_run(called, 0);
   } else {
-    if(strcmp(name, "bar") == 0) {
-      return rule_run(obj, 0);
-    }
-    int i = 0;
-
-    for(i=0;i<nrrules;i++) {
-      if(rules[i] == obj) {
-        called = rules[i-1];
-        break;
-      }
+    int8_t nr = rule_by_name(rules, nrrules, name);
+    if(nr == -1) {
+      return -1;
     }
 
-    if(is_mmu == 1) {
-      mmu_set_uint8(&called->caller, mmu_get_uint8(&obj->nr));
-    } else {
-      called->caller = obj->nr;
-    }
+    called = rules[nr];
+    called->caller = obj->nr;
 
     {
-      char str[OUTPUT_SIZE];
 #ifdef ESP8266
+      char str[OUTPUT_SIZE];
       /*LCOV_EXCL_START*/
       memset(&str, 0, OUTPUT_SIZE);
-      if(is_mmu == 1) {
-        snprintf((char *)&str, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, mmu_get_uint8(&obj->nr));
-      } else {
-        snprintf((char *)&str, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
-      }
+      snprintf((char *)&str, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
       Serial.println(str);
       /*LCOV_EXCL_STOP*/
 #else
@@ -961,7 +873,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
   uint8_t y = 0;
   uint16_t txtoffset = alignedbuffer(size-len-5);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
     for(y=0;y<len;y++) {
       mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)unittests[(*i)].rule[y]);
@@ -971,7 +883,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     for(y=0;y<len;y++) {
       mempool[txtoffset+y] = (uint8_t)unittests[(*i)].rule[y];
     }
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 
@@ -984,7 +896,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     OUT_OF_MEMORY
   }
   memset(cpytxt, 0, len+1);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
     for(y=0;y<len;y++) {
       cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
@@ -992,7 +904,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   } else {
 #endif
     memcpy(cpytxt, input.payload, len);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
   oldoffset = txtoffset;
@@ -1000,7 +912,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   while((ret = rule_initialize(&input, &rules, &nrrules, &mem, varstack)) == 0) {
     uint16_t size = 0;
     uint8_t rule_nr = 0;
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       rule_nr = mmu_get_uint8(&rules[nrrules-1]->nr);
       size = mmu_get_uint16(&input.len) - oldoffset;
@@ -1008,7 +920,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 #endif
       rule_nr = rules[nrrules-1]->nr;
       size = input.len - oldoffset;
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
@@ -1040,13 +952,13 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       assert(varstack->nrbytes >= 0);
       assert(varstack->bufsize >= 0);
       assert(varstack->nrbytes <= varstack->bufsize);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 #endif
 
     {
-      char str[OUTPUT_SIZE];
 #ifdef ESP8266
+      char str[OUTPUT_SIZE];
       /*LCOV_EXCL_START*/
       memset(&str, 0, OUTPUT_SIZE);
       if(size > 49) {
@@ -1077,8 +989,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
 
     if(strcmp(out, unittests[(*i)].validate[rule_nr-1].output) != 0) {
-      char str[OUTPUT_SIZE];
 #ifdef ESP8266
+      char str[OUTPUT_SIZE];
       memset(&str, 0, OUTPUT_SIZE);
       snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rule_nr-1].output, out);
       Serial.println(str);
@@ -1136,8 +1048,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
       valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
       if(strcmp(out, unittests[(*i)].run[rule_nr-1].output) != 0) {
-        char str[OUTPUT_SIZE];
 #ifdef ESP8266
+        char str[OUTPUT_SIZE];
         /*LCOV_EXCL_START*/
         memset(&str, 0, OUTPUT_SIZE);
         snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].run[rule_nr-1].output, out);
@@ -1161,7 +1073,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     varstack->bufsize = 4;
 
     FREE(cpytxt);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       input.payload = &mempool[mmu_get_uint16(&input.len)];
       oldoffset = mmu_get_uint16(&input.len);
@@ -1171,7 +1083,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       input.payload = &mempool[input.len];
       oldoffset = input.len;
       len = input.tot_len;
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 #endif
 
@@ -1183,7 +1095,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       OUT_OF_MEMORY
     }
     memset(cpytxt, 0, len+1);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if((void *)mempool >= (void *)MMU_SEC_HEAP) {
       for(y=0;y<len;y++) {
         cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
@@ -1191,7 +1103,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     } else {
 #endif
       memcpy(cpytxt, input.payload, len);
-#ifndef NON32XFER_HANDLER
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 #endif
   }
@@ -1205,8 +1117,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   if(ret == -1) {
     const char *rule = unittests[(*i)].rule;
     int size = strlen(unittests[(*i)].rule);
-    char str[OUTPUT_SIZE];
 #ifdef ESP8266
+    char str[OUTPUT_SIZE];
     /*LCOV_EXCL_START*/
     memset(&str, 0, OUTPUT_SIZE);
     if(size > 49) {
@@ -1244,15 +1156,29 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 int main(int argc, char **argv) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
 
-  unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE);
+  unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
   if(mempool == NULL) {
     fprintf(stderr, "OUT_OF_MEMORY\n");
     exit(-1);
   }
+  MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
 
   for(i=0;i<nrtests;i++) {
-    memset(mempool, 0, MEMPOOL_SIZE);
-    run_test(&i, mempool, MEMPOOL_SIZE);
+    memset(mempool, 0, MEMPOOL_SIZE*2);
+    run_test(&i, &mempool[MEMPOOL_SIZE], MEMPOOL_SIZE);
+  }
+  FREE(mempool);
+
+  mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
+  if(mempool == NULL) {
+    fprintf(stderr, "OUT_OF_MEMORY\n");
+    exit(-1);
+  }
+  MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
+
+  for(i=0;i<nrtests;i++) {
+    memset(mempool, 0, MEMPOOL_SIZE*2);
+    run_test(&i, &mempool[0], MEMPOOL_SIZE);
   }
   FREE(mempool);
 }
