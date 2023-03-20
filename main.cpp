@@ -582,6 +582,13 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   var->go = ret;
   if(rule_token(&obj->ast, token, (unsigned char *)&outA, &outAsize) < 0) {
     return -1;
+  } else if(r == -2) {
+    outB = (unsigned char *)REALLOC(outB, outBsize);
+    memset(outB, 0, outBsize);
+    if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
+      FREE(outB);
+      return -1;
+    }
   }
 
   switch(outB[0]) {

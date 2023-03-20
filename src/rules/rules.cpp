@@ -6670,6 +6670,14 @@ void print_bytecode(struct rules_t *obj) {
         printf("token: %s]\n", node->token);
         i += sizeof(struct vm_tvalue_t)+align(strlen((char *)node->token)+1, 4)-1;
       } break;
+      case TSTRING: {
+        struct vm_vchar_t *node = (struct vm_vchar_t *)&obj->ast.buffer[i];
+        printf("(TSTRING)[%u][", 8+align(strlen((char *)node->value)+1, 4));
+        printf("type: %d, ", node->type);
+        printf("ret: %d, ", node->ret);
+        printf("value: %s]\n", node->value);
+        i += sizeof(struct vm_vchar_t)+align(strlen((char *)node->value)+1, 4)-1;
+      } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
         printf("(TEVENT)[%u][", 8+align(strlen((char *)node->token)+1, 4));
