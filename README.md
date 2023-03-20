@@ -398,8 +398,8 @@ if(ret == -2) {
 	}
 }
 
-if(out[0] == TVAR) {
-  struct vm_tvar_t *var = (struct vm_tvar_t *)out;
+if(out[0] == TVALUE) {
+  struct vm_tvalue_t *val = (struct vm_tvalue_t *)out;
 	[...]
 }
 ```
@@ -427,7 +427,6 @@ typedef struct rule_options_t {
    * Variables
    */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
-  int8_t (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, uint16_t size);
@@ -619,15 +618,17 @@ case TSTART: {
 
 Interaction with variables is always done through the local variable stack of a rule. So, you never interact with values on the AST itself, but with values on the variable stack. Properly implementing these functions can be quite a burden. Please refer to the unittest example for inspiration on how this is implemented.
 
+Each variable consists of the variable token itself and a value token. The value token points to the actual value on the value stack. The value token also stores the name of the value. E.g.: `$a`. This has two advantages. The actual name of the variable only has to be stored once. And there is no need to backlink to each variable that might point to the same value. So, changing the values for all `$a` tokens is done in one spot.
+
 *General*
 
-Working with a variable token is done like this: `(struct vm_tvar_t *)&obj->ast.buffer[token]`.
+Working with a variable token is done like this: `(struct vm_tvalue_t *)&obj->ast.buffer[token]`.
 
-When the field `value` of the `vm_tvar_t` token is set to zero then the parser knows no value is associated with that variable. Any value other than zero can be used to interact with the variable token. E.g.
+When the field `go` of the `vm_tvalue_t` token is set to zero then the parser knows no value is associated with that value (and therefor variable). Any value other than zero can be used to interact with the variable token. E.g.
 
 ```c
-struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[token];
-var->value = 0;
+struct vm_tvalue_t *val = (struct vm_tvalue_t*)&obj->ast.buffer[token];
+val->go = 0;
 ```
 
 *Setting*
@@ -635,7 +636,7 @@ var->value = 0;
 The set function is used to store a variable or for the developer to use a variable to interact with something else like a single value function call.
 
 1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` point to a position on the AST where the variable node can be found (`struct vm_tvar_t`).
+2. The `uint16_t token` point to a position on the AST where the variable node can be found (`struct vm_tvalue_t`).
 3. The `uint16_t val` refers to the variable position on the variable stack (e.g., `(struct vm_vinteger_t *)&obj->varstack.buffer[val]`).
 
 *Getting*
@@ -643,25 +644,16 @@ The set function is used to store a variable or for the developer to use a varia
 The get function is meant to retrieve a previously stored variable or to get the value of a system parameter.
 
 1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvar_t`).
+2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvalue_t`).
 
 The return value should be a `unsigned char *` pointer to the value on the stack or whatever structure used. The value returned by this function is copied to the local stack so it must be of a valid library token (`vm_vinteger_t`, `vm_vfloat_`, `vm_vnull_t`) with the same structure as these tokens.
-
-*Copying*
-
-The copy function is used to copy a variable value from one variable to another (`$a = 1; $b = $a`).
-
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvar_t`).
-
-To be able to copy a variable value from one value to the other you as a developer should look for the variable that needs  to be copied on the variable stack. The rules library doesn't relieve you in this.
 
 *Clearing*
 
 The clearing function can be used to remove a value association to a variable. This function is called to clear all values before a rule is parsed. When you want to enforce a local variable scope, this function allows to the remove all references of the called variables to their respective values.
 
 1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvar_t`).
+2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvalue_t`).
 
 *Printing*
 
@@ -780,10 +772,11 @@ First we number the static tokens
 22.	  TTRUE
 23.	  TFALSE
 24.	  TSTART
-25.	  VCHAR
-26.	  VINTEGER
-27.	  VFLOAT
-28.	  VNULL
+25.	  TVALUE
+26.	  VCHAR
+27.	  VINTEGER
+28.	  VFLOAT
+29.	  VNULL
 
 Let's say the `==` operator is the first operator (counted from zero) in the operator list and the `max` function is the second function in the functions list. Then this rule can be rewritten like this:
 
@@ -913,7 +906,8 @@ Let's loop through this new AST step by step and we always start at position 0:
 - 152: The condition evaluates to true so it goes back to the TIF at 132 with that result.
 - 132: The TIF knows the condition evaluates to true therefor continueing to position 172 where the TTRUE block resides. In this example there is no TFALSE block.
 - 172: The TTRUE block only has one expression to parse and that is the TVAR assignment at position 184.
-- 184: The TVAR is assigned the result of the TFUNCTION at position 68. As you can see here we jump a long way back because the nested TFUNCTIONS where parsed before the nested TIF blocks.
+- 184: The TVAR token points to the TVALUE token which contains the variable name `$a` and holds the pointer to the actual variable on the variable stack.
+- 192: The TVALUE is assigned the result of the TFUNCTION at position 68 and links directly to the TVAR token. From the TVAR token we jump a long way back because the nested TFUNCTIONS where parsed before the nested TIF blocks.
 - 68: The toplevel TFUNCTION is `max`. This function has two parameter. The first parameter can be found at position 92 where the `*` operator can be found.
 - 92: The TOPERATOR first looks for the left hand number at 84 and then the right hand number at 104. When it's done it returns the output back to the TFUNCTION at position 68.
 - 68: The next parameter of the TFUNCTION `max` is the second TOPERATOR which is found at 112. This again parses the left hand and the right hand side, but in this case the right hand side goes to the TLPAREN at 60. Parenthesis blocks are prioritized so they are evaluated first. As you can see we continue to move downwards.

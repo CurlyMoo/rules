@@ -88,10 +88,11 @@ typedef enum {
   TTRUE = 22,
   TFALSE = 23,
   TSTART = 24,
-  VCHAR = 25,
-  VINTEGER = 26,
-  VFLOAT = 27,
-  VNULL = 28,
+  TVALUE = 25,
+  VCHAR = 26,
+  VINTEGER = 27,
+  VFLOAT = 28,
+  VNULL = 29
 } token_types;
 
 #ifdef DEBUG
@@ -123,10 +124,11 @@ struct {
   "TTRUE",
   "TFALSE",
   "TSTART",
+  "TVALUE",
   "VCHAR",
   "VINTEGER",
   "VFLOAT",
-  "VNULL",
+  "VNULL"
 };
 #endif
 
@@ -197,7 +199,6 @@ typedef struct rule_options_t {
    * Variables
    */
   unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
-  int8_t (*cpy_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
   int8_t (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
   void (*prt_token_val_cb)(struct rules_t *obj, char *out, uint16_t size);
@@ -226,6 +227,12 @@ typedef struct vm_vchar_t {
 typedef struct vm_vnull_t {
   VM_GENERIC_FIELDS
 } __attribute__((aligned(4))) vm_vnull_t;
+
+typedef struct vm_tvalue_t {
+  VM_GENERIC_FIELDS
+  uint16_t go;
+  uint8_t token[];
+} __attribute__((aligned(4))) vm_tvalue_t;
 
 typedef struct vm_vinteger_t {
   VM_GENERIC_FIELDS
@@ -282,7 +289,6 @@ typedef struct vm_tvar_t {
   VM_GENERIC_FIELDS
   uint16_t go;
   uint16_t value;
-  uint8_t token[];
 } __attribute__((aligned(4))) vm_tvar_t;
 
 typedef struct vm_tevent_t {

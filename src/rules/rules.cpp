@@ -227,64 +227,6 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
   return 0;
 }
 
-// static int lexer_parse_quoted_string(struct rules_t *obj, struct lexer_t *lexer, int *start) {
-
-  // int x = lexer->current_char[0];
-  // if(lexer->current_char[0] == '\'' || lexer->current_char[0] == '"') {
-    // lexer->text[lexer->pos] = '\0';
-  // }
-  // *start = ++lexer->pos;
-  // if(lexer->pos < lexer->len) {
-
-    // while(lexer->pos < lexer->len) {
-      // if(x != '\'' && lexer->pos > 0 && lexer->text[lexer->pos] == '\'') {
-        // /*
-         // * Skip escape
-         // */
-        // lexer->current_char = &lexer->text[lexer->(*pos)++];
-      // } else if(x == '\'' && lexer->pos > 0 && lexer->text[lexer->pos] == '\\' && lexer->text[lexer->pos+1] == '\'') {
-        // /*
-         // * Remove escape
-         // */
-        // memmove(&lexer->text[lexer->pos], &lexer->text[lexer->pos+1], lexer->len-lexer->pos-1);
-        // lexer->text[lexer->len-1] = '\0';
-
-        // lexer->current_char = &lexer->text[lexer->(*pos)++];
-        // lexer->len--;
-      // } else if(x == '"' && lexer->pos > 0 && lexer->text[lexer->pos] == '\\' && lexer->text[lexer->pos+1] == '"') {
-        // /*
-         // * Remove escape
-         // */
-        // memmove(&lexer->text[lexer->pos], &lexer->text[lexer->pos+1], lexer->len-lexer->pos-1);
-        // lexer->text[lexer->len-1] = '\0';
-
-        // lexer->current_char = &lexer->text[lexer->(*pos)++];
-        // lexer->len--;
-      // } else if(x != '"' && lexer->pos > 0 && lexer->text[lexer->pos] == '"') {
-        // /*
-         // * Skip escape
-         // */
-        // lexer->current_char = &lexer->text[lexer->(*pos)++];
-      // } else if(lexer->text[lexer->pos] == x) {
-        // break;
-      // } else {
-        // lexer->(*pos)++;
-      // }
-    // }
-
-    // if(lexer->current_char[0] != '"' && lexer->current_char[0] != '\'') {
-      // printf("err: %s %d\n", __FUNCTION__, __LINE__);
-      // exit(-1);
-    // } else if(lexer->pos <= lexer->len) {
-      // lexer_isolate_token(obj, lexer, x, -1);
-      // return 0;
-    // } else {
-      // return -1;
-    // }
-  // }
-  // return -1;
-// }
-
 static int8_t lexer_parse_skip_characters(char *text, uint16_t len, uint16_t *pos) {
   char current = 0;
   if(is_mmu == 1) {
@@ -308,8 +250,107 @@ static int8_t lexer_parse_skip_characters(char *text, uint16_t len, uint16_t *po
   return 0;
 }
 
+static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *start, uint16_t *len) {
+  uint16_t i = 0, nr = 0;
+  uint8_t loop = 1;
+
+  while(loop) {
+    if(is_mmu == 1) {
+      *type = mmu_get_uint8(&(*text)[i]);
+    } else {
+      *type = (*text)[i];
+    }
+    *start = i;
+    *len = 0;
+    switch(*type) {
+      case VNULL:
+      case TSEMICOLON:
+      case TEND:
+      case TASSIGN:
+      case RPAREN:
+      case TCOMMA:
+      case LPAREN:
+      case TELSE:
+      case TTHEN:
+      case TIF:
+      case TELSEIF: {
+        i += 1;
+      } break;
+      case TNUMBER1: {
+        *len = 1;
+        i += 2;
+      } break;
+      case TNUMBER2: {
+        *len = 2;
+        i += 3;
+      } break;
+      case TNUMBER3: {
+        *len = 3;
+        i += 4;
+      } break;
+      case VINTEGER: {
+        /*
+         * Sizeof should reflect
+         * sizeof of vm_vinteger_t
+         * value
+         */
+        i += 1+sizeof(uint32_t);
+      } break;
+      case VFLOAT: {
+        /*
+         * Sizeof should reflect
+         * sizeof of vm_vfloat_t
+         * value
+         */
+        i += 1+sizeof(uint32_t);
+      } break;
+      case TFUNCTION:
+      case TOPERATOR: {
+        i += 2;
+      } break;
+      case TEOF: {
+        i += 1;
+        loop = 0;
+      } break;
+      case TCEVENT:
+      case TEVENT:
+      case TVAR: {
+        i++;
+        uint8_t current = 0;
+        if(is_mmu == 1) {
+          current = mmu_get_uint8(&(*text)[i]);
+        } else {
+          current = (*text)[i];
+        }
+        /*
+         * Consider tokens above 31 as regular characters
+         */
+        while(current >= 32 && current < 126) {
+          if(is_mmu == 1) {
+            current = mmu_get_uint8(&(*text)[++i]);
+          } else {
+            current = (*text)[++i];
+          }
+        }
+        *len = i - *start - 1;
+      } break;
+      /* LCOV_EXCL_START*/
+      default: {
+        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+        return -1;
+      } break;
+      /* LCOV_EXCL_STOP*/
+    }
+    if(skip == nr++) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
-  uint16_t pos = 0, nrblocks = 0, tpos = 0, trueslots = 0, funcslots = 0;
+  uint16_t pos = 0, nrblocks = 0, tpos = 0, trueslots = 0;
+  uint16_t funcslots = 0, nrtokens = 0;
   char current = 0, next = 0;
 
   *nrbytes = sizeof(struct vm_tstart_t);
@@ -319,18 +360,6 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 
   while(pos < *len) {
     lexer_parse_skip_characters(*text, *len, &pos);
-
-    // if(lexer->current_char[0] == '\'' || lexer->current_char[0] == '"') {
-      // ret = lexer_parse_quoted_string(obj, lexer, &tpos);
-      // type = TSTRING;
-      // lexer->(*pos)++;
-      // if(lexer->text[lexer->pos] == ' ') {
-        // lexer->text[lexer->pos] = '\0';
-      // } else {
-        // printf("err: %s %d\n", __FUNCTION__, __LINE__);
-        // exit(-1);
-      // }
-    // } else
 
     next = 0;
     if(is_mmu == 1) {
@@ -347,6 +376,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 
     if(isdigit(current) || (current == '-' && pos < *len && isdigit(next))) {
       uint16_t newlen = 0;
+      nrtokens++;
       lexer_parse_number(&(*text)[pos], *len-pos, &newlen);
 
       char tmp = 0;
@@ -497,8 +527,10 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         pos += newlen-x+1;
       }
     } else if(tolower(current) == 'i' && tolower(next) == 'f') {
+      nrtokens++;
       *nrbytes += sizeof(struct vm_tif_t);
       *nrbytes += sizeof(struct vm_ttrue_t);
+
 #ifdef DEBUG
       printf("TIF: %lu\n", sizeof(struct vm_tif_t));
       printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
@@ -567,6 +599,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       pos+=6;
       nrblocks++;
     } else if(tolower(current) == 'o' && tolower(next) == 'n') {
+      nrtokens++;
       pos+=2;
       lexer_parse_skip_characters((*text), *len, &pos);
       uint16_t s = pos;
@@ -615,6 +648,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                 )
               )
             ) {
+      nrtokens++;
       *nrbytes += sizeof(struct vm_ttrue_t);
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
@@ -639,6 +673,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                 )
               )
             ) {
+      nrtokens++;
       pos+=4;
       if(is_mmu == 1) {
         mmu_set_uint8(&(*text)[tpos++], TTHEN);
@@ -652,6 +687,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                   (is_mmu == 0 && tolower((*text)[pos+2]) == 'd')
                 )
               ) {
+      nrtokens++;
       pos+=3;
       nrblocks--;
       mmu_set_uint8(&(*text)[tpos++], TEND);
@@ -671,6 +707,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                 )
               )
             ) {
+      nrtokens++;
       *nrbytes += sizeof(struct vm_vnull_t);
 #ifdef DEBUG
       printf("VNULL: %lu\n", sizeof(struct vm_vnull_t));
@@ -682,6 +719,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
       pos+=4;
     } else if(current == ',') {
+      nrtokens++;
       /*
        * An additional function argument slot
        */
@@ -696,6 +734,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
       pos++;
     } else if(current == '(') {
+      nrtokens++;
       *nrbytes += sizeof(struct vm_lparen_t);
 #ifdef DEBUG
       printf("LPAREN: %lu\n", sizeof(struct vm_lparen_t));
@@ -707,6 +746,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
       pos++;
     } else if(current == ')') {
+      nrtokens++;
       if(is_mmu == 1) {
         mmu_set_uint8(&(*text)[tpos++], RPAREN);
       } else {
@@ -714,9 +754,11 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
       pos++;
     } else if(current == '=' && next != '=') {
+      nrtokens++;
       pos++;
       mmu_set_uint8(&(*text)[tpos++], TASSIGN);
     } else if(current == ';') {
+      nrtokens++;
       /*
        * An additional TTRUE slot
        */
@@ -761,6 +803,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
 
       if((len1 = is_function((*text), &pos, b)) > -1) {
+        nrtokens++;
         *nrbytes += sizeof(struct vm_tfunction_t);
         if(sizeof(struct vm_tfunction_t) % 4 == 0) {
           *nrbytes += sizeof(uint32_t);
@@ -782,7 +825,9 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         }
         pos += b;
       } else if((len1 = is_operator((*text), &pos, b)) > -1) {
+        nrtokens++;
         *nrbytes += sizeof(struct vm_toperator_t);
+
 #ifdef DEBUG
         printf("TOPERATOR: %lu\n", sizeof(struct vm_toperator_t));
 #endif
@@ -796,9 +841,53 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
           (*text)[tpos++] = len1;
         }
       } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb((char *)&cpy, b)) > -1) {
-        *nrbytes += sizeof(struct vm_tvar_t)+align(len1+1, 4);
+        *nrbytes += sizeof(struct vm_tvar_t);
+        /*
+         * Check for double vars
+         */
+
+        {
+          uint16_t y = 0, start = 0, len = 0;
+          uint8_t type = 0, match = 0;
+          /*
+           * Check if space for this variable
+           * was already accounted for. However,
+           * don't look past the tokens not
+           * already parsed, because that is where
+           * the actual unparsed rule lives. This
+           * is exactly why we count the nr of
+           * tokens while parsing.
+           *
+           */
+          while(lexer_peek(text, y, &type, &start, &len) >= 0 && ++y < nrtokens && match == 0) {
+            if(type == TVAR) {
+              if(is_mmu == 1) {
+                uint16_t a = 0;
+                if(len == len1) {
+                  for(a=0;a<len;a++) {
+                    if(mmu_get_uint8(&(*text)[y+a]) != mmu_get_uint8(&(*text)[pos+a])) {
+                      break;
+                    }
+                  }
+                  if(a == len1) {
+                    match = 1;
+                  }
+                }
+              } else {
+                if(len == len1 && strncmp(&(*text)[y], &(*text)[pos], len) == 0) {
+                  match = 1;
+                  break;
+                }
+              }
+            }
+          }
+          if(match == 0) {
+            *nrbytes += sizeof(struct vm_tvalue_t)+align(len1+1, 4);
+          }
+        }
 #ifdef DEBUG
         printf("TVAR: %lu\n", sizeof(struct vm_tvar_t)+align(len1+1, 4));
+        printf("TVALUE: %lu\n", sizeof(struct vm_tvar_t)+align(len1+1, 4));
 #endif
         if(is_mmu == 1) {
           mmu_set_uint8(&(*text)[tpos++], TVAR);
@@ -810,9 +899,12 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
           (*text)[tpos++] = TVAR;
           memcpy(&(*text)[tpos], &(*text)[pos], len1);
         }
+
+        nrtokens++;
         tpos += len1;
         pos += len1;
       } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb((*text), &pos, b)) > -1) {
+        nrtokens++;
         char start = 0, end = 0;
         if(pos+b+1 < *len) {
           if(is_mmu == 1) {
@@ -868,6 +960,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
     }
 
     if(nrblocks == 0) {
+      nrtokens++;
       /*
        * Remove one go slot because of the root
        * if or on block
@@ -930,102 +1023,124 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
   return 0;
 }
 
-static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *start, uint16_t *len) {
-  uint16_t i = 0, nr = 0;
-  uint8_t loop = 1;
+static uint16_t rule_next(struct rule_stack_t *stack, uint16_t *i) {
+  uint16_t x = *i, nrbytes = 0;
+  uint8_t type = 0;
+  if(is_mmu == 1) {
+    nrbytes = mmu_get_uint16(&stack->nrbytes);
+  } else {
+    nrbytes = stack->nrbytes;
+  }
 
-  while(loop) {
+  if(*i >= nrbytes) {
+    return 0;
+  } else {
     if(is_mmu == 1) {
-      *type = mmu_get_uint8(&(*text)[i]);
+      type = mmu_get_uint8(&stack->buffer[*i]);
     } else {
-      *type = (*text)[i];
+      type = stack->buffer[*i];
     }
-    *start = i;
-    *len = 0;
-    switch(*type) {
-      case VNULL:
-      case TSEMICOLON:
-      case TEND:
-      case TASSIGN:
-      case RPAREN:
-      case TCOMMA:
-      case LPAREN:
-      case TELSE:
-      case TTHEN:
-      case TIF:
-      case TELSEIF: {
-        i += 1;
-      } break;
-      case TNUMBER1: {
-        *len = 1;
-        i += 2;
-      } break;
-      case TNUMBER2: {
-        *len = 2;
-        i += 3;
-      } break;
-      case TNUMBER3: {
-        *len = 3;
-        i += 4;
-      } break;
-      case VINTEGER: {
-        /*
-         * Sizeof should reflect
-         * sizeof of vm_vinteger_t
-         * value
-         */
-        i += 1+sizeof(uint32_t);
-      } break;
-      case VFLOAT: {
-        /*
-         * Sizeof should reflect
-         * sizeof of vm_vfloat_t
-         * value
-         */
-        i += 1+sizeof(uint32_t);
-      } break;
-      case TFUNCTION:
-      case TOPERATOR: {
-        i += 2;
+    switch(type) {
+      case TSTART: {
+        (*i) += sizeof(struct vm_tstart_t);
       } break;
       case TEOF: {
-        i += 1;
-        loop = 0;
+        (*i) += sizeof(struct vm_teof_t);
       } break;
-      case TCEVENT:
-      case TEVENT:
-      case TVAR: {
-        i++;
-        char current = 0;
+      case VNULL: {
+        (*i) += sizeof(struct vm_vnull_t);
+      } break;
+      case TELSEIF:
+      case TIF: {
+        (*i) += sizeof(struct vm_tif_t);
+      } break;
+      case LPAREN: {
+        (*i) += sizeof(struct vm_lparen_t);
+      } break;
+      case TFALSE:
+      case TTRUE: {
+        struct vm_ttrue_t *node = (struct vm_ttrue_t *)&stack->buffer[*i];
+        uint8_t nrgo = 0;
         if(is_mmu == 1) {
-          current = mmu_get_uint8(&(*text)[i]);
+          nrgo = mmu_get_uint8(&node->nrgo);
         } else {
-          current = (*text)[i];
+          nrgo = node->nrgo;
         }
-        /*
-         * Consider tokens above 32 as regular characters
-         */
-        while(current > 32 && current < 126) {
-          if(is_mmu == 1) {
-            current = mmu_get_uint8(&(*text)[++i]);
-          } else {
-            current = (*text)[++i];
-          }
-        }
-        *len = i - *start - 1;
+        (*i) += sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*nrgo), 4);
       } break;
-      /* LCOV_EXCL_START*/
+      case TFUNCTION: {
+        struct vm_tfunction_t *node = (struct vm_tfunction_t *)&stack->buffer[*i];
+        uint8_t nrgo = 0;
+        if(is_mmu == 1) {
+          nrgo = mmu_get_uint8(&node->nrgo);
+        } else {
+          nrgo = node->nrgo;
+        }
+        (*i) += sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*nrgo), 4);
+      } break;
+      case TCEVENT: {
+        struct vm_tcevent_t *node = (struct vm_tcevent_t *)&stack->buffer[*i];
+        uint16_t len = 0;
+        if(is_mmu == 1) {
+          while(mmu_get_uint8(&node->token[++len]) != 0);
+        } else {
+          len = strlen((char *)node->token);
+        }
+        (*i) += sizeof(struct vm_tcevent_t)+align(len+1, 4);
+      } break;
+      case TVAR: {
+        (*i) += sizeof(struct vm_tvar_t);
+      } break;
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&stack->buffer[*i];
+        uint16_t len = 0;
+        if(is_mmu == 1) {
+          while(mmu_get_uint8(&node->token[++len]) != 0);
+        } else {
+          len = strlen((char *)node->token);
+        }
+        (*i) += sizeof(struct vm_tvalue_t)+align(len+1, 4);
+      } break;
+      case TEVENT: {
+        struct vm_tevent_t *node = (struct vm_tevent_t *)&stack->buffer[*i];
+        uint16_t len = 0;
+        if(is_mmu == 1) {
+          while(mmu_get_uint8(&node->token[++len]) != 0);
+        } else {
+          len = strlen((char *)node->token);
+        }
+        (*i) += sizeof(struct vm_tevent_t)+align(len+1, 4);
+      } break;
+      case TNUMBER: {
+        struct vm_tnumber_t *node = (struct vm_tnumber_t *)&stack->buffer[*i];
+        uint16_t len = 0;
+        if(is_mmu == 1) {
+          while(mmu_get_uint8(&node->token[++len]) != 0);
+        } else {
+          len = strlen((char *)node->token);
+        }
+        (*i) += sizeof(struct vm_tnumber_t)+align(len+1, 4);
+      } break;
+      case VINTEGER: {
+        (*i) += sizeof(struct vm_vinteger_t);
+      } break;
+      case VFLOAT: {
+        (*i) += sizeof(struct vm_vfloat_t);
+      } break;
+      case TOPERATOR: {
+        (*i) += sizeof(struct vm_toperator_t);
+      } break;
       default: {
-        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
-        return -1;
       } break;
-      /* LCOV_EXCL_STOP*/
-    }
-    if(skip == nr++) {
-      return i;
     }
   }
-  return -1;
+  uint8_t ret = 0;
+  if(is_mmu == 1) {
+    ret = mmu_get_uint8(&stack->buffer[x]);
+  } else {
+    ret = stack->buffer[x];
+  }
+  return ret;
 }
 
 static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_t start, uint16_t len, uint16_t opt) {
@@ -1277,13 +1392,13 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
     } break;
     case TFALSE:
     case TTRUE: {
-      size = ret+sizeof(struct vm_ttrue_t)+align((sizeof(uint16_t)*opt), 4);
+      struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
+      size = ret+sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*opt), 4);
       if(is_mmu == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
         assert(size <= obj->ast.bufsize);
       }
-      struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, ret);
@@ -1303,18 +1418,13 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
       }
     } break;
     case TFUNCTION: {
-      size = ret+sizeof(struct vm_tfunction_t);
-      if((sizeof(struct vm_tfunction_t) % 4) == 0) {
-        size += (sizeof(uint32_t)*opt);
-      } else {
-        size += (sizeof(uint16_t)*opt);
-      }
+      struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
+      size = ret+sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*opt), 4);
       if(is_mmu == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
         assert(size <= obj->ast.bufsize);
       }
-      struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, ret);
@@ -1354,7 +1464,8 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
       }
     } break;
     case TVAR: {
-      size = ret+sizeof(struct vm_tvar_t)+align(len+1, 4);
+      size = ret+sizeof(struct vm_tvar_t);
+
       if(is_mmu == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
@@ -1367,6 +1478,40 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         mmu_set_uint16(&node->go, 0);
         mmu_set_uint16(&node->value, 0);
         mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+        node->type = type;
+        node->ret = ret;
+        node->go = 0;
+        node->value = 0;
+        obj->ast.nrbytes = size;
+      }
+    } break;
+    case TVALUE: {
+      {
+        uint16_t i = 0, x = 0;
+        uint8_t type = 0;
+        while((type = rule_next(&obj->ast, &i)) > 0) {
+          if(type == TVALUE) {
+            struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[x];
+            if(strncmp((char *)node->token, &(*text)[start+1], len) == 0) {
+              return x;
+            }
+          }
+          x = i;
+        }
+      }
+      size = ret+sizeof(struct vm_tvalue_t)+align(len+1, 4);
+      if(is_mmu == 1) {
+        assert(size <= mmu_get_uint16(&obj->ast.bufsize));
+      } else {
+        assert(size <= obj->ast.bufsize);
+      }
+      struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[ret];
+      if(is_mmu == 1) {
+        mmu_set_uint8(&node->type, type);
+        mmu_set_uint16(&node->ret, 0);
+        mmu_set_uint16(&node->go, 0);
+        mmu_set_uint16(&obj->ast.nrbytes, size);
         for(uint16_t x=0;x<len;x++) {
           mmu_set_uint8(&node->token[x], mmu_get_uint8(&(*text)[start+1+x]));
         }
@@ -1374,7 +1519,6 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         node->type = type;
         node->ret = ret;
         node->go = 0;
-        node->value = 0;
         memcpy(node->token, &(*text)[start+1], len);
         obj->ast.nrbytes = size;
       }
@@ -1637,6 +1781,13 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
         case VFLOAT: {
           right = vm_parent(text, obj, c, start, len, 0);
           (*pos)++;
+
+          if(c == TVAR) {
+             uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+             struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[right];
+
+             node->value = ptr;
+          }
         } break;
         default: {
           logprintf_P(F("ERROR: Expected a parenthesis block, function, number or variable"));
@@ -2879,6 +3030,13 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               case VINTEGER: {
                 step_out = vm_parent(text, obj, a, start, len, 0);
                 pos++;
+
+                if(a == TVAR) {
+                  uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+                  struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+
+                  node->value = ptr;
+                }
               } break;
               /* LCOV_EXCL_START*/
               default: {
@@ -3072,6 +3230,10 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             pos++;
 
             node = (struct vm_tvar_t *)&obj->ast.buffer[step];
+            {
+              uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+              node->value = ptr;
+            }
             node1 = (struct vm_ttrue_t *)&obj->ast.buffer[step_out];
 
             {
@@ -3255,6 +3417,12 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             step = vm_parent(text, obj, TVAR, start, len, 0);
             pos++;
 
+            {
+              uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+              struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step];
+              node->value = ptr;
+            }
+
             struct vm_tvar_t *in = (struct vm_tvar_t *)&obj->ast.buffer[step];
             struct vm_tvar_t *out = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
             if(is_mmu == 1) {
@@ -3430,6 +3598,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 pos = has_paren + 1;
                 step_out = vm_parent(text, obj, a, start, len, 0);
                 pos++;
+                if(a == TVAR) {
+                  uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+                  struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+                  node->value = ptr;
+                }
               } break;
               case RPAREN: {
                 logprintf_P(F("ERROR: Empty parenthesis block"));
@@ -3747,6 +3920,11 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 case TNUMBER3: {
                   int16_t a = vm_parent(text, obj, type, start, len, 0);
 
+                  if(type == TVAR) {
+                    uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+                    struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[a];
+                    node->value = ptr;
+                  }
                   pos++;
 
                   node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
@@ -4020,7 +4198,7 @@ static void print_ast(struct rules_t *obj) {
           }
         }
         printf(" rankdir = LR}\n");
-        i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*node->nrgo)-1;
+        i+=sizeof(struct vm_ttrue_t)+(sizeof(node->go[0])*node->nrgo)-1;
       } break;
       case TFUNCTION: {
         int x = 0;
@@ -4030,11 +4208,20 @@ static void print_ast(struct rules_t *obj) {
           printf("\"%d\" -> \"%d\"\n", i, node->go[x]);
         }
         // printf("\"%d\" -> \"%d\"\n", i, node->ret);
-        i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo)-1;
+        i+=sizeof(struct vm_tfunction_t)+(sizeof(node->go[0])*node->nrgo)-1;
       } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
-        printf("\"%d\"[label=\"%s\"]\n", i, node->token);
+        printf("\"%d\"[label=\"TVAR\"]\n", i);
+        if(node->go > 0) {
+          printf("\"%d\" -> \"%d\"\n", i, node->go);
+        }
+        printf("\"%d\" -> \"%d\" [arrowhead=none,style=dotted]\n", i, node->value);
+        i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
+        printf("\"%d\"[label=\"%s\",style=dotted]\n", i, node->token);
         if(node->go > 0) {
           printf("\"%d\" -> \"%d\"\n", i, node->go);
         }
@@ -4123,13 +4310,11 @@ static void print_steps(struct rules_t *obj) {
       case TELSEIF:
       case TIF: {
         struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[i];
-        printf("\"%d-2\"[label=\"IF\"]\n", i);
         if(obj->ast.buffer[i] == TELSEIF) {
           printf("\"%d-2\"[label=\"ELSEIF\"]\n", i);
         } else {
           printf("\"%d-2\"[label=\"IF\"]\n", i);
         }
-        printf("\"%d-2\"[label=\"IF\"]\n", i);
         printf("\"%d-2\" -> \"%d-4\"\n", i, i);
         if(node->true_ > 0) {
           printf("\"%d-2\" -> \"%d-6\"\n", i, i);
@@ -4178,7 +4363,7 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%d-2\" -> \"%d-%d\"\n", i, i, x+4);
         printf("\"%d-%d\"[label=\"%d\" shape=diamond]\n", i, x+4, node->ret);
         printf("\"%d-1\" -> \"%d-2\"\n", i, i);
-        i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*node->nrgo)-1;
+        i+=sizeof(struct vm_ttrue_t)+(sizeof(node->go[0])*node->nrgo)-1;
       } break;
       case TFUNCTION: {
         uint16_t x = 0;
@@ -4192,7 +4377,7 @@ static void print_steps(struct rules_t *obj) {
         printf("\"%d-2\" -> \"%d-%d\"\n", i, i, x+4);
         printf("\"%d-%d\"[label=\"%d\" shape=diamond]\n", i, x+4, node->ret);
         printf("\"%d-1\" -> \"%d-2\"\n", i, i);
-        i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*node->nrgo)-1;
+        i+=sizeof(struct vm_tfunction_t)+(sizeof(node->go[0])*node->nrgo)-1;
       } break;
       case TCEVENT: {
         struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[i];
@@ -4206,17 +4391,30 @@ static void print_steps(struct rules_t *obj) {
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
         printf("\"%d-1\"[label=\"%d\" shape=square]\n", i, i);
-        printf("\"%d-2\"[label=\"%s\"]\n", i, node->token);
+        printf("\"%d-2\"[label=\"TVAR\"]\n", i);
         if(node->go > 0) {
           printf("\"%d-2\" -> \"%d-4\"\n", i, i);
         }
         printf("\"%d-2\" -> \"%d-3\"\n", i, i);
+        printf("\"%d-2\" -> \"%d-5\" [arrowhead=none,style=dotted]\n", i, i);
         printf("\"%d-3\"[label=\"%d\" shape=diamond]\n", i, node->ret);
         if(node->go > 0) {
           printf("\"%d-4\"[label=\"%d\" shape=square]\n", i, node->go);
         }
+        printf("\"%d-5\"[label=\"%d\" shape=rectangle,style=dotted]\n", i, node->value);
         printf("\"%d-1\" -> \"%d-2\"\n", i, i);
-        i+=sizeof(struct vm_tvar_t)+strlen((char *)node->token);
+        i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
+        printf("\"%d-1\"[label=\"%d\" shape=rectangle,style=dotted]\n", i, i);
+        printf("\"%d-2\"[label=\"%s\", style=dotted]\n", i, node->token);
+        if(node->go > 0) {
+          printf("\"%d-2\" -> \"%d-4\"\n", i, i);
+          printf("\"%d-4\"[label=\"%d\" shape=square,syle=dotted]\n", i, node->go);
+        }
+        printf("\"%d-1\" -> \"%d-2\" [arrowhead=none,style=dotted]\n", i, i);
+        i+=sizeof(struct vm_tvalue_t)+strlen((char *)node->token);
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
@@ -4482,7 +4680,7 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
 #endif
 
 #ifdef DEBUG
-  printf("%s %d %d\n", __FUNCTION__, __LINE__, valtype);
+  printf("%s %d %d\n", __FUNCTION__, __LINE__, ret);
 #endif
 
   switch(valtype) {
@@ -4702,8 +4900,8 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
           type_ret = obj->ast.buffer[val_ret];
         }
         switch(type_ret) {
-          case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
+          case TVALUE: {
+            struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
             if(is_mmu == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
@@ -4750,8 +4948,8 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
           type_ret = obj->ast.buffer[val_ret];
         }
         switch(type_ret) {
-          case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
+          case TVALUE: {
+            struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
             if(is_mmu == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
@@ -4795,8 +4993,8 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
           type_ret = obj->ast.buffer[val_ret];
         }
         switch(type_ret) {
-          case TVAR: {
-            struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[val_ret];
+          case TVALUE: {
+            struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
             if(is_mmu == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
@@ -4859,6 +5057,7 @@ static void vm_clear_values(struct rules_t *obj) {
     } else {
       type = obj->ast.buffer[i];
     }
+
     switch(type) {
       case TSTART: {
         i+=sizeof(struct vm_tstart_t)-1;
@@ -4890,7 +5089,7 @@ static void vm_clear_values(struct rules_t *obj) {
         } else {
           nrgo = node->nrgo;
         }
-        i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*nrgo)-1;
+        i+=sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
@@ -4902,7 +5101,7 @@ static void vm_clear_values(struct rules_t *obj) {
           nrgo = node->nrgo;
           node->value = 0;
         }
-        i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*nrgo)-1;
+        i+=sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
       } break;
       case TCEVENT: {
         struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[i];
@@ -4912,33 +5111,30 @@ static void vm_clear_values(struct rules_t *obj) {
         } else {
           x = strlen((char *)node->token);
         }
-        i+=sizeof(struct vm_tcevent_t)+x;
+        i+=sizeof(struct vm_tcevent_t)+align(x+1, 4)-1;
       } break;
       case TVAR: {
-        struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
-        uint16_t x = 0;
-        if(rule_options.clr_token_val_cb != NULL) {
-          uint16_t val = 0;
-          if(is_mmu == 1) {
-            val = mmu_get_uint16(&node->value);
-          } else {
-            val = node->value;
-          }
-          if(val > 0) {
-            rule_options.clr_token_val_cb(obj, val);
-          }
-        }
+        i+=sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
+        uint16_t x = 0, go = 0;
         if(is_mmu == 1) {
-          mmu_set_uint16(&node->value, 0);
+          go = mmu_get_uint16(&node->go);
+          mmu_set_uint16(&node->go, 0);
         } else {
-          node->value = 0;
+          go = node->go;
+          node->go = 0;
+        }
+        if(rule_options.clr_token_val_cb != NULL && go > 0) {
+          rule_options.clr_token_val_cb(obj, go);
         }
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++x]) != 0);
         } else {
           x = strlen((char *)node->token);
         }
-        i+=sizeof(struct vm_tvar_t)+x;
+        i+=sizeof(struct vm_tvalue_t)+align(x+1, 4)-1;
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
@@ -4948,7 +5144,7 @@ static void vm_clear_values(struct rules_t *obj) {
         } else {
           x = strlen((char *)node->token);
         }
-        i += sizeof(struct vm_tevent_t)+x;
+        i+=sizeof(struct vm_tevent_t)+align(x+1, 4)-1;
       } break;
       case TNUMBER: {
         struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[i];
@@ -4958,7 +5154,7 @@ static void vm_clear_values(struct rules_t *obj) {
         } else {
           x = strlen((char *)node->token);
         }
-        i+=sizeof(struct vm_tnumber_t)+x;
+        i+=sizeof(struct vm_tnumber_t)+align(x+1, 4)-1;
       } break;
       case VINTEGER: {
         i+=sizeof(struct vm_vinteger_t)-1;
@@ -4975,8 +5171,13 @@ static void vm_clear_values(struct rules_t *obj) {
         }
         i+=sizeof(struct vm_toperator_t)-1;
       } break;
+      /* LCOV_EXCL_START*/
       default: {
+        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+        exit(-1);
+        return;
       } break;
+      /* LCOV_EXCL_STOP*/
     }
   }
 }
@@ -5407,16 +5608,12 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 node = (struct vm_tfunction_t *)&obj->ast.buffer[go];
               } break;
               case TVAR: {
-                if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  if(rule_options.cpy_token_val_cb(obj, node_go) == -1) { // TESTME
-                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
-                    return -1;
-                  }
-
-                  unsigned char *val = rule_options.get_token_val_cb(obj, node_go);
+                if(rule_options.get_token_val_cb != NULL) {
+                  struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[node_go];
+                  unsigned char *val = rule_options.get_token_val_cb(obj, var->value);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
-                    logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
+                    logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value4"));
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
@@ -5428,7 +5625,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                   node = (struct vm_tfunction_t *)&obj->ast.buffer[go];
                 } else {
                   /* LCOV_EXCL_START*/
-                  logprintf_P(F("FATAL: No '[get|cpy]_token_val_cb' set to handle variables"));
+                  logprintf_P(F("FATAL: No 'get_token_val_cb' set to handle variables"));
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 }
@@ -5619,16 +5816,13 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               /*
                * If vars are seperate steps
                */
-              if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
-                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
-                  return -1;
-                }
-                unsigned char *val = rule_options.get_token_val_cb(obj, step);
+              if(rule_options.get_token_val_cb != NULL) {
+                struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[step];
+                unsigned char *val = rule_options.get_token_val_cb(obj, var->value);
 
                 /* LCOV_EXCL_START*/
                 if(val == NULL) {
-                  logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
+                  logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value1"));
                   return -1;
                 }
                 /* LCOV_EXCL_STOP*/
@@ -5641,7 +5835,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 node = (struct vm_toperator_t *)&obj->ast.buffer[go];
               } else {
                 /* LCOV_EXCL_START*/
-                logprintf_P(F("FATAL: No '[get|cpy]_token_val_cb' set to handle variables"));
+                logprintf_P(F("FATAL: No 'get_token_val_cb' set to handle variables"));
                 return -1;
                 /* LCOV_EXCL_STOP*/
               }
@@ -5707,28 +5901,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               /*
                * If vars are seperate steps
                */
-              if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                if(rule_options.cpy_token_val_cb(obj, step) == -1) { // TESTME
-                  logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
-                  return -1;
-                }
-                unsigned char *val = rule_options.get_token_val_cb(obj, step);
+              if(rule_options.get_token_val_cb != NULL ) {
+                struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[step];
+                unsigned char *val = rule_options.get_token_val_cb(obj, var->value);
 
                 /* LCOV_EXCL_START*/
                 if(val == NULL) {
-                  logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
+                  logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value2"));
                   return -1;
                 }
                 /* LCOV_EXCL_STOP*/
 
                 b = vm_value_clone(obj, val);
+
                 /*
                  * Reassign node due to possible reallocs
                  */
                 node = (struct vm_toperator_t *)&obj->ast.buffer[go];
               } else {
                 /* LCOV_EXCL_START*/
-                logprintf_P(F("FATAL: No '[get|cpy]_token_val_cb' set to handle variables"));
+                logprintf_P(F("FATAL: No 'get_token_val_cb' set to handle variables"));
                 return -1;
                 /* LCOV_EXCL_STOP*/
               }
@@ -6037,13 +6229,6 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         }
 
         if(node_go == 0) {
-          if(rule_options.cpy_token_val_cb != NULL) {
-            if(rule_options.cpy_token_val_cb(obj, go) == -1) { // TESTME
-              logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
-              return -1;
-            }
-          }
-
           /*
            * Reassign node due to various (unsigned char *)REALLOC's
            */
@@ -6113,16 +6298,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               } break;
               case TNUMBER:
               case VFLOAT:
-              case VINTEGER: {
-                idx = vm_value_set(obj, node_go, go);
-
-                /*
-                 * Reassign node due to various (unsigned char *)REALLOC's
-                 */
-                node = (struct vm_tvar_t *)&obj->ast.buffer[go];
-              } break;
+              case VINTEGER:
               case VNULL: {
-                idx = vm_value_set(obj, node_go, go);
+                idx = vm_value_set(obj, node_go, node->value);
+
                 /*
                  * Reassign node due to various (unsigned char *)REALLOC's
                  */
@@ -6132,22 +6311,20 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * Clone variable value to new variable
                */
               case TVAR: {
-                if(rule_options.get_token_val_cb != NULL && rule_options.cpy_token_val_cb != NULL) {
-                  if(rule_options.cpy_token_val_cb(obj, ret) == -1) { // TESTME
-                    logprintf_P(F("FATAL: 'cpy_token_val_cb' returned with an error"));
-                    return -1;
-                  }
-                  unsigned char *val = rule_options.get_token_val_cb(obj, ret);
+                if(rule_options.get_token_val_cb != NULL) {
+
+                  struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[ret];
+                  unsigned char *val = rule_options.get_token_val_cb(obj, var->value);
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
-                    logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
+                    logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value3"));
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
                   idx = vm_value_clone(obj, val);
                 } else {
                   /* LCOV_EXCL_START*/
-                  logprintf_P(F("FATAL: No '[get|cpy]_token_val_cb' set to handle variables"));
+                  logprintf_P(F("FATAL: No 'get_token_val_cb' set to handle variables"));
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 }
@@ -6192,200 +6369,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 /* LCOV_EXCL_STOP*/
               }
 
-              /*
-               * Copy var to a temp struct so
-               * interface users don't have to
-               * worry about 1st or 2nd stack.
-               */
-              // struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[go];
-              // if(is_mmu == 1) {
-                // tvar.ret = mmu_get_uint16(&var->ret);
-                // tvar.type = mmu_get_uint8(&var->type);
-                // tvar.go = mmu_get_uint16(&var->go);
-                // tvar.value = mmu_get_uint16(&var->value);
-                // uint8_t x = 0;
-                // char c = 0;
-                // while(1) {
-                  // c = mmu_get_uint8(&var->token[x]);
-                  // if(c == 0) {
-                    // break;
-                  // }
-                  // tvar.token[x] = c;
-                  // x++;
-                // }
-              // } else {
-                // tvar.ret = var->ret;
-                // tvar.type = var->type;
-                // tvar.go = var->go;
-                // tvar.value = var->value;
-                // memcpy(&tvar.token, &var->token, strlen((char *)var->token));
-              // }
-
-              {
-                /*
-                 * Remove all values linked to variables
-                 * with the names name.
-                 */
-                uint16_t i = 0, nrbytes = 0;
-                uint8_t type = 0;
-                if(is_mmu == 1) {
-                  nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
-                } else {
-                  nrbytes = obj->ast.nrbytes;
-                }
-                for(i=0;i<nrbytes;i++) {
-                  if(is_mmu == 1) {
-                    type = mmu_get_uint8(&obj->ast.buffer[i]);
-                  } else {
-                    type = obj->ast.buffer[i];
-                  }
-                  switch(type) {
-                    case TSTART: {
-                      i+=sizeof(struct vm_tstart_t)-1;
-                    } break;
-                    case TEOF: {
-                      i+=sizeof(struct vm_teof_t)-1;
-                    } break;
-                    case VNULL: {
-                      i+=sizeof(struct vm_vnull_t)-1;
-                    } break;
-                    case TIF: {
-                      i+=sizeof(struct vm_tif_t)-1;
-                    } break;
-                    case LPAREN: {
-                      struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[i];
-                      if(is_mmu == 1) {
-                        mmu_set_uint16(&node->value, 0);
-                      } else {
-                        node->value = 0;
-                      }
-                      i+=sizeof(struct vm_lparen_t)-1;
-                    } break;
-                    case TFALSE:
-                    case TTRUE: {
-                      struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[i];
-                      uint8_t nrgo = 0;
-                      if(is_mmu == 1) {
-                        nrgo = mmu_get_uint8(&node->nrgo);
-                      } else {
-                        nrgo = node->nrgo;
-                      }
-                      i+=sizeof(struct vm_ttrue_t)+(sizeof(uint16_t)*nrgo)-1;
-                    } break;
-                    case TFUNCTION: {
-                      struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
-                      uint8_t nrgo = 0;
-                      if(is_mmu == 1) {
-                        nrgo = mmu_get_uint8(&node->nrgo);
-                        mmu_set_uint16(&node->value, 0);
-                      } else {
-                        nrgo = node->nrgo;
-                        node->value = 0;
-                      }
-                      i+=sizeof(struct vm_tfunction_t)+(sizeof(uint16_t)*nrgo)-1;
-                    } break;
-                    case TCEVENT: {
-                      struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[i];
-                      uint16_t x = 0;
-                      if(is_mmu == 1) {
-                        while(mmu_get_uint8(&node->token[++x]) != 0);
-                      } else {
-                        x = strlen((char *)node->token);
-                      }
-                      i+=sizeof(struct vm_tcevent_t)+x;
-                    } break;
-                    case TVAR: {
-                      struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
-                      struct vm_tvar_t *node1 = (struct vm_tvar_t *)&obj->ast.buffer[go];
-                      uint16_t val = 0, x = 0;
-                      uint8_t match = 1;
-                      if(is_mmu == 1) {
-                        uint16_t a = 0, b = 0;
-                        while(
-                          mmu_get_uint8(&node->token[a]) != 0 && mmu_get_uint8(&node1->token[b]) != 0 &&
-                          mmu_get_uint8(&node->token[a]) == mmu_get_uint8(&node1->token[b])) {
-                          a++; b++;
-                        }
-                        if(mmu_get_uint8(&node->token[a]) != 0 || mmu_get_uint8(&node1->token[b]) != 0) { match = 0; };
-                      } else {
-                        if(strcmp((char *)node->token, (char *)node1->token) != 0) { match = 0; };
-                      }
-                      if(match == 1 && i != go) {
-                        if(is_mmu == 1) {
-                          val = mmu_get_uint16(&node->value);
-                        } else {
-                          val = node->value;
-                        }
-                        if(val > 0) {
-                          if(rule_options.clr_token_val_cb != NULL) {
-                            rule_options.clr_token_val_cb(obj, val);
-                          }
-                          if(is_mmu == 1) {
-                            mmu_set_uint16(&node->value, 0);
-                          } else {
-                            node->value = 0;
-                          }
-                        }
-                      }
-                      if(is_mmu == 1) {
-                        while(mmu_get_uint8(&node->token[++x]) != 0);
-                      } else {
-                        x = strlen((char *)node->token);
-                      }
-                      i+=sizeof(struct vm_tvar_t)+x;
-                    } break;
-                    case TEVENT: {
-                      struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
-                      uint16_t x = 0;
-                      if(is_mmu == 1) {
-                        while(mmu_get_uint8(&node->token[++x]) != 0);
-                      } else {
-                        x = strlen((char *)node->token);
-                      }
-                      i += sizeof(struct vm_tevent_t)+x;
-                    } break;
-                    case TNUMBER: {
-                      struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[i];
-                      uint16_t x = 0;
-                      if(is_mmu == 1) {
-                        while(mmu_get_uint8(&node->token[++x]) != 0);
-                      } else {
-                        x = strlen((char *)node->token);
-                      }
-                      i+=sizeof(struct vm_tnumber_t)+x;
-                    } break;
-                    case VINTEGER: {
-                      i+=sizeof(struct vm_vinteger_t)-1;
-                    } break;
-                    case VFLOAT: {
-                      i+=sizeof(struct vm_vfloat_t)-1;
-                    } break;
-                    case TOPERATOR: {
-                      struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[i];
-                      if(is_mmu == 1) {
-                        mmu_set_uint16(&node->value, 0);
-                      } else {
-                        node->value = 0;
-                      }
-                      i+=sizeof(struct vm_toperator_t)-1;
-                    } break;
-                    default: {
-                    } break;
-                  }
-                }
-              }
-              rule_options.set_token_val_cb(obj, go, idx);
-
-              // if(is_mmu == 1) {
-                // mmu_set_uint16(&var->ret, tvar.ret);
-                // mmu_set_uint16(&var->go, tvar.go);
-                // mmu_set_uint16(&var->value, tvar.value);
-              // } else {
-                // var->ret = tvar.ret;
-                // var->go = tvar.go;
-                // var->value = tvar.value;
-              // }
-
+              rule_options.set_token_val_cb(obj, node->value, idx);
               vm_value_del(obj, idx);
 
               /*
@@ -6464,21 +6448,29 @@ static void print_bytecode_mmu(struct rules_t *obj) {
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
 
+        Serial.printf("(TVAR)[%lu][", 8);
+        Serial.printf("type: %d, ", mmu_get_uint8(&node->type));
+        Serial.printf("ret: %d, ", mmu_get_uint16(&node->ret));
+        Serial.printf("go: %d, ", mmu_get_uint16(&node->go));
+        Serial.printf("value: %d]\n", mmu_get_uint16(&node->value));
+        i += sizeof(struct vm_tvar_t)-1;
+      } break;
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
+
         uint16_t x = 0, len = 0;
         while(mmu_get_uint8(&node->token[++x]) != 0);
         len = x;
 
-        Serial.printf("(TVAR)[%lu][", 8+align(len+1, 4));
+        Serial.printf("(TVALUE)[%lu][", 8+align(len+1, 4));
         Serial.printf("type: %d, ", mmu_get_uint8(&node->type));
-        Serial.printf("ret: %d, ", mmu_get_uint16(&node->ret));
         Serial.printf("go: %d, ", mmu_get_uint16(&node->go));
-        Serial.printf("value: %d, ", mmu_get_uint16(&node->value));
         Serial.printf("token: "); x = 0;
         while(x < len) {
           Serial.printf("%c", mmu_get_uint8(&node->token[x++]));
         }
         Serial.printf("]\n");
-        i += sizeof(struct vm_tvar_t)+align(len+1, 4)-1;
+        i += sizeof(struct vm_tvalue_t)+align(len+1, 4)-1;
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
@@ -6568,7 +6560,7 @@ static void print_bytecode_mmu(struct rules_t *obj) {
         uint8_t x = 0, nrgo = 0;
         nrgo = mmu_get_uint8(&node->nrgo);
 
-        Serial.printf("(TTRUE)[%lu][", 4+align((sizeof(uint16_t)*nrgo), 4));
+        Serial.printf("(TTRUE)[%lu][", 4+align((sizeof(node->go[0])*nrgo), 4));
         Serial.printf("type: %d, ", mmu_get_uint8(&node->type));
         Serial.printf("ret: %d, ", mmu_get_uint16(&node->ret));
         Serial.printf("nrgo: %d, ", mmu_get_uint8(&node->nrgo));
@@ -6580,15 +6572,14 @@ static void print_bytecode_mmu(struct rules_t *obj) {
           }
         }
         Serial.printf("]]\n");
-        i += sizeof(struct vm_ttrue_t)+align((sizeof(uint16_t)*nrgo), 4)-1;
+        i += sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
-
         uint8_t x = 0, nrgo = 0;
         nrgo = mmu_get_uint8(&node->nrgo);
 
-        Serial.printf("(TFUNCTION)[%lu][", 8+(sizeof(uint16_t)*nrgo));
+        Serial.printf("(TFUNCTION)[%lu][", 8+(sizeof(node->go[0])*nrgo));
         Serial.printf("type: %d, ", mmu_get_uint8(&node->type));
         Serial.printf("ret: %d, ", mmu_get_uint16(&node->ret));
         Serial.printf("token: %d, ", mmu_get_uint8(&node->token));
@@ -6602,7 +6593,8 @@ static void print_bytecode_mmu(struct rules_t *obj) {
           }
         }
         Serial.printf("]]\n");
-        i += sizeof(struct vm_tfunction_t)+align((sizeof(uint16_t)*node->nrgo), 4)-1;
+        i += sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
+
       } break;
       case TOPERATOR: {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[i];
@@ -6663,21 +6655,20 @@ void print_bytecode(struct rules_t *obj) {
       } break;
       case TVAR: {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[i];
-        printf("(TVAR)[%u][", 8+align(strlen((char *)node->token)+1, 4));
+        printf("(TVAR)[%u][", 8);
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("go: %d, ", node->go);
-        printf("value: %d, ", node->value);
-        printf("token: %s]\n", node->token);
-        i += sizeof(struct vm_tvar_t)+align(strlen((char *)node->token)+1, 4)-1;
+        printf("value: %d]\n", node->value);
+        i += sizeof(struct vm_tvar_t)-1;
       } break;
-      case TSTRING: {
-        struct vm_vchar_t *node = (struct vm_vchar_t *)&obj->ast.buffer[i];
-        printf("(TSTRING)[%u][", 8+align(strlen((char *)node->value)+1, 4));
+      case TVALUE: {
+        struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
+        printf("(TVALUE)[%u][", 8+align(strlen((char *)node->token)+1, 4));
         printf("type: %d, ", node->type);
-        printf("ret: %d, ", node->ret);
-        printf("value: %s]\n", node->value);
-        i += sizeof(struct vm_vchar_t)+align(strlen((char *)node->value)+1, 4)-1;
+        printf("go: %d, ", node->go);
+        printf("token: %s]\n", node->token);
+        i += sizeof(struct vm_tvalue_t)+align(strlen((char *)node->token)+1, 4)-1;
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
@@ -6809,11 +6800,11 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, ui
     }
 
     switch(out_type) {
-      case TVAR: {
-        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)&obj->buffer[pos];
-        struct vm_tvar_t *nodeB = NULL;
+      case TVALUE: {
+        struct vm_tvalue_t *nodeA = (struct vm_tvalue_t *)&obj->buffer[pos];
+        struct vm_tvalue_t *nodeB = NULL;
         if(out != NULL) {
-          nodeB = (struct vm_tvar_t *)out;
+          nodeB = (struct vm_tvalue_t *)out;
         }
         if(is_mmu == 1) {
           uint16_t x = 0, len = 0;
@@ -6821,8 +6812,8 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, ui
           len = x;
           x = 0;
 
-          if(out == NULL || sizeof(struct vm_tvar_t)+len+1 > *bufsize) {
-            *bufsize = sizeof(struct vm_tvar_t)+len+1;
+          if(out == NULL || sizeof(struct vm_tvalue_t)+len+1 > *bufsize) {
+            *bufsize = sizeof(struct vm_tvalue_t)+len+1;
             return -2;
           }
 
@@ -6832,19 +6823,15 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, ui
           }
 
           nodeB->type = mmu_get_uint8(&nodeA->type);
-          nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->go = mmu_get_uint16(&nodeA->go);
-          nodeB->value = mmu_get_uint16(&nodeA->value);
         } else {
-          if(out == NULL || sizeof(struct vm_tvar_t)+strlen((char *)nodeA->token)+1 > *bufsize) {
-            *bufsize = sizeof(struct vm_tvar_t)+strlen((char *)nodeA->token)+1;
+          if(out == NULL || sizeof(struct vm_tvalue_t)+strlen((char *)nodeA->token)+1 > *bufsize) {
+            *bufsize = sizeof(struct vm_tvalue_t)+strlen((char *)nodeA->token)+1;
             return -2;
           }
 
           nodeB->type = nodeA->type;
-          nodeB->ret = nodeA->ret;
           nodeB->go = nodeA->go;
-          nodeB->value = nodeA->value;
 
           strcpy((char *)nodeB->token, (char *)nodeA->token);
         }
@@ -6919,36 +6906,32 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, ui
     }
   } else {
     switch(out[0]) {
-      case TVAR: {
-        struct vm_tvar_t *nodeA = (struct vm_tvar_t *)out;
-        struct vm_tvar_t *nodeB = (struct vm_tvar_t *)&obj->buffer[pos];
+      case TVALUE: {
+        struct vm_tvalue_t *nodeA = (struct vm_tvalue_t *)out;
+        struct vm_tvalue_t *nodeB = (struct vm_tvalue_t *)&obj->buffer[pos];
         if(is_mmu == 1) {
           uint16_t x = 0, len = strlen((char *)nodeA->token);
 
-          if(sizeof(struct vm_tvar_t)+len+1 > *bufsize) {
-            *bufsize = sizeof(struct vm_tvar_t)+len+1;
+          if(sizeof(struct vm_tvalue_t)+len+1 > *bufsize) {
+            *bufsize = sizeof(struct vm_tvalue_t)+len+1;
             return -2;
           }
 
           mmu_set_uint8(&nodeB->type, nodeA->type);
-          mmu_set_uint16(&nodeB->ret, nodeA->ret);
           mmu_set_uint16(&nodeB->go, nodeA->go);
-          mmu_set_uint16(&nodeB->value, nodeA->value);
 
           while(x < len) {
             mmu_set_uint8(&nodeB->token[x], nodeA->token[x]);
             x++;
           }
         } else {
-          if(sizeof(struct vm_tvar_t)+strlen((char *)nodeA->token)+1 > *bufsize) {
-            *bufsize = sizeof(struct vm_tvar_t)+strlen((char *)nodeA->token)+1;
+          if(sizeof(struct vm_tvalue_t)+strlen((char *)nodeA->token)+1 > *bufsize) {
+            *bufsize = sizeof(struct vm_tvalue_t)+strlen((char *)nodeA->token)+1;
             return -2;
           }
 
           nodeB->type = nodeA->type;
-          nodeB->ret = nodeA->ret;
           nodeB->go = nodeA->go;
-          nodeB->value = nodeA->value;
 
           strcpy((char *)nodeB->token, (char *)nodeA->token);
         }
