@@ -5220,25 +5220,70 @@ static void vm_clear_values(struct rules_t *obj) {
 }
 
 int8_t rule_run(struct rules_t *obj, uint8_t validate) {
-#ifdef DEBUG
-  printf("-----------------------\n");
-  if(is_mmu == 1) {
-    printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->nr));
-  } else {
-    printf("%s %d ", __FUNCTION__, obj->nr);
-  }
-  if(validate == 1) {
-    printf("[validation]\n");
-  } else {
-    printf("[live]\n");
-  }
-  printf("-----------------------\n");
-#endif
-
-  int16_t go = 0, ret = -1, i = -1, start = -1;
+int16_t go = 0, ret = -1, i = -1, start = -1;
+  uint16_t goval = 0, retval = 0;
   go = start = 0;
 
-  while(go != -1) {
+  if(obj->ctx.go != NULL) {
+    struct rules_t *newctx = obj->ctx.go;
+    while(newctx->ctx.go != NULL) {
+      newctx = newctx->ctx.go;
+    }
+    obj = newctx;
+  }
+
+  {
+    if(is_mmu == 1) {
+      goval = mmu_get_uint16(&obj->cont.go);
+      retval = mmu_get_uint16(&obj->cont.ret);
+    } else {
+      goval = obj->cont.go;
+      retval = obj->cont.ret;
+    }
+  }
+
+  if(goval == 0 && retval == 0) {
+#ifdef DEBUG
+    printf("-----------------------\n");
+    if(is_mmu == 1) {
+      printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->nr));
+    } else {
+      printf("%s %d ", __FUNCTION__, obj->nr);
+    }
+    if(validate == 1) {
+      printf("[validation]\n");
+    } else {
+      printf("[live]\n");
+    }
+    printf("-----------------------\n");
+#endif
+  }
+
+  {
+    struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
+    if(goval > 0) {
+      if(is_mmu == 1) {
+        go = mmu_get_uint16(&obj->cont.go);
+        ret = mmu_get_uint16(&obj->cont.ret);
+        mmu_set_uint16(&obj->cont.go, 0);
+        mmu_set_uint16(&obj->cont.ret, 0);
+      } else {
+        go = obj->cont.go;
+        ret = obj->cont.ret;
+        obj->cont.go = 0;
+        obj->cont.ret = 0;
+      }
+    } else {
+      if(is_mmu == 1) {
+        go = mmu_get_uint16(&node->go);
+      } else {
+        go = node->go;
+      }
+      vm_clear_values(obj);
+    }
+  }
+
+  if(go > -1) {
 #ifdef ESP8266
     delay(0);
 #endif
@@ -5271,39 +5316,6 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     }
 
     switch(go_type) {
-      case TSTART: {
-        struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
-        if(ret > -1) {
-          go = -1;
-        } else {
-          uint16_t goval = 0;
-          if(is_mmu == 1) {
-            goval = mmu_get_uint16(&obj->cont.go);
-          } else {
-            goval = obj->cont.go;
-          }
-          if(goval > 0) {
-            if(is_mmu == 1) {
-              go = mmu_get_uint16(&obj->cont.go);
-              ret = mmu_get_uint16(&obj->cont.ret);
-              mmu_set_uint16(&obj->cont.go, 0);
-              mmu_set_uint16(&obj->cont.ret, 0);
-            } else {
-              go = obj->cont.go;
-              ret = obj->cont.ret;
-              obj->cont.go = 0;
-              obj->cont.ret = 0;
-            }
-          } else {
-            vm_clear_values(obj);
-            if(is_mmu == 1) {
-              go = mmu_get_uint16(&node->go);
-            } else {
-              go = node->go;
-            }
-          }
-        }
-      } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[go];
         uint16_t node_go = 0, node_ret = 0;
@@ -6474,14 +6486,46 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     }
   }
 
-  /*
-   * Tail recursive
-   */
-  if(obj->caller > 0) {
-    return rule_options.event_cb(obj, NULL);
+  if(go == 0 && ret > -1) {
+    if(is_mmu == 1) {
+      mmu_set_uint16(&obj->cont.go, 0);
+      mmu_set_uint16(&obj->cont.ret, 0);
+    } else {
+      obj->cont.go = 0;
+      obj->cont.ret = 0;
+    }
+    if(obj->ctx.ret != NULL) {
+#ifdef DEBUG
+      printf("-----------------------\n");
+      if(is_mmu == 1) {
+        printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->ctx.ret->nr));
+      } else {
+        printf("%s %d ", __FUNCTION__, obj->ctx.ret->nr);
+      }
+      if(validate == 1) {
+        printf("[continuing]\n");
+      }
+      printf("-----------------------\n");
+#endif
+
+      obj->ctx.ret->ctx.go = NULL;
+      obj->ctx.ret = NULL;
+
+      return 1;
+    }
+    return 0;
+  } else {
+    if(is_mmu == 1) {
+      mmu_set_uint16(&obj->cont.go, go);
+      mmu_set_uint16(&obj->cont.ret, ret);
+    } else {
+      obj->cont.go = go;
+      obj->cont.ret = ret;
+    }
+    return go > 0;
   }
 
-  return 0;
+  return -1;
 }
 
 /*LCOV_EXCL_START*/
@@ -7136,6 +7180,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   }
   (*nrrules)++;
 
+  obj->ctx.go = NULL;
+  obj->ctx.ret = NULL;
   obj->ast.nrbytes = 0;
   obj->ast.bufsize = 0;
   obj->varstack.nrbytes = 4;
@@ -7272,7 +7318,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-  if(rule_run(obj, 1) == -1) {
+  int8_t ret = 0;
+  while((ret = rule_run(obj, 1)) > 0);
+  if(ret == -1) {
     vm_cache_gc();
     return -1;
   }

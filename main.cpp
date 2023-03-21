@@ -745,52 +745,15 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
 }
 
 static int8_t event_cb(struct rules_t *obj, char *name) {
-  struct rules_t *called = NULL;
-  uint32_t caller = 0;
-
-  caller = obj->caller;
-
-  if(caller > 0 && name == NULL) {
-    called = rules[caller-1];
-
-#ifdef ESP8266
-    char str[OUTPUT_SIZE];
-    /*LCOV_EXCL_START*/
-    memset(&str, 0, OUTPUT_SIZE);
-    snprintf((char *)&str, OUTPUT_SIZE, "- continuing with caller #%d", caller);
-    Serial.println(str);
-    /*LCOV_EXCL_STOP*/
-#else
-    printf("- continuing with caller #%d\n", caller);
-#endif
-
-    obj->caller = 0;
-
-    return rule_run(called, 0);
-  } else {
-    int8_t nr = rule_by_name(rules, nrrules, name);
-    if(nr == -1) {
-      return -1;
-    }
-
-    called = rules[nr];
-    called->caller = obj->nr;
-
-    {
-#ifdef ESP8266
-      char str[OUTPUT_SIZE];
-      /*LCOV_EXCL_START*/
-      memset(&str, 0, OUTPUT_SIZE);
-      snprintf((char *)&str, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
-      Serial.println(str);
-      /*LCOV_EXCL_STOP*/
-#else
-      printf("- running event \"%s\" called from caller #%d\n", name, obj->nr);
-#endif
-    }
-
-    return rule_run(called, 0);
+  int8_t nr = rule_by_name(rules, nrrules, name);
+  if(nr == -1) {
+    return -1;
   }
+
+  obj->ctx.go = rules[nr];
+  rules[nr]->ctx.ret = obj;
+
+  return 1;
 }
 
 void run_test(int *i, unsigned char *mempool, uint16_t size) {
@@ -988,7 +951,10 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
       printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
-      rule_run(rules[nrrules-1], 0);
+      while((ret = rule_run(rules[nrrules-1], 0)));
+      if(ret == -1) {
+        exit(-1);
+      }
 #if defined(DEBUG) && !defined(ESP8266)
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
 

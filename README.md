@@ -76,6 +76,7 @@ The downside of all these algoritms are that they - in their common implementati
 - Bytecode parsing
 - ESP8266 and ESP32 ready
 - ESP8266 runs in the 2nd heap (fast and safe mode)
+- Allows running rules fully async
 
 When properly configured the 2nd heap can give you 16KB mempool which can be fully used as dedicated memory for the rule parser. This leaves the normal memory for the core program. Because the 2nd heap is used as a mempool it also prevents memory fragmentation.
 
@@ -362,7 +363,20 @@ A tip is to place the raw ruleset string at the end of the mempool. As soon as a
 int8_t rule_run(struct rules_t *obj, uint8_t validate);
 ```
 
-The `rule_run` function is used to execute a specific rule. The validate value should be either one or zero. A one tells the parser to validate the rule (which is already when initializing the rules). Validation means that every part of the rule is reached meaning both the `if` and `else` blocks will be visited.
+The `rule_run` function is used to execute a specific rule. The validate value should be either 1 or 0. A 1 tells the parser to validate the rule (which is already when initializing the rules). Validation means that every part of the rule is reached meaning both the `if` and `else` blocks will be visited.
+
+Each call to the `rule_run` function will walk the rule block one step at a time. This allows developers to execute rules in an async manner. The `rule_run` function will return -1 when an error occured, a 0 means that the rule was done executing, a 1 means there are more steps to execute. In normal operation the `rule_run` should be called for as long as it returns 1.
+
+Running rules synced can be done by just running it from within a while loop:
+
+```c
+  int8_t ret = 0;
+  while((ret = rule_run(obj, 1)) > 0);
+  if(ret == -1) {
+    vm_cache_gc();
+    return -1;
+  }
+```
 
 ```c
 int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, uint16_t *size);
@@ -475,144 +489,23 @@ A function call like `foo()` is tokenized as a `TCEVENT` token. So a token which
 static int8_t event_cb(struct rules_t *obj, char *name);
 ```
 
-The `event_cb` function is called both to go to a rule block as well as to return to the rule block that called it. To go to a rule block it first needs to be identified by it's name. Since the rule library doesn't have all the access to the parsed rules itself, it needs these helpers functions. So the `event_cb` should look for the `event` being identified by the given name. As soon as the event was done running it should return to the caller function. The caller tells the called function that it was called by the caller, so the called function can return to the caller. So, if a caller was not yet saved, the `event_cb` function also knows it should look for a to be called event. The `obj` argument points to the rule block currently being run. When calling a function the `obj` points to the caller, when returning to the caller `obj` points to the called function.
+The `event_cb` function is used to find the rule being called by another rule. A special helper function `rule_by_name` can be used to locate the rule to be called. The rule library will do the rest. The `go` field of the `ctx` struct is a pointer to the to be called rule. The `ret` field is a pointer to the rule where the called rule was called from.
 
-So.
-
-```c
-// bar calls foo(), bar is the caller
-[bar]->caller == 0, name == "foo"
-// bar saves it was the caller in the caller
-// variable of the called rule
-[foo]->caller = #2, name == "foo"
-// when foo is done running, event_cb
-// is called again. Since where are not
-// looking for a new event, but we want to
-// return to the caller. So the name is NULL.
-[foo]->caller == #2, name == NULL
-// bar can immediatly be found in the rules_t
-// array at position #2 foo sets it's caller
-// to 0, because and then calls bar
-[foo]->caller = 0, name == NULL
-```
-
-In code:
 ```c
 static int8_t event_cb(struct rules_t *obj, char *name) {
-  struct rules_t *called = NULL;
-  uint32_t caller = 0;
-
-  /*
-   * Check if the current rule obj
-   * already has a caller set.
-   */
-  caller = obj->caller;
-
-  /*
-   * Also check if a name was set.
-   */
-  if(caller > 0 && name == NULL) {
-    /*
-     * The caller rule was safed
-     * before (later on in this
-     * function) so we can immediatly
-     * retrieve it from the rules
-     * array.
-     */
-    called = rules[caller-1];
-
-    /*
-     * Clear the caller index
-     */
-    obj->caller = 0;
-
-    /*
-     * Return back to the caller
-     */
-    return rule_run(called, 0);
-  } else {
-    /*
-     * Find the rule block with
-     * the given name.
-     */
-    int8_t nr = rule_by_name(rules, nrrules, name);
-    if(nr == -1) {
-      return -1;
-    }
-
-    /*
-     * Store the rules array index to
-     * the caller of the to be called
-     * object. The to be called rule
-     * block is the one found by the
-     * rule_by_name function.
-     */
-    called = rules[nr];
-    called->caller = obj->nr;
-
-    /*
-     * And run the called rule
-     */
-    return rule_run(called, 0);
+  int8_t nr = rule_by_name(rules, nrrules, name);
+  if(nr == -1) {
+    return -1;
   }
 
-  return -1;
+  obj->ctx.go = rules[nr];
+  rules[nr]->ctx.ret = obj;
+
+  return 1;
 }
 ```
 
-Internally, this is coded like this. A `foo()` call is tokenized as a `TCEVENT`. An `on foo then` is tokenized as a `TEVENT`. A `TCEVENT` is programmed like this. The `cont` variable saves where the rule parser was before another rule block is called. The `go` variable was the step we need to return to. The `node->ret` step is where we need to go to. This essentially takes a snapshot of the current rule block execution which is continued when we get back to the rule we left.
-
-```c
-case TCEVENT: {
-	struct vm_tcevent_t *node = (struct vm_tcevent_t *)&obj->ast.buffer[go];
-
-	if(rule_options.event_cb == NULL) {
-		/* LCOV_EXCL_START*/
-		fprintf(stderr, "FATAL: No 'event_cb' set to handle events\n");
-		return -1;
-		/* LCOV_EXCL_STOP*/
-	}
-
-	obj->cont.ret = go;
-	obj->cont.go = node->ret;
-
-	/*
-	 * Tail recursive
-	 */
-	return rule_options.event_cb(obj, (char *)node->token);
-} break;
-```
-
-A rule block ends when all steps where parsed. However, when a rule block was called from another rule block, it knows that the last step is to return to the caller rule block. So at the very end of the parser the following piece of code is found:
-```c
-/*
- * Tail recursive
- */
-if(obj->caller > 0) {
-	return rule_options.event_cb(obj, NULL);
-}
-```
-
-When we return to the caller rule block we want to continue from the previously taken snapshot. The `TSTART` is always called first. If the `cont.go` was set, we can immediatly jump to that step to continue parsing where we left.
-
-```c
-case TSTART: {
-	struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
-	if(ret > -1) {
-		go = -1;
-	} else {
-		if(obj->cont.go > 0) {
-			go = obj->cont.go;
-			ret = obj->cont.ret;
-			obj->cont.go = 0;
-			obj->cont.ret = 0;
-		} else {
-			vm_clear_values(obj);
-			go = node->go;
-		}
-	}
-} break;
-```
+Return 1 if you want to continue executing the rule block, return 0 when it should end here and return -1 when an error occured.
 
 ### Variables
 
