@@ -160,11 +160,6 @@ typedef struct rules_t {
 #endif
   } __attribute__((aligned(4))) timestamp;
 
-  struct {
-    uint16_t parsed;
-    uint16_t vars;
-  } __attribute__((aligned(4))) pos;
-
   /* Continue here after we processed
    * another rule call.
    */
@@ -174,6 +169,8 @@ typedef struct rules_t {
   } __attribute__((aligned(4))) cont;
 
   void *userdata;
+
+  uint8_t sync;
 
   struct rule_stack_t ast;
   struct rule_stack_t varstack;
@@ -247,6 +244,7 @@ typedef struct vm_tstart_t {
 
 typedef struct vm_tif_t {
   VM_GENERIC_FIELDS
+  uint8_t sync;
   uint16_t go;
   uint16_t true_;
   uint16_t false_;

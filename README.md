@@ -353,7 +353,7 @@ input.tot_len = strlen(text);
 
 int ret = 0;
 while((ret = rule_initialize(&input, &rules, &nrrules, &mem, NULL)) == 0) {
-	input.payload = &text[input.len];
+  input.payload = &text[input.len];
 }
 ```
 
@@ -365,17 +365,48 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate);
 
 The `rule_run` function is used to execute a specific rule. The validate value should be either 1 or 0. A 1 tells the parser to validate the rule (which is already when initializing the rules). Validation means that every part of the rule is reached meaning both the `if` and `else` blocks will be visited.
 
-Each call to the `rule_run` function will walk the rule block one step at a time. This allows developers to execute rules in an async manner. The `rule_run` function will return -1 when an error occured, a 0 means that the rule was done executing, a 1 means there are more steps to execute. In normal operation the `rule_run` should be called for as long as it returns 1.
+Each call to the `rule_run` function will walk the rule block one step at a time. This allows developers to execute rules in an async manner. The `rule_run` function will return -1 when an error occured, a 0 means that the rule was done executing, a 1 means there are more steps to execute. This function will return 2 when a user has requested a synced execution. It will return 2 for as long as a synced execution is requested. In normal operation the `rule_run` should be called for as long as it returns 1 or 2.
 
-Running rules synced can be done by just running it from within a while loop:
+Example:
+```ruby
+if 1 == 1 then           // Async
+  $a = 1;                // Async
+  sync if 2 == 2 then    // Sync
+    $a = $a + 2;         // Sync
+    if 3 == 3 then       // Sync
+      $a = $a + 3;       // Sync
+    end                  // Sync
+  end                    // Sync
+  $b = $a;               // Async
+end
+```
+
+Running rules synced (ignoring the return value distinction) can be done by just running it within a while loop:
 
 ```c
   int8_t ret = 0;
-  while((ret = rule_run(obj, 1)) > 0);
-  if(ret == -1) {
-    vm_cache_gc();
-    return -1;
+  if(rules[0]->cont.go > 0) { // Check if rule was triggered
+    while((ret = rule_run(rules[0], 0)) > 0);
+    if(ret == -1) {
+      // Failure
+    }
   }
+```
+
+or
+
+```c
+void loop(void) {
+  if(rules[0]->cont.go > 0) { // Check if rule was triggered
+    ret = rule_run(rules[0], 0);
+    if(ret == 2) {
+      while((ret = rule_run(rules[0], 0)) == 2);
+    }
+    if(ret == -1) {
+      // Failure
+    }
+  }
+}
 ```
 
 ```c

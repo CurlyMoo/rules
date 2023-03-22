@@ -21,7 +21,7 @@
 #include "src/common/mem.h"
 #include "main.h"
 
-static int testnr = 0;
+static int testnr = -1;
 static int fail = 0;
 #ifdef MMU_SEC_HEAP
 static int heap = 0;
@@ -67,12 +67,20 @@ void loop() {
 #endif
         Serial.println(F("Running from 1st heap"));
         memset(mempool, 0, MEMPOOL_SIZE);
-        run_test(&testnr, mempool, MEMPOOL_SIZE);
+        if(testnr == -1) {
+          run_async(&testnr, mempool, MEMPOOL_SIZE);
+        } else {
+          run_test(&testnr, mempool, MEMPOOL_SIZE);
+        }
 #ifdef MMU_SEC_HEAP
       } else {
         Serial.println(F("Running from 2nd heap"));
         memset((unsigned char *)MMU_SEC_HEAP, 0, MEMPOOL_SIZE);
-        run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
+        if(testnr == -1) {
+          run_async(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
+        } else {
+          run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
+        }
       }
       testnr += heap;
       heap ^= 1;
