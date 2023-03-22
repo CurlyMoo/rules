@@ -1271,7 +1271,7 @@ int main(int argc, char **argv) {
   }
 
   memset(mempool, 0, MEMPOOL_SIZE*2);
-  run_async(&i, &mempool[MEMPOOL_SIZE], MEMPOOL_SIZE);
+  run_async(&i, &mempool[0], MEMPOOL_SIZE);
 
   FREE(mempool);
 }
