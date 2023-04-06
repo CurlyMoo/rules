@@ -362,7 +362,7 @@ static unsigned char *vm_value_get(struct rules_t *obj, uint16_t token) {
   ret = var->go;
 
 #ifdef DEBUG
-    printf(". %s %d %d\n", __FUNCTION__, __LINE__, var->go);
+  printf(". %s %d %d\n", __FUNCTION__, __LINE__, var->go);
 #endif
 
   if(strcmp((char *)var->token, "foo#bar") == 0) {
@@ -552,11 +552,6 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 
   struct vm_tvalue_t *var = (struct vm_tvalue_t *)outA;
 
-  outAsize = 32;
-  if(rule_token(&obj->ast, token, (unsigned char *)&outA, &outAsize) < 0) {
-    return -1;
-  }
-
 #ifdef DEBUG
   printf(". %s %d %d\n", __FUNCTION__, __LINE__, val);
 #endif
@@ -582,15 +577,9 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
 
   ret = varstack->nrbytes;
   var->go = ret;
+
   if(rule_token(&obj->ast, token, (unsigned char *)&outA, &outAsize) < 0) {
     return -1;
-  } else if(r == -2) {
-    outB = (unsigned char *)REALLOC(outB, outBsize);
-    memset(outB, 0, outBsize);
-    if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
-      FREE(outB);
-      return -1;
-    }
   }
 
   switch(outB[0]) {
@@ -652,12 +641,6 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
     } break;
   }
 
-  if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
-    FREE(outB);
-    return -1;
-  }
-
-  FREE(outB);
   return 0;
 }
 

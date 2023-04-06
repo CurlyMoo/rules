@@ -6653,6 +6653,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
+#ifdef ESP8266
 static void print_bytecode_mmu(struct rules_t *obj) {
   uint16_t i = 0, nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
 
@@ -6855,6 +6856,7 @@ static void print_bytecode_mmu(struct rules_t *obj) {
     }
   }
 }
+#endif
 
 void print_bytecode(struct rules_t *obj) {
 #ifdef ESP8266
@@ -7326,10 +7328,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     return -1;
   }
 
+#ifdef ESP8266
   if((nrbytes % 4) != 0) {
     Serial.println("Rules AST not 4 byte aligned!");
     exit(-1);
   }
+#endif
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
@@ -7456,6 +7460,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
    * Reserve space for the actual maximum
    * varstack buffer size
    */
+#ifdef ESP8266
   if(is_mmu == 1) {
     if((mmu_get_uint16(&obj->varstack.bufsize) % 4) != 0) {
       Serial.println("Rules AST not 4 byte aligned!");
@@ -7463,12 +7468,15 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     }
     mmu_set_uint16(&mempool->len, mmu_get_uint16(&mempool->len) + mmu_get_uint16(&obj->varstack.bufsize));
   } else {
+#endif
     if((obj->varstack.bufsize % 4) != 0) {
-      Serial.println("Rules AST not 4 byte aligned!");
+      printf("Rules AST not 4 byte aligned!\n");
       exit(-1);
     }
     mempool->len += obj->varstack.bufsize;
+#ifdef ESP8266
   }
+#endif
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
