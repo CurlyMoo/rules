@@ -865,7 +865,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                 uint16_t a = 0;
                 if(len == len1) {
                   for(a=0;a<len;a++) {
-                    if(mmu_get_uint8(&(*text)[y+a]) != mmu_get_uint8(&(*text)[pos+a])) {
+                    if(mmu_get_uint8(&(*text)[start+1+a]) != mmu_get_uint8(&(*text)[pos+a])) {
                       break;
                     }
                   }
@@ -874,7 +874,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                   }
                 }
               } else {
-                if(len == len1 && strncmp(&(*text)[y], &(*text)[pos], len) == 0) {
+                if(len == len1 && strncmp(&(*text)[start+1], &(*text)[pos], len) == 0) {
                   match = 1;
                   break;
                 }
@@ -897,7 +897,10 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
           }
         } else {
           (*text)[tpos++] = TVAR;
-          memcpy(&(*text)[tpos], &(*text)[pos], len1);
+          uint16_t a = 0;
+          for(a=0;a<len1;a++) {
+            (*text)[tpos+a] = (*text)[pos+a];
+          }
         }
 
         nrtokens++;
@@ -1503,7 +1506,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
                 return x;
               }
             } else {
-              if(strncmp((char *)node->token, &(*text)[start+1], len) == 0) {
+              if(strlen((char *)node->token) == len && strncmp((char *)node->token, &(*text)[start+1], len) == 0) {
                 return x;
               }
             }
