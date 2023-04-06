@@ -3947,6 +3947,8 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 } break;
                 case VNULL:
                 case TVAR:
+                case VINTEGER:
+                case VFLOAT:
                 case TNUMBER1:
                 case TNUMBER2:
                 case TNUMBER3: {
