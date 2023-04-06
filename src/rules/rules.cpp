@@ -263,6 +263,10 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
     *start = i;
     *len = 0;
     switch(*type) {
+      case TELSEIF:
+      case TIF:{
+        i += 2;
+      } break;
       case VNULL:
       case TSEMICOLON:
       case TEND:
@@ -271,9 +275,7 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
       case TCOMMA:
       case LPAREN:
       case TELSE:
-      case TTHEN:
-      case TIF:
-      case TELSEIF: {
+      case TTHEN: {
         i += 1;
       } break;
       case TNUMBER1: {
@@ -526,6 +528,52 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         }
         pos += newlen-x+1;
       }
+    } else if(tolower(current) == 's' && tolower(next) == 'y' &&
+              pos+5 < *len &&
+              (
+                (is_mmu == 1 &&
+                  tolower(mmu_get_uint8(&(*text)[pos+2])) == 'n' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+3])) == 'c' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+4])) == ' ' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+5])) == 'i' &&
+                  tolower(mmu_get_uint8(&(*text)[pos+6])) == 'f'
+                )
+              ||
+                (is_mmu == 0 &&
+                  tolower((*text)[pos+2]) == 'n' &&
+                  tolower((*text)[pos+3]) == 'c' &&
+                  tolower((*text)[pos+4]) == ' ' &&
+                  tolower((*text)[pos+5]) == 'i' &&
+                  tolower((*text)[pos+6]) == 'f'
+                )
+              )
+            ) {
+      nrtokens++;
+      *nrbytes += sizeof(struct vm_tif_t);
+      *nrbytes += sizeof(struct vm_ttrue_t);
+
+#ifdef DEBUG
+      printf("TIF: %lu\n", sizeof(struct vm_tif_t));
+      printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
+#endif
+
+      /*
+       * An additional TTRUE slot
+       */
+      trueslots++;
+#ifdef DEBUG
+      printf("TTRUE: %lu\n", sizeof(uint16_t));
+#endif
+      if(is_mmu == 1) {
+        mmu_set_uint8(&(*text)[tpos++], TIF);
+        mmu_set_uint8(&(*text)[tpos++], 1);
+      } else {
+        (*text)[tpos++] = TIF;
+        (*text)[tpos++] = 1;
+      }
+
+      pos += 7;
+      nrblocks++;
     } else if(tolower(current) == 'i' && tolower(next) == 'f') {
       nrtokens++;
       *nrbytes += sizeof(struct vm_tif_t);
@@ -545,8 +593,10 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #endif
       if(is_mmu == 1) {
         mmu_set_uint8(&(*text)[tpos++], TIF);
+        mmu_set_uint8(&(*text)[tpos++], 0);
       } else {
         (*text)[tpos++] = TIF;
+        (*text)[tpos++] = 0;
       }
 
       pos += 2;
@@ -592,8 +642,10 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       // printf("TELSEIF: %d\n", tpos);
       if(is_mmu == 1) {
         mmu_set_uint8(&(*text)[tpos++], TELSEIF);
+        mmu_set_uint8(&(*text)[tpos++], 0);
       } else {
         (*text)[tpos++] = TELSEIF;
+        (*text)[tpos++] = 0;
       }
 
       pos+=6;
@@ -1190,6 +1242,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         mmu_set_uint16(&node->ret, 0);
         mmu_set_uint16(&node->true_, 0);
         mmu_set_uint16(&node->false_, 0);
+        mmu_set_uint8(&node->sync, mmu_get_uint8(&(*text)[start+1]));
         mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
         node->type = type;
@@ -1197,6 +1250,7 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         node->ret = 0;
         node->true_ = 0;
         node->false_ = 0;
+        node->sync = (*text)[start+1];
         obj->ast.nrbytes = size;
       }
     } break;
@@ -1868,7 +1922,7 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
     struct vm_toperator_t *op1 = NULL;
 
     if(type == LPAREN) {
-      if(first == 1/* && *step_out > obj->pos.parsed*/) {
+      if(first == 1) {
         struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[*step_out];
         if(is_mmu == 1) {
           mmu_set_uint16(&node->ret, step);
@@ -5225,25 +5279,70 @@ static void vm_clear_values(struct rules_t *obj) {
 }
 
 int8_t rule_run(struct rules_t *obj, uint8_t validate) {
-#ifdef DEBUG
-  printf("-----------------------\n");
-  if(is_mmu == 1) {
-    printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->nr));
-  } else {
-    printf("%s %d ", __FUNCTION__, obj->nr);
-  }
-  if(validate == 1) {
-    printf("[validation]\n");
-  } else {
-    printf("[live]\n");
-  }
-  printf("-----------------------\n");
-#endif
-
   int16_t go = 0, ret = -1, i = -1, start = -1;
+  uint16_t goval = 0, retval = 0;
   go = start = 0;
 
-  while(go != -1) {
+  if(obj->ctx.go != NULL) {
+    struct rules_t *newctx = obj->ctx.go;
+    while(newctx->ctx.go != NULL) {
+      newctx = newctx->ctx.go;
+    }
+    obj = newctx;
+  }
+
+  {
+    if(is_mmu == 1) {
+      goval = mmu_get_uint16(&obj->cont.go);
+      retval = mmu_get_uint16(&obj->cont.ret);
+    } else {
+      goval = obj->cont.go;
+      retval = obj->cont.ret;
+    }
+  }
+
+  if(goval == 0 && retval == 0) {
+#ifdef DEBUG
+    printf("-----------------------\n");
+    if(is_mmu == 1) {
+      printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->nr));
+    } else {
+      printf("%s %d ", __FUNCTION__, obj->nr);
+    }
+    if(validate == 1) {
+      printf("[validation]\n");
+    } else {
+      printf("[live]\n");
+    }
+    printf("-----------------------\n");
+#endif
+  }
+
+  {
+    struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
+    if(goval > 0) {
+      if(is_mmu == 1) {
+        go = mmu_get_uint16(&obj->cont.go);
+        ret = mmu_get_uint16(&obj->cont.ret);
+        mmu_set_uint16(&obj->cont.go, 0);
+        mmu_set_uint16(&obj->cont.ret, 0);
+      } else {
+        go = obj->cont.go;
+        ret = obj->cont.ret;
+        obj->cont.go = 0;
+        obj->cont.ret = 0;
+      }
+    } else {
+      if(is_mmu == 1) {
+        go = mmu_get_uint16(&node->go);
+      } else {
+        go = node->go;
+      }
+      vm_clear_values(obj);
+    }
+  }
+
+  if(go > -1) {
 #ifdef ESP8266
     delay(0);
 #endif
@@ -5276,39 +5375,6 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     }
 
     switch(go_type) {
-      case TSTART: {
-        struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
-        if(ret > -1) {
-          go = -1;
-        } else {
-          uint16_t goval = 0;
-          if(is_mmu == 1) {
-            goval = mmu_get_uint16(&obj->cont.go);
-          } else {
-            goval = obj->cont.go;
-          }
-          if(goval > 0) {
-            if(is_mmu == 1) {
-              go = mmu_get_uint16(&obj->cont.go);
-              ret = mmu_get_uint16(&obj->cont.ret);
-              mmu_set_uint16(&obj->cont.go, 0);
-              mmu_set_uint16(&obj->cont.ret, 0);
-            } else {
-              go = obj->cont.go;
-              ret = obj->cont.ret;
-              obj->cont.go = 0;
-              obj->cont.ret = 0;
-            }
-          } else {
-            vm_clear_values(obj);
-            if(is_mmu == 1) {
-              go = mmu_get_uint16(&node->go);
-            } else {
-              go = node->go;
-            }
-          }
-        }
-      } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[go];
         uint16_t node_go = 0, node_ret = 0;
@@ -5329,6 +5395,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       } break;
       case TIF: {
         struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[go];
+
         uint32_t val = 0;
         uint8_t has_val = 0;
         if(ret > -1) {
@@ -5387,17 +5454,68 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                */
               node = (struct vm_tif_t *)&obj->ast.buffer[go];
             } break;
-            case TTRUE:
+            case TTRUE:{
+              struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
+              uint16_t node_go = 0;
+              uint8_t nrgo = 0, match = 0;
+              if(is_mmu == 1) {
+                nrgo = mmu_get_uint8(&t->nrgo);
+              } else {
+                nrgo = t->nrgo;
+              }
+              for(i=0;i<nrgo;i++) {
+                if(is_mmu == 1) {
+                  node_go = mmu_get_uint16(&t->go[i]);
+                } else {
+                  node_go = t->go[i];
+                }
+                if(node_go == go) {
+                  match = 1;
+                  break;
+                }
+              }
+              if(match == 1) {
+                if(is_mmu == 1) {
+                  if(mmu_get_uint8(&node->sync) == 1) {
+                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
+                  }
+                } else {
+                  if(node->sync == 1) {
+                    obj->sync++;
+                  }
+                }
+              } else {
+                if(is_mmu == 1) {
+                  if(mmu_get_uint8(&node->sync) == 1) {
+                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)-1);
+                  }
+                } else {
+                  if(node->sync == 1) {
+                    obj->sync--;
+                  }
+                }
+              }
+            } break;
             case TFALSE:
             case TIF:
-            case TEVENT:
-            break;
+            case TEVENT: {
+            } break;
             /* LCOV_EXCL_START*/
             default: {
               logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
               return -1;
             } break;
             /* LCOV_EXCL_STOP*/
+          }
+        } else {
+          if(is_mmu == 1) {
+            if(mmu_get_uint8(&node->sync) == 1) {
+              mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
+            }
+          } else {
+            if(node->sync == 1) {
+              obj->sync++;
+            }
           }
         }
 
@@ -6094,7 +6212,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           } else {
             go = node->ret;
           }
-        } else if(left == ret/* || node->left < obj->pos.parsed*/) {
+        } else if(left == ret) {
           ret = go;
           go = right;
         } else {
@@ -6479,14 +6597,58 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     }
   }
 
-  /*
-   * Tail recursive
-   */
-  if(obj->caller > 0) {
-    return rule_options.event_cb(obj, NULL);
+  if(go == 0 && ret > -1) {
+    if(is_mmu == 1) {
+      mmu_set_uint16(&obj->cont.go, 0);
+      mmu_set_uint16(&obj->cont.ret, 0);
+    } else {
+      obj->cont.go = 0;
+      obj->cont.ret = 0;
+    }
+    if(obj->ctx.ret != NULL) {
+#ifdef DEBUG
+      printf("-----------------------\n");
+      if(is_mmu == 1) {
+        printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->ctx.ret->nr));
+      } else {
+        printf("%s %d ", __FUNCTION__, obj->ctx.ret->nr);
+      }
+      if(validate == 1) {
+        printf("[continuing]\n");
+      }
+      printf("-----------------------\n");
+#endif
+
+      obj->ctx.ret->ctx.go = NULL;
+      obj->ctx.ret = NULL;
+
+      if(is_mmu == 1) {
+        return mmu_get_uint8(&obj->sync);
+      } else {
+        return obj->sync;
+      }
+    }
+    return 0;
+  } else {
+    if(is_mmu == 1) {
+      mmu_set_uint16(&obj->cont.go, go);
+      mmu_set_uint16(&obj->cont.ret, ret);
+    } else {
+      obj->cont.go = go;
+      obj->cont.ret = ret;
+    }
+    if(go > 0) {
+      if(is_mmu == 1) {
+        return mmu_get_uint8(&obj->sync);
+      } else {
+        return obj->sync;
+      }
+    } else {
+      return 0;
+    }
   }
 
-  return 0;
+  return -1;
 }
 
 /*LCOV_EXCL_START*/
@@ -6502,6 +6664,7 @@ static void print_bytecode_mmu(struct rules_t *obj) {
         Serial.printf("type: %d, ", mmu_get_uint8(&node->type));
         Serial.printf("ret: %d, ", mmu_get_uint16(&node->ret));
         Serial.printf("go: %d, ", mmu_get_uint16(&node->go));
+        Serial.printf("sync: %d, ", mmu_get_uint8(&node->sync));
         Serial.printf("true_: %d, ", mmu_get_uint16(&node->true_));
         Serial.printf("false: %d]\n", mmu_get_uint16(&node->false_));
         i += sizeof(struct vm_tif_t)-1;
@@ -6710,6 +6873,7 @@ void print_bytecode(struct rules_t *obj) {
         printf("type: %d, ", node->type);
         printf("ret: %d, ", node->ret);
         printf("go: %d, ", node->go);
+        printf("sync: %d, ", node->sync);
         printf("true_: %d, ", node->true_);
         printf("false: %d]\n", node->false_);
         i += sizeof(struct vm_tif_t)-1;
@@ -7136,11 +7300,15 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
   if(is_mmu == 1) {
     mmu_set_uint8(&obj->nr, (*nrrules)+1);
+    mmu_set_uint8(&obj->sync, 1);
   } else {
     obj->nr = (*nrrules)+1;
+    obj->sync = 1;
   }
   (*nrrules)++;
 
+  obj->ctx.go = NULL;
+  obj->ctx.ret = NULL;
   obj->ast.nrbytes = 0;
   obj->ast.bufsize = 0;
   obj->varstack.nrbytes = 4;
@@ -7277,7 +7445,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-  if(rule_run(obj, 1) == -1) {
+  int8_t ret = 0;
+  while((ret = rule_run(obj, 1)) > 0);
+  if(ret == -1) {
     vm_cache_gc();
     return -1;
   }

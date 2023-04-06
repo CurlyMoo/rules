@@ -12,5 +12,6 @@
 #include "src/rules/rules.h"
 
 void run_test(int *i, unsigned char *mempool, uint16_t size);
+void run_async(int *i, unsigned char *mempool, uint16_t size);
 
 #endif

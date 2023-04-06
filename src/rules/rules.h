@@ -135,24 +135,16 @@ struct {
 typedef struct rules_t {
   /* --- PUBLIC MEMBERS --- */
 
-  /*
-   * caller and nr can be considered
-   * public members. They are
-   * intentionally of uint32_t type
-   * in case of 2nd heap usage so
-   * developer can manipulate them
-   * without having to fallback on
-   * memory safe helpers
-   */
-
-  /* To what rule do we return after
-   * being called from another rule.
-   */
+   /* To what rule do we return after
+    * being called from another rule.
+    */
+  struct {
+    struct rules_t *go;
+    struct rules_t *ret;
+  } __attribute__((aligned(4))) ctx;
 #ifndef NON32XFER_HANDLER
-  uint32_t caller;
   uint32_t nr;
 #else
-  uint8_t caller;
   uint8_t nr;
 #endif
 
@@ -168,11 +160,6 @@ typedef struct rules_t {
 #endif
   } __attribute__((aligned(4))) timestamp;
 
-  struct {
-    uint16_t parsed;
-    uint16_t vars;
-  } __attribute__((aligned(4))) pos;
-
   /* Continue here after we processed
    * another rule call.
    */
@@ -182,6 +169,8 @@ typedef struct rules_t {
   } __attribute__((aligned(4))) cont;
 
   void *userdata;
+
+  uint8_t sync;
 
   struct rule_stack_t ast;
   struct rule_stack_t varstack;
@@ -255,6 +244,7 @@ typedef struct vm_tstart_t {
 
 typedef struct vm_tif_t {
   VM_GENERIC_FIELDS
+  uint8_t sync;
   uint16_t go;
   uint16_t true_;
   uint16_t false_;

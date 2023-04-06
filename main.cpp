@@ -747,55 +747,30 @@ static void vm_value_prt(struct rules_t *obj, char *out, uint16_t size) {
 }
 
 static int8_t event_cb(struct rules_t *obj, char *name) {
-  struct rules_t *called = NULL;
-  uint32_t caller = 0;
-
-  caller = obj->caller;
-
-  if(caller > 0 && name == NULL) {
-    called = rules[caller-1];
-
-#ifdef ESP8266
-    char str[OUTPUT_SIZE];
-    /*LCOV_EXCL_START*/
-    memset(&str, 0, OUTPUT_SIZE);
-    snprintf((char *)&str, OUTPUT_SIZE, "- continuing with caller #%d", caller);
-    Serial.println(str);
-    /*LCOV_EXCL_STOP*/
-#else
-    printf("- continuing with caller #%d\n", caller);
-#endif
-
-    obj->caller = 0;
-
-    return rule_run(called, 0);
-  } else {
-    int8_t nr = rule_by_name(rules, nrrules, name);
-    if(nr == -1) {
-      return -1;
-    }
-
-    called = rules[nr];
-    called->caller = obj->nr;
-
-    {
-#ifdef ESP8266
-      char str[OUTPUT_SIZE];
-      /*LCOV_EXCL_START*/
-      memset(&str, 0, OUTPUT_SIZE);
-      snprintf((char *)&str, OUTPUT_SIZE, "- running event \"%s\" called from caller #%d", name, obj->nr);
-      Serial.println(str);
-      /*LCOV_EXCL_STOP*/
-#else
-      printf("- running event \"%s\" called from caller #%d\n", name, obj->nr);
-#endif
-    }
-
-    return rule_run(called, 0);
+  int8_t nr = rule_by_name(rules, nrrules, name);
+  if(nr == -1) {
+    return -1;
   }
+
+  obj->ctx.go = rules[nr];
+  rules[nr]->ctx.ret = obj;
+
+  return 1;
 }
 
 void run_test(int *i, unsigned char *mempool, uint16_t size) {
+
+  if(*i == 0) {
+#ifdef ESP8266
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  Serial.printf("[ %-*s Running regular test %-*s ]\n", 22, " ", 23, " ");
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#else
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  printf("[ %-*s Running regular test %-*s ]\n", 22, " ", 25, " ");
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#endif
+  }
 
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_token_cb = is_variable;
@@ -990,7 +965,10 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
       printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
-      rule_run(rules[nrrules-1], 0);
+      while((ret = rule_run(rules[nrrules-1], 0)));
+      if(ret == -1) {
+        exit(-1);
+      }
 #if defined(DEBUG) && !defined(ESP8266)
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
 
@@ -1118,6 +1096,149 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   nrrules = 0;
 }
 
+void run_async(int *i, unsigned char *mempool, uint16_t size) {
+  memset(&rule_options, 0, sizeof(struct rule_options_t));
+  rule_options.is_token_cb = is_variable;
+  rule_options.is_event_cb = is_event;
+  rule_options.set_token_val_cb = vm_value_set;
+  rule_options.get_token_val_cb = vm_value_get;
+  rule_options.prt_token_val_cb = vm_value_prt;
+  rule_options.clr_token_val_cb = vm_value_del;
+  rule_options.event_cb = event_cb;
+
+#ifdef ESP8266
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  Serial.printf("[ %-*s Running async test %-*s ]\n", 24, " ", 25, " ");
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#else
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  printf("[ %-*s Running async test %-*s ]\n", 24, " ", 25, " ");
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#endif
+
+  const char *rule = "if 3 == 3 then if 1 == 1 then $a = 3; end sync if 1 == 1 then $c = 3; end $b = 3; end";
+
+  int len = strlen(rule);
+  struct rule_stack_t *varstack = (struct rule_stack_t *)MALLOC(sizeof(struct rule_stack_t));
+  if(varstack == NULL) {
+    OUT_OF_MEMORY
+  }
+  varstack->buffer = NULL;
+  varstack->nrbytes = 4;
+  varstack->bufsize = 4;
+
+  int ret = 0;
+
+  struct pbuf mem;
+  struct pbuf input;
+  memset(&mem, 0, sizeof(struct pbuf));
+  memset(&input, 0, sizeof(struct pbuf));
+
+  mem.payload = mempool;
+  mem.len = 0;
+  mem.tot_len = size;
+
+  uint8_t y = 0;
+  uint16_t txtoffset = alignedbuffer(size-len-5);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)rule[y]);
+    }
+  } else {
+#endif
+    for(y=0;y<len;y++) {
+      mempool[txtoffset+y] = (uint8_t)rule[y];
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  input.payload = &mempool[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+
+  unsigned char *cpytxt = (unsigned char *)MALLOC(len+1);
+  if(cpytxt == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(cpytxt, 0, len+1);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
+    }
+  } else {
+#endif
+    memcpy(cpytxt, input.payload, len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, &mem, varstack)) == 0);
+  assert(ret == 1);
+
+  {
+    int size = strlen(rule);
+#ifdef ESP8266
+    char str[OUTPUT_SIZE];
+    /*LCOV_EXCL_START*/
+    memset(&str, 0, OUTPUT_SIZE);
+    if(size > 49) {
+      size = MIN(size, 45);
+      snprintf((char *)&str, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]", 0, 1, 0, size, rule, 46-size, " ");
+    } else {
+      size = MIN(size, 50);
+      snprintf((char *)&str, OUTPUT_SIZE, "Rule %.2d.%d / %.2d: [ %-*s %-*s ]", 0, 1, 0, size, rule, 50-size, " ");
+    }
+    Serial.println(str);
+    /*LCOV_EXCL_STOP*/
+#else
+    if(size > 49) {
+      size = MIN(size, 45);
+      printf("Rule %.2d.%d / %.2d: [ %.*s ... %-*s ]\n", 0, 1, 0, size, rule, 46-size, " ");
+    } else {
+      size = MIN(size, 50);
+      printf("Rule %.2d.%d / %.2d: [ %.*s %-*s ]\n", 0, 1, 0, size, rule, 50-size, " ");
+    }
+#endif
+  }
+
+#if defined(DEBUG) && !defined(ESP8266)
+  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
+  printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
+#endif
+  {
+    uint8_t x = 0;
+    int results[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 1, 0};
+    while((ret = rule_run(rules[0], 0)) > 0) {
+      if(ret != results[x++]) {
+        exit(-1);
+      }
+    }
+    if(ret != results[x++]) {
+      exit(-1);
+    }
+  }
+
+#if defined(DEBUG) && !defined(ESP8266)
+  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
+
+  printf("rule #%d was executed in %.6f seconds\n", 0,
+    ((double)rules[0]->timestamp.second.tv_sec + 1.0e-9*rules[0]->timestamp.second.tv_nsec) -
+    ((double)rules[0]->timestamp.first.tv_sec + 1.0e-9*rules[0]->timestamp.first.tv_nsec));
+
+  printf("bytecode is %d bytes\n", rules[0]->ast.nrbytes);
+#endif
+
+  struct rule_stack_t *node = (struct rule_stack_t *)rules[0]->userdata;
+  FREE(node->buffer);
+  FREE(node);
+
+  FREE(cpytxt);
+  nrrules = 0;
+}
+
 #ifndef ESP8266
 int main(int argc, char **argv) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
@@ -1133,6 +1254,10 @@ int main(int argc, char **argv) {
     memset(mempool, 0, MEMPOOL_SIZE*2);
     run_test(&i, &mempool[MEMPOOL_SIZE], MEMPOOL_SIZE);
   }
+
+  memset(mempool, 0, MEMPOOL_SIZE*2);
+  run_async(&i, &mempool[MEMPOOL_SIZE], MEMPOOL_SIZE);
+
   FREE(mempool);
 
   mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
@@ -1146,6 +1271,10 @@ int main(int argc, char **argv) {
     memset(mempool, 0, MEMPOOL_SIZE*2);
     run_test(&i, &mempool[0], MEMPOOL_SIZE);
   }
+
+  memset(mempool, 0, MEMPOOL_SIZE*2);
+  run_async(&i, &mempool[0], MEMPOOL_SIZE);
+
   FREE(mempool);
 }
 #endif
