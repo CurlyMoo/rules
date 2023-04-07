@@ -649,7 +649,6 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       }
 
       pos+=6;
-      nrblocks++;
     } else if(tolower(current) == 'o' && tolower(next) == 'n') {
       nrtokens++;
       pos+=2;
