@@ -269,6 +269,8 @@ struct unittest_t {
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 76 }, { "$b = 3" , 100 } },  { { "$a = 6", 76 }, { "$b = 3" , 100 } } },
   { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 76 }, { "$b = 3", 116 } },  { { "$a = 6", 76 }, { "$b = 3", 116 } } },
   { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 116 } },  { { "$b = NULL$a = 0", 116 } } }, // FIXME
+  { "on foo then if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end end", { "$a = 2", 236 }, { "$a = 3", 236 } },
+
 
   /*
    * Invalid rules

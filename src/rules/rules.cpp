@@ -2877,7 +2877,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                       vm_cache_add(TIF, tmp, has_if, pos);
                     }
                     if(MAX(has_if, has_elseif) == has_elseif) {
-                      vm_cache_add(TELSEIF, tmp, has_elseif, pos);
+                      // ELSEIF doesn't have his own END token,
+                      // so compensate for that.
+                      vm_cache_add(TELSEIF, tmp, has_elseif, pos-1);
                     }
                   }
                   if(has_if == 0 && has_elseif == -1) {
