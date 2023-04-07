@@ -3426,7 +3426,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                         }
 
                         int16_t tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
-                        int16_t tmp1 = vm_rewind2(obj, tmp, TIF, TEVENT);
+                        int16_t tmp1 = vm_rewind3(obj, tmp, TIF, TELSEIF, TEVENT);
 
                         if(is_mmu == 1) {
                           go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
