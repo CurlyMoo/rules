@@ -38,12 +38,11 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
   if((void *)stack >= (void *)MMU_SEC_HEAP) {
 		if(in != NULL) {
 			uint8_t type = mmu_get_uint8(&((unsigned char *)in)[0]);
-			uint16_t size = 0;
-      ret = mmu_get_uint16(&stack->nrbytes);
+			ret = mmu_get_uint16(&stack->nrbytes);
+			uint16_t size = ret+rule_max_var_bytes();
+
 			switch(type) {
 				case VINTEGER: {
-					size = ret+sizeof(struct vm_vinteger_t);
-
 					struct vm_vinteger_t *node = (struct vm_vinteger_t *)in;
 					struct vm_vinteger_t *out = (struct vm_vinteger_t *)&stack->buffer[ret];
 					mmu_set_uint16(&out->ret, mmu_get_uint8(&node->ret));
@@ -51,8 +50,6 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 					out->value = node->value;
 				} break;
 				case VFLOAT: {
-					size = ret+sizeof(struct vm_vfloat_t);
-
 					struct vm_vfloat_t *node = (struct vm_vfloat_t *)in;
 					struct vm_vfloat_t *out = (struct vm_vfloat_t *)&stack->buffer[ret];
 					mmu_set_uint16(&out->ret, mmu_get_uint8(&node->ret));
@@ -60,8 +57,6 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 					out->value = node->value;
 				} break;
         case VNULL: {
-					size = ret+sizeof(struct vm_vnull_t);
-
 					struct vm_vnull_t *node = (struct vm_vnull_t *)in;
 					struct vm_vnull_t *out = (struct vm_vnull_t *)&stack->buffer[ret];
 					mmu_set_uint16(&out->ret, mmu_get_uint8(&node->ret));
@@ -76,12 +71,11 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 #endif
 		if(in != NULL) {
 			uint8_t type = ((unsigned char *)in)[0];
-			uint16_t size = 0;
-      ret = stack->nrbytes;
+			ret = stack->nrbytes;
+			uint16_t size = ret+rule_max_var_bytes();
+
 			switch(type) {
 				case VINTEGER: {
-					size = ret+sizeof(struct vm_vinteger_t);
-
 					struct vm_vinteger_t *node = (struct vm_vinteger_t *)in;
 					struct vm_vinteger_t *out = (struct vm_vinteger_t *)&stack->buffer[ret];
 					out->ret = node->ret;
@@ -89,8 +83,6 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 					out->value = node->value;
 				} break;
 				case VFLOAT: {
-					size = ret+sizeof(struct vm_vfloat_t);
-
 					struct vm_vfloat_t *node = (struct vm_vfloat_t *)in;
 					struct vm_vfloat_t *out = (struct vm_vfloat_t *)&stack->buffer[ret];
 					out->ret = node->ret;
@@ -98,8 +90,6 @@ uint16_t rule_stack_push(struct rule_stack_t *stack, void *in) {
 					out->value = node->value;
 				} break;
 				case VNULL: {
-					size = ret+sizeof(struct vm_vnull_t);
-
 					struct vm_vnull_t *node = (struct vm_vnull_t *)in;
 					struct vm_vnull_t *out = (struct vm_vnull_t *)&stack->buffer[ret];
 					out->ret = node->ret;

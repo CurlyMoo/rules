@@ -23,7 +23,7 @@ int8_t rule_operator_lt_callback(struct rules_t *obj, uint16_t a, uint16_t b, ui
   out.ret = 0;
   out.type = VINTEGER;
 
-  unsigned char nodeA[MAX_VARSTACK_NODE_SIZE+1], nodeB[MAX_VARSTACK_NODE_SIZE+1];
+  unsigned char nodeA[rule_max_var_bytes()], nodeB[rule_max_var_bytes()];
   rule_stack_pull(&obj->varstack, a, nodeA);
   rule_stack_pull(&obj->varstack, b, nodeB);
 

@@ -308,6 +308,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, ui
 int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name);
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
 int8_t rule_run(struct rules_t *obj, uint8_t validate);
+int8_t rule_max_var_bytes(void);
 void valprint(struct rules_t *obj, char *out, uint16_t size);
 
 #endif

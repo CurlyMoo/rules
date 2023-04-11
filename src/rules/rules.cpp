@@ -68,6 +68,10 @@ static uint32_t align(uint32_t p, uint8_t b) {
   return (p + b) - ((p + b) % b);
 }
 
+int8_t rule_max_var_bytes(void) {
+  return MAX(sizeof(struct vm_vinteger_t), MAX(sizeof(struct vm_vfloat_t), sizeof(struct vm_vnull_t)));
+}
+
 int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
   uint8_t a = 0;
   uint16_t go = 0, type = 0;
@@ -4599,6 +4603,8 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 #ifdef DEBUG
   printf("%s %d %d\n", __FUNCTION__, __LINE__, out);
 #endif
+
+  uint16_t size = out+rule_max_var_bytes();
   switch(step_type) {
     case TNUMBER: {
       uint32_t var = 0;
@@ -4615,8 +4621,6 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
       } else {
         var = atoi((char *)node->token);
       }
-
-      uint16_t size = out+sizeof(struct vm_vinteger_t);
 
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[out];
       if(is_mmu == 1) {
@@ -4637,8 +4641,6 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 #endif
     } break;
     case VFLOAT: {
-      uint16_t size = out+sizeof(struct vm_vfloat_t);
-
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack.buffer[out];
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->ast.buffer[step];
       if(is_mmu == 1) {
@@ -4661,8 +4663,6 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 #endif
     } break;
     case VINTEGER: {
-      uint16_t size = out+sizeof(struct vm_vinteger_t);
-
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[out];
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->ast.buffer[step];
       if(is_mmu == 1) {
@@ -4683,8 +4683,6 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 #endif
     } break;
     case VNULL: {
-      uint16_t size = out+sizeof(struct vm_vnull_t);
-
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack.buffer[out];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VNULL);
@@ -4780,10 +4778,9 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
   printf("%s %d %d\n", __FUNCTION__, __LINE__, ret);
 #endif
 
+  uint16_t size = ret+rule_max_var_bytes();
   switch(valtype) {
     case VINTEGER: {
-      uint16_t size = ret+sizeof(struct vm_vinteger_t);
-
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&val[0];
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[ret];
       if(is_mmu == 1) {
@@ -4801,8 +4798,6 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
       }
     } break;
     case VFLOAT: {
-      uint16_t size = ret+sizeof(struct vm_vfloat_t);
-
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&val[0];
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack.buffer[ret];
       if(is_mmu == 1) {
@@ -4820,8 +4815,6 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
       }
     } break;
     case VNULL: {
-      uint16_t size = ret+sizeof(struct vm_vnull_t);
-
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack.buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VNULL);
@@ -4863,23 +4856,7 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   printf("%s %d %d\n", __FUNCTION__, __LINE__, idx);
 #endif
 
-  switch(type) {
-    case VINTEGER: {
-      ret = sizeof(struct vm_vinteger_t);
-    } break;
-    case VFLOAT: {
-      ret = sizeof(struct vm_vfloat_t);
-    } break;
-    case VNULL: {
-      ret = sizeof(struct vm_vnull_t);
-    } break;
-    /* LCOV_EXCL_START*/
-    default: {
-      logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
-      return -1;
-    } break;
-    /* LCOV_EXCL_STOP*/
-  }
+  ret = rule_max_var_bytes();
 
   if(is_mmu == 1) {
     uint16_t i = 0;
@@ -4925,7 +4902,6 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
-        x += sizeof(struct vm_vinteger_t)-1;
       } break;
       case VFLOAT: {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->varstack.buffer[x];
@@ -4938,7 +4914,6 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
-        x += sizeof(struct vm_vfloat_t)-1;
       } break;
       case VNULL: {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->varstack.buffer[x];
@@ -4951,7 +4926,6 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
-        x += sizeof(struct vm_vnull_t)-1;
       } break;
       /* LCOV_EXCL_START*/
       default: {
@@ -4960,6 +4934,7 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       } break;
       /* LCOV_EXCL_STOP*/
     }
+    x += rule_max_var_bytes()-1;
   }
 
   return ret;
@@ -5030,7 +5005,6 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
             // exit(-1);
           } break;
         }
-        x += sizeof(struct vm_vinteger_t)-1;
       } break;
       case VFLOAT: {
         struct vm_vfloat_t *val = (struct vm_vfloat_t *)&obj->varstack.buffer[x];
@@ -5078,7 +5052,6 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
             // exit(-1);
           } break;
         }
-        x += sizeof(struct vm_vfloat_t)-1;
       } break;
       case VNULL: {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&obj->varstack.buffer[x];
@@ -5123,14 +5096,17 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
             // exit(-1);
           } break;
         }
-        x += sizeof(struct vm_vnull_t)-1;
       } break;
       /* LCOV_EXCL_START*/
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+        exit(-1);
       } break;
       /* LCOV_EXCL_STOP*/
     }
+
+    x += rule_max_var_bytes()-1;
+
     pos += snprintf(&out[pos], size - pos, "\n");
   }
 
