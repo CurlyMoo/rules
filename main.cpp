@@ -644,6 +644,7 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
     } break;
   }
 
+  FREE(outB);
   return 0;
 }
 
