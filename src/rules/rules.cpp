@@ -4589,14 +4589,13 @@ static void print_tree(struct rules_t *obj) {
 /*LCOV_EXCL_STOP*/
 
 static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
-
   uint16_t out = 0;
   uint8_t step_type = 0;
   if(is_mmu == 1) {
-    out = mmu_get_uint16(&obj->varstack.nrbytes);
+    out = mmu_get_uint16(&obj->varstack->nrbytes);
     step_type = mmu_get_uint8(&obj->ast.buffer[step]);
   } else {
-    out = obj->varstack.nrbytes;
+    out = obj->varstack->nrbytes;
     step_type = obj->ast.buffer[step];
   }
 
@@ -4622,39 +4621,39 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
         var = atoi((char *)node->token);
       }
 
-      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[out];
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[out];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, ret);
         value->value = var;
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VINTEGER;
         value->ret = ret;
         value->value = var;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
 #ifdef DEBUG
       printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, (int)var);
 #endif
     } break;
     case VFLOAT: {
-      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack.buffer[out];
+      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack->buffer[out];
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->ast.buffer[step];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VFLOAT);
         mmu_set_uint16(&value->ret, ret);
         value->value = cpy->value;
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VFLOAT;
         value->ret = ret;
         value->value = cpy->value;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
 #ifdef DEBUG
       float v = 0;
@@ -4663,37 +4662,37 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 #endif
     } break;
     case VINTEGER: {
-      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[out];
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[out];
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->ast.buffer[step];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, ret);
         value->value = cpy->value;
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VINTEGER;
         value->ret = ret;
         value->value = cpy->value;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
 #ifdef DEBUG
       printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, cpy->value);
 #endif
     } break;
     case VNULL: {
-      struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack.buffer[out];
+      struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack->buffer[out];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VNULL);
         mmu_set_uint16(&value->ret, ret);
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VNULL;
         value->ret = ret;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
 #ifdef DEBUG
       printf("%s %d %d NULL\n", __FUNCTION__, __LINE__, out);
@@ -4759,9 +4758,9 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
   uint8_t valtype = 0;
 
   if(is_mmu == 1) {
-    ret = mmu_get_uint16(&obj->varstack.nrbytes);
+    ret = mmu_get_uint16(&obj->varstack->nrbytes);
   } else {
-    ret = obj->varstack.nrbytes;
+    ret = obj->varstack->nrbytes;
   }
 
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
@@ -4782,50 +4781,50 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
   switch(valtype) {
     case VINTEGER: {
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&val[0];
-      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack.buffer[ret];
+      struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, 0);
         value->value = cpy->value;
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VINTEGER;
         value->ret = 0;
         value->value = cpy->value;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
     } break;
     case VFLOAT: {
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&val[0];
-      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack.buffer[ret];
+      struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack->buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VFLOAT);
         mmu_set_uint16(&value->ret, 0);
         value->value = cpy->value;
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VFLOAT;
         value->ret = 0;
         value->value = cpy->value;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
     } break;
     case VNULL: {
-      struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack.buffer[ret];
+      struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack->buffer[ret];
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VNULL);
         mmu_set_uint16(&value->ret, 0);
-        mmu_set_uint16(&obj->varstack.nrbytes, size);
-        mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), size));
+        mmu_set_uint16(&obj->varstack->nrbytes, size);
+        mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
         value->type = VNULL;
         value->ret = 0;
-        obj->varstack.nrbytes = size;
-        obj->varstack.bufsize = MAX(obj->varstack.bufsize, size);
+        obj->varstack->nrbytes = size;
+        obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
       }
     } break;
     /* LCOV_EXCL_START*/
@@ -4842,11 +4841,11 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   uint16_t x = 0, ret = 0, nrbytes = 0, type = 0;
 
   if(is_mmu == 1) {
-    nrbytes = mmu_get_uint16(&obj->varstack.nrbytes);
-    type = mmu_get_uint8(&obj->varstack.buffer[idx]);
+    nrbytes = mmu_get_uint16(&obj->varstack->nrbytes);
+    type = mmu_get_uint8(&obj->varstack->buffer[idx]);
   } else {
-    nrbytes = obj->varstack.nrbytes;
-    type = obj->varstack.buffer[idx];
+    nrbytes = obj->varstack->nrbytes;
+    type = obj->varstack->buffer[idx];
   }
   if(idx == nrbytes) {
     return -1;
@@ -4861,19 +4860,19 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   if(is_mmu == 1) {
     uint16_t i = 0;
     for(i=0;i<nrbytes-idx-ret;i++) {
-      mmu_set_uint8(&obj->varstack.buffer[idx+i], mmu_get_uint8(&obj->varstack.buffer[idx+ret+i]));
+      mmu_set_uint8(&obj->varstack->buffer[idx+i], mmu_get_uint8(&obj->varstack->buffer[idx+ret+i]));
     }
   } else {
-    memmove(&obj->varstack.buffer[idx], &obj->varstack.buffer[idx+ret], nrbytes-idx-ret);
+    memmove(&obj->varstack->buffer[idx], &obj->varstack->buffer[idx+ret], nrbytes-idx-ret);
   }
 
   nrbytes -= ret;
   if(is_mmu == 1) {
-    mmu_set_uint16(&obj->varstack.nrbytes, nrbytes);
-    mmu_set_uint16(&obj->varstack.bufsize, MAX(mmu_get_uint16(&obj->varstack.bufsize), nrbytes));
+    mmu_set_uint16(&obj->varstack->nrbytes, nrbytes);
+    mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), nrbytes));
   } else {
-    obj->varstack.nrbytes = nrbytes;
-    obj->varstack.bufsize = MAX(obj->varstack.bufsize, nrbytes);
+    obj->varstack->nrbytes = nrbytes;
+    obj->varstack->bufsize = MAX(obj->varstack->bufsize, nrbytes);
   }
   /*
    * Values are linked back to their root node,
@@ -4886,13 +4885,13 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
     printf("%s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
     if(is_mmu == 1) {
-      type = mmu_get_uint8(&obj->varstack.buffer[x]);
+      type = mmu_get_uint8(&obj->varstack->buffer[x]);
     } else {
-      type = obj->varstack.buffer[x];
+      type = obj->varstack->buffer[x];
     }
     switch(type) {
       case VINTEGER: {
-        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->varstack.buffer[x];
+        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
@@ -4904,7 +4903,7 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
         }
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->varstack.buffer[x];
+        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
@@ -4916,7 +4915,7 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
         }
       } break;
       case VNULL: {
-        struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->varstack.buffer[x];
+        struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
@@ -4948,22 +4947,22 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
    * This is only used for debugging purposes
    */
   if(is_mmu == 1) {
-    nrbytes = mmu_get_uint16(&obj->varstack.nrbytes);
+    nrbytes = mmu_get_uint16(&obj->varstack->nrbytes);
   } else {
-    nrbytes = obj->varstack.nrbytes;
+    nrbytes = obj->varstack->nrbytes;
   }
 
   for(x=4;x<nrbytes;x++) {
     uint16_t val_ret = 0;
     uint8_t type = 0, type_ret = 0;
     if(is_mmu == 1) {
-      type = mmu_get_uint8(&obj->varstack.buffer[x]);
+      type = mmu_get_uint8(&obj->varstack->buffer[x]);
     } else {
-      type = obj->varstack.buffer[x];
+      type = obj->varstack->buffer[x];
     }
     switch(type) {
       case VINTEGER: {
-        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&obj->varstack.buffer[x];
+        struct vm_vinteger_t *val = (struct vm_vinteger_t *)&obj->varstack->buffer[x];
         if(is_mmu == 1) {
           val_ret = mmu_get_uint16(&val->ret);
           type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
@@ -5007,7 +5006,7 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
         }
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *val = (struct vm_vfloat_t *)&obj->varstack.buffer[x];
+        struct vm_vfloat_t *val = (struct vm_vfloat_t *)&obj->varstack->buffer[x];
         float a = 0;
         uint322float(val->value, &a);
 
@@ -5054,7 +5053,7 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
         }
       } break;
       case VNULL: {
-        struct vm_vnull_t *val = (struct vm_vnull_t *)&obj->varstack.buffer[x];
+        struct vm_vnull_t *val = (struct vm_vnull_t *)&obj->varstack->buffer[x];
         if(is_mmu == 1) {
           val_ret = mmu_get_uint16(&val->ret);
           type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
@@ -5328,12 +5327,12 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 #ifdef DEBUG
     if(is_mmu == 1) {
       printf("goto: %3d, ret: %3d, bytes: %3d\n", go, ret, mmu_get_uint8(&obj->ast.nrbytes));
-      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", mmu_get_uint16(&obj->ast.nrbytes), mmu_get_uint16(&obj->varstack.nrbytes));
-      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", mmu_get_uint16(&obj->ast.bufsize), mmu_get_uint16(&obj->varstack.bufsize));
+      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", mmu_get_uint16(&obj->ast.nrbytes), mmu_get_uint16(&obj->varstack->nrbytes));
+      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", mmu_get_uint16(&obj->ast.bufsize), mmu_get_uint16(&obj->varstack->bufsize));
     } else {
       printf("goto: %3d, ret: %3d, bytes: %3d\n", go, ret, obj->ast.nrbytes);
-      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", obj->ast.nrbytes, obj->varstack.nrbytes);
-      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", obj->ast.bufsize, obj->varstack.bufsize);
+      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", obj->ast.nrbytes, obj->varstack->nrbytes);
+      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", obj->ast.bufsize, obj->varstack->bufsize);
     }
 
     {
@@ -5392,7 +5391,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               } else {
                 intpos = op->value;
               }
-              tmp = (struct vm_vinteger_t *)&obj->varstack.buffer[intpos];
+              tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[intpos];
 
               val = tmp->value;
               if(is_mmu == 1) {
@@ -5416,7 +5415,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               } else {
                 intpos = op->value;
               }
-              tmp = (struct vm_vinteger_t *)&obj->varstack.buffer[intpos];
+              tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[intpos];
 
               val = tmp->value;
               if(is_mmu == 1) {
@@ -5689,12 +5688,12 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 struct vm_tgeneric_t *val = NULL;
                 if(is_mmu == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
                   mmu_set_uint16(&val->ret, 0);
                 } else {
                   tmp_val = tmp->value;
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   tmp->value = 0;
                   val->ret = 0;
                 }
@@ -5707,12 +5706,12 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 struct vm_tgeneric_t *val = NULL;
                 if(is_mmu == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
                   mmu_set_uint16(&val->ret, 0);
                 } else {
                   tmp_val = tmp->value;
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   tmp->value = 0;
                   val->ret = 0;
                 }
@@ -5725,12 +5724,12 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 struct vm_tgeneric_t *val = NULL;
                 if(is_mmu == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
                   mmu_set_uint16(&val->ret, 0);
                 } else {
                   tmp_val = tmp->value;
-                  val = (struct vm_tgeneric_t *)&obj->varstack.buffer[tmp_val];
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   tmp->value = 0;
                   val->ret = 0;
                 }
@@ -5795,13 +5794,13 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           if(c > 0) {
             uint8_t c_type = 0;
             if(is_mmu == 1) {
-              c_type = mmu_get_uint8(&obj->varstack.buffer[c]);
+              c_type = mmu_get_uint8(&obj->varstack->buffer[c]);
             } else {
-              c_type = obj->varstack.buffer[c];
+              c_type = obj->varstack->buffer[c];
             }
             switch(c_type) {
               case VINTEGER: {
-                struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack.buffer[c];
+                struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[c];
                 if(is_mmu == 1) {
                   mmu_set_uint16(&tmp->ret, go);
                   mmu_set_uint16(&node->value, c);
@@ -5811,7 +5810,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 }
               } break;
               case VNULL: {
-                struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack.buffer[c];
+                struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack->buffer[c];
                 if(is_mmu == 1) {
                   mmu_set_uint16(&tmp->ret, go);
                   mmu_set_uint16(&node->value, c);
@@ -5821,7 +5820,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 }
               } break;
               case VFLOAT: {
-                struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack.buffer[c];
+                struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack->buffer[c];
                 if(is_mmu == 1) {
                   mmu_set_uint16(&tmp->ret, go);
                   mmu_set_uint16(&node->value, c);
@@ -5848,9 +5847,9 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           for(i=0;i<nrgo;i++) {
             uint16_t type = 0;
             if(is_mmu == 1) {
-              type = mmu_get_uint8(&obj->varstack.buffer[values[i] - shift]);
+              type = mmu_get_uint8(&obj->varstack->buffer[values[i] - shift]);
             } else {
-              type = obj->varstack.buffer[values[i] - shift];
+              type = obj->varstack->buffer[values[i] - shift];
             }
             switch(type) {
               case VFLOAT:
@@ -6113,14 +6112,13 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
           uint8_t c_type = 0;
           if(is_mmu == 1) {
-            c_type = mmu_get_uint8(&obj->varstack.buffer[c]);
+            c_type = mmu_get_uint8(&obj->varstack->buffer[c]);
           } else {
-            c_type = obj->varstack.buffer[c];
+            c_type = obj->varstack->buffer[c];
           }
-
           switch(c_type) {
             case VINTEGER: {
-              struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack.buffer[c];
+              struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[c];
               /*
                * Reassign node due to possible reallocs
                */
@@ -6134,7 +6132,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               }
             } break;
             case VFLOAT: {
-              struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack.buffer[c];
+              struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack->buffer[c];
               /*
                * Reassign node due to possible reallocs
                */
@@ -6148,7 +6146,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               }
             } break;
             case VNULL: {
-              struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack.buffer[c];
+              struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack->buffer[c];
               /*
                * Reassign node due to possible reallocs
                */
@@ -6417,7 +6415,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 } else {
                   validx = tmp->value;
                 }
-                val = (struct vm_tgeneric_t *)&obj->varstack.buffer[validx];
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
                 if(is_mmu == 1) {
                   idx = mmu_get_uint16(&tmp->value);
                   mmu_set_uint16(&tmp->value, 0);
@@ -6437,7 +6435,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 } else {
                   validx = tmp->value;
                 }
-                val = (struct vm_tgeneric_t *)&obj->varstack.buffer[validx];
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
                 if(is_mmu == 1) {
                   idx = mmu_get_uint16(&tmp->value);
                   mmu_set_uint16(&tmp->value, 0);
@@ -6503,7 +6501,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 } else {
                   validx = tmp->value;
                 }
-                val = (struct vm_tgeneric_t *)&obj->varstack.buffer[validx - shift];
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx - shift];
                 if(is_mmu == 1) {
                   idx = mmu_get_uint16(&tmp->value) - shift;
                   mmu_set_uint16(&tmp->value, 0);
@@ -7226,10 +7224,21 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   assert(vmcache == NULL);
 
   uint16_t nrbytes = 0, newlen = input->tot_len;
-  uint16_t suggested_varstack_size = 0;
+  uint16_t suggested_varstack_size = 0, max_varstack_size = 0;
   if(mempool->len < 1000) {
     mempool->len = 1000;
   }
+
+  /*
+   * Check the size of the varstack of the previous
+   * ruleset. If it was bigger than the current one
+   * use that value for the current varstack size.
+   */
+  struct rule_stack_t *stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+  if(stack->bufsize > max_varstack_size) {
+    max_varstack_size = stack->bufsize;
+  }
+
   if(*nrrules >= 64) {
 #ifdef ESP8266
     Serial1.println(PSTR("more than the maximum of 25 rule blocks defined"));
@@ -7290,8 +7299,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   obj->ctx.ret = NULL;
   obj->ast.nrbytes = 0;
   obj->ast.bufsize = 0;
-  obj->varstack.nrbytes = 4;
-  obj->varstack.bufsize = 4;
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
@@ -7348,21 +7355,39 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       mempool->len += obj->ast.bufsize;
     }
 
-    suggested_varstack_size = align((input->len-mempool->len)-5, 4);
+    suggested_varstack_size = align((input->len-mempool->len-sizeof(struct rule_stack_t))-5, 4);
 
     /*
      * The memoffset will be increased below
      * as soon as we know how many bytes
      * we maximally need.
      */
-    obj->varstack.buffer = &((unsigned char *)mempool->payload)[mempool->len];
+    obj->varstack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+    obj->varstack->nrbytes = 4;
+    obj->varstack->bufsize = 4;
+    obj->varstack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
+
+    /*
+     * Since previous varstacks are overwritten we must
+     * remap the pointer to the current varstack. This
+     * also makes sure that rule sets that are called from
+     * other rulesets share the same varstack. This helps
+     * determine how big the final varstack for all rulesets
+     * together should be.
+     */
+    {
+      uint8_t x = 0;
+      for(x=0;x<*nrrules;x++) {
+        (*rules)[x]->varstack = obj->varstack;
+      }
+    }
 
     if(is_mmu == 1) {
       memset(obj->ast.buffer, 0, mmu_get_uint16(&obj->ast.bufsize));
     } else {
       memset(obj->ast.buffer, 0, obj->ast.bufsize);
     }
-    memset(obj->varstack.buffer, 0, suggested_varstack_size);
+    memset(obj->varstack->buffer, 0, suggested_varstack_size);
 
     if(rule_parse((char **)&input->payload, obj) == -1) {
       vm_cache_gc();
@@ -7434,23 +7459,34 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   }
 
   /*
+   * If a previous varstack was bigger than the current
+   * varstack, use the previous varstack size. This will
+   * make the final varstack shared across all rules have
+   * enough space for all variables.
+   */
+  if(max_varstack_size > obj->varstack->bufsize) {
+    obj->varstack->bufsize = max_varstack_size;
+  }
+
+
+  /*
    * Reserve space for the actual maximum
    * varstack buffer size
    */
 #ifdef ESP8266
   if(is_mmu == 1) {
-    if((mmu_get_uint16(&obj->varstack.bufsize) % 4) != 0) {
+#ifdef ESP8266
+    if((mmu_get_uint16(&obj->varstack->bufsize) % 4) != 0) {
       Serial.println("Rules AST not 4 byte aligned!");
       exit(-1);
     }
-    mmu_set_uint16(&mempool->len, mmu_get_uint16(&mempool->len) + mmu_get_uint16(&obj->varstack.bufsize));
+#endif
   } else {
 #endif
-    if((obj->varstack.bufsize % 4) != 0) {
+    if((obj->varstack->bufsize % 4) != 0) {
       printf("Rules AST not 4 byte aligned!\n");
       exit(-1);
     }
-    mempool->len += obj->varstack.bufsize;
 #ifdef ESP8266
   }
 #endif

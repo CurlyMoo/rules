@@ -24,8 +24,8 @@ int8_t rule_operator_and_callback(struct rules_t *obj, uint16_t a, uint16_t b, u
   out.type = VINTEGER;
 
   unsigned char nodeA[rule_max_var_bytes()], nodeB[rule_max_var_bytes()];
-  rule_stack_pull(&obj->varstack, a, nodeA);
-  rule_stack_pull(&obj->varstack, b, nodeB);
+  rule_stack_pull(obj->varstack, a, nodeA);
+  rule_stack_pull(obj->varstack, b, nodeB);
 
   /*
    * Values can only be equal when the type matches
@@ -114,7 +114,7 @@ int8_t rule_operator_and_callback(struct rules_t *obj, uint16_t a, uint16_t b, u
     /* LCOV_EXCL_STOP*/
   }
 
-  *ret = rule_stack_push(&obj->varstack, &out);
+  *ret = rule_stack_push(obj->varstack, &out);
 
   return 0;
 }

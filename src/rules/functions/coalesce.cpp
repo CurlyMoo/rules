@@ -28,7 +28,7 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint1
   uint16_t i = 0;
   for(i=0;i<argc;i++) {
     unsigned char nodeA[rule_max_var_bytes()];
-    rule_stack_pull(&obj->varstack, argv[i], nodeA);
+    rule_stack_pull(obj->varstack, argv[i], nodeA);
     if(nodeA[0] == VNULL) {
       continue;
     } else {
@@ -40,7 +40,7 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint1
           out.ret = 0;
           out.value = val->value;
 
-          *ret = rule_stack_push(&obj->varstack, &out);
+          *ret = rule_stack_push(obj->varstack, &out);
           return 0;
         } break;
         case VFLOAT: {
@@ -50,7 +50,7 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint1
           out.ret = 0;
           out.value = val->value;
 
-          *ret = rule_stack_push(&obj->varstack, &out);
+          *ret = rule_stack_push(obj->varstack, &out);
           return 0;
         } break;
         /* LCOV_EXCL_START*/

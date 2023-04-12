@@ -20,15 +20,15 @@
 
 int8_t rule_operator_mod_callback(struct rules_t *obj, uint16_t a, uint16_t b, uint16_t *ret) {
   unsigned char nodeA[rule_max_var_bytes()], nodeB[rule_max_var_bytes()];
-  rule_stack_pull(&obj->varstack, a, nodeA);
-  rule_stack_pull(&obj->varstack, b, nodeB);
+  rule_stack_pull(obj->varstack, a, nodeA);
+  rule_stack_pull(obj->varstack, b, nodeB);
 
   if(nodeA[0] == VNULL || nodeB[0] == VNULL) {
     struct vm_vnull_t out;
     out.ret = 0;
     out.type = VNULL;
 
-    *ret = rule_stack_push(&obj->varstack, &out);
+    *ret = rule_stack_push(obj->varstack, &out);
 
 /* LCOV_EXCL_START*/
 #ifdef DEBUG
@@ -57,7 +57,7 @@ int8_t rule_operator_mod_callback(struct rules_t *obj, uint16_t a, uint16_t b, u
 #endif
 /* LCOV_EXCL_STOP*/
 
-    *ret = rule_stack_push(&obj->varstack, &out);
+    *ret = rule_stack_push(obj->varstack, &out);
   } else if(nodeA[0] == VFLOAT || nodeB[0] == VFLOAT) {
     float f = 0;
     int i = 0;
@@ -89,7 +89,7 @@ int8_t rule_operator_mod_callback(struct rules_t *obj, uint16_t a, uint16_t b, u
 #endif
 /* LCOV_EXCL_STOP*/
 
-    *ret = rule_stack_push(&obj->varstack, &out);
+    *ret = rule_stack_push(obj->varstack, &out);
   } else {
     struct vm_vinteger_t out;
     struct vm_vinteger_t *na = (struct vm_vinteger_t *)&nodeA[0];
@@ -105,7 +105,7 @@ int8_t rule_operator_mod_callback(struct rules_t *obj, uint16_t a, uint16_t b, u
 #endif
 /* LCOV_EXCL_STOP*/
 
-    *ret = rule_stack_push(&obj->varstack, &out);
+    *ret = rule_stack_push(obj->varstack, &out);
   }
 
   return 0;

@@ -33,7 +33,7 @@ int8_t rule_function_max_callback(struct rules_t *obj, uint16_t argc, uint16_t *
   uint16_t i = 0;
   for(i=0;i<argc;i++) {
     unsigned char nodeA[rule_max_var_bytes()];
-    rule_stack_pull(&obj->varstack, argv[i], nodeA);
+    rule_stack_pull(obj->varstack, argv[i], nodeA);
     switch(nodeA[0]) {
       case VINTEGER: {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&nodeA[0];
@@ -46,7 +46,7 @@ int8_t rule_function_max_callback(struct rules_t *obj, uint16_t argc, uint16_t *
     }
   }
 
-  *ret = rule_stack_push(&obj->varstack, &out);
+  *ret = rule_stack_push(obj->varstack, &out);
 
   return 0;
 }

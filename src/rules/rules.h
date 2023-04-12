@@ -173,7 +173,7 @@ typedef struct rules_t {
   uint8_t sync;
 
   struct rule_stack_t ast;
-  struct rule_stack_t varstack;
+  struct rule_stack_t *varstack;
 
 } __attribute__((aligned(4))) rules_t;
 

@@ -562,13 +562,13 @@ static int8_t vm_value_set(struct rules_t *obj, uint16_t token, uint16_t val) {
   unsigned char *outB = NULL;
   uint16_t outBsize = 0;
 
-  int8_t r = rule_token(&obj->varstack, val, NULL, &outBsize);
+  int8_t r = rule_token(obj->varstack, val, NULL, &outBsize);
   if(r == -1) {
     return -1;
   } else if(r == -2) {
     outB = (unsigned char *)REALLOC(outB, outBsize);
     memset(outB, 0, outBsize);
-    if(rule_token(&obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
+    if(rule_token(obj->varstack, val, (unsigned char *)outB, &outBsize) < 0) {
       FREE(outB);
       return -1;
     }
@@ -857,11 +857,11 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       assert(mmu_get_uint16(&rules[nrrules-1]->ast.nrbytes) >= 0);
       assert(mmu_get_uint16(&rules[nrrules-1]->ast.bufsize) >= 0);
       assert(mmu_get_uint16(&rules[nrrules-1]->ast.nrbytes) <= mmu_get_uint16(&rules[nrrules-1]->ast.bufsize));
-      assert(mmu_get_uint16(&rules[nrrules-1]->varstack.nrbytes) >= 0);
-      assert(mmu_get_uint16(&rules[nrrules-1]->varstack.bufsize) >= 0);
-      assert(mmu_get_uint16(&rules[nrrules-1]->varstack.nrbytes) >= 0);
-      assert(mmu_get_uint16(&rules[nrrules-1]->varstack.bufsize) >= 0);
-      assert(mmu_get_uint16(&rules[nrrules-1]->varstack.nrbytes) <= mmu_get_uint16(&rules[nrrules-1]->varstack.bufsize));
+      assert(mmu_get_uint16(&rules[nrrules-1]->varstack->nrbytes) >= 0);
+      assert(mmu_get_uint16(&rules[nrrules-1]->varstack->bufsize) >= 0);
+      assert(mmu_get_uint16(&rules[nrrules-1]->varstack->nrbytes) >= 0);
+      assert(mmu_get_uint16(&rules[nrrules-1]->varstack->bufsize) >= 0);
+      assert(mmu_get_uint16(&rules[nrrules-1]->varstack->nrbytes) <= mmu_get_uint16(&rules[nrrules-1]->varstack->bufsize));
       assert(varstack->nrbytes >= 0);
       assert(varstack->bufsize >= 0);
       assert(varstack->nrbytes <= varstack->bufsize);
@@ -872,11 +872,11 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       assert(rules[nrrules-1]->ast.nrbytes >= 0);
       assert(rules[nrrules-1]->ast.bufsize >= 0);
       assert(rules[nrrules-1]->ast.nrbytes <= rules[nrrules-1]->ast.bufsize);
-      assert(rules[nrrules-1]->varstack.nrbytes >= 0);
-      assert(rules[nrrules-1]->varstack.bufsize >= 0);
-      assert(rules[nrrules-1]->varstack.nrbytes >= 0);
-      assert(rules[nrrules-1]->varstack.bufsize >= 0);
-      assert(rules[nrrules-1]->varstack.nrbytes <= rules[nrrules-1]->varstack.bufsize);
+      assert(rules[nrrules-1]->varstack->nrbytes >= 0);
+      assert(rules[nrrules-1]->varstack->bufsize >= 0);
+      assert(rules[nrrules-1]->varstack->nrbytes >= 0);
+      assert(rules[nrrules-1]->varstack->bufsize >= 0);
+      assert(rules[nrrules-1]->varstack->nrbytes <= rules[nrrules-1]->varstack->bufsize);
       assert(varstack->nrbytes >= 0);
       assert(varstack->bufsize >= 0);
       assert(varstack->nrbytes <= varstack->bufsize);
@@ -910,8 +910,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     }
 
 #ifdef DEBUG
-    printf("AST stack is\t%3d bytes, local stack is\t%3d bytes, variable stack is\t%3d bytes\n", rules[nrrules-1]->ast.nrbytes, rules[nrrules-1]->varstack.nrbytes, (varstack->nrbytes));
-    printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes, variable bufsize is\t%3d bytes\n", rules[nrrules-1]->ast.bufsize, rules[nrrules-1]->varstack.bufsize, (varstack->bufsize));
+    printf("AST stack is\t%3d bytes, local stack is\t%3d bytes, variable stack is\t%3d bytes\n", rules[nrrules-1]->ast.nrbytes, rules[nrrules-1]->varstack->nrbytes, (varstack->nrbytes));
+    printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes, variable bufsize is\t%3d bytes\n", rules[nrrules-1]->ast.bufsize, rules[nrrules-1]->varstack->bufsize, (varstack->bufsize));
 #endif
 
     valprint(rules[nrrules-1], (char *)&out, OUTPUT_SIZE);
