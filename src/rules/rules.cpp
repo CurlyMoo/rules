@@ -5116,7 +5116,7 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
 }
 /*LCOV_EXCL_START*/
 
-static void vm_clear_values(struct rules_t *obj) {
+void vm_clear_values(struct rules_t *obj) {
   uint16_t i = 0, nrbytes = 0;
   uint8_t type = 0;
   if(is_mmu == 1) {

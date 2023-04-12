@@ -309,6 +309,7 @@ int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name);
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
 int8_t rule_run(struct rules_t *obj, uint8_t validate);
 int8_t rule_max_var_bytes(void);
+void vm_clear_values(struct rules_t *obj);
 void valprint(struct rules_t *obj, char *out, uint16_t size);
 
 #endif
