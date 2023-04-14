@@ -5295,11 +5295,7 @@ static int8_t rule_pop(uint8_t *nr) {
   return -1;
 }
 
-#ifdef COVERALLS
 int8_t rule_run(struct rules_t *obj, uint8_t validate) {
-#else
-static int8_t rule_run(struct rules_t *obj, uint8_t validate) {
-#endif
   int16_t go = 0, ret = -1, i = -1, start = -1;
   uint16_t goval = 0, retval = 0;
   go = start = 0;
