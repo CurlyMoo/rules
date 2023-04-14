@@ -40,7 +40,17 @@
 #include "operator.h"
 #include "function.h"
 
-struct vm_cache_t {
+#define MAXQUEUESIZE 10
+
+static struct rulequeue_t {
+  uint8_t nr;
+} rulequeue[MAXQUEUESIZE];
+
+static uint8_t queuestart = 0;
+static uint8_t queueend = 0;
+static uint8_t queuenrel = 0;
+
+static struct vm_cache_t {
   uint8_t type;
   uint16_t step;
   uint16_t start;
@@ -5254,7 +5264,42 @@ void vm_clear_values(struct rules_t *obj) {
   }
 }
 
+static int8_t rule_running(struct rules_t *obj) {
+  if(is_mmu == 1) {
+    return mmu_get_uint16(&obj->cont.go) > 0;
+  } else {
+    return obj->cont.go > 0;
+  }
+}
+
+int8_t rule_call(uint8_t nr) {
+  if(queuenrel + 1 > MAXQUEUESIZE) {
+    logprintf_P(F("Too many rules already in buffer. Ignoring this rule.\n"));
+    return -1;
+  }
+
+  rulequeue[queueend].nr = nr;
+  queueend = (queueend + 1) % (MAXQUEUESIZE);
+  queuenrel++;
+  return 0;
+}
+
+static int8_t rule_pop(uint8_t *nr) {
+  if(queuenrel > 0) {
+    *nr = rulequeue[queuestart].nr;
+
+    queuestart = (queuestart + 1) % (MAXQUEUESIZE);
+    queuenrel--;
+    return 0;
+  }
+  return -1;
+}
+
+#ifdef COVERALLS
 int8_t rule_run(struct rules_t *obj, uint8_t validate) {
+#else
+static int8_t rule_run(struct rules_t *obj, uint8_t validate) {
+#endif
   int16_t go = 0, ret = -1, i = -1, start = -1;
   uint16_t goval = 0, retval = 0;
   go = start = 0;
@@ -5326,11 +5371,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
     if(is_mmu == 1) {
-      printf("goto: %3d, ret: %3d, bytes: %3d\n", go, ret, mmu_get_uint8(&obj->ast.nrbytes));
+      printf("rule: %d, goto: %3d, ret: %3d, bytes: %3d\n", mmu_get_uint8(&obj->nr), go, ret, mmu_get_uint8(&obj->ast.nrbytes));
       printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", mmu_get_uint16(&obj->ast.nrbytes), mmu_get_uint16(&obj->varstack->nrbytes));
       printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", mmu_get_uint16(&obj->ast.bufsize), mmu_get_uint16(&obj->varstack->bufsize));
     } else {
-      printf("goto: %3d, ret: %3d, bytes: %3d\n", go, ret, obj->ast.nrbytes);
+      printf("rule: %d, goto: %3d, ret: %3d, bytes: %3d\n", obj->nr, go, ret, obj->ast.nrbytes);
       printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", obj->ast.nrbytes, obj->varstack->nrbytes);
       printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", obj->ast.bufsize, obj->varstack->bufsize);
     }
@@ -6590,6 +6635,8 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       }
       if(validate == 1) {
         printf("[continuing]\n");
+      } else {
+        printf("\n");
       }
       printf("-----------------------\n");
 #endif
@@ -6624,6 +6671,44 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   }
 
   return -1;
+}
+
+int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
+  uint8_t x = 0;
+  int8_t ret = 0, active = 0;
+  for(x=0;x<nrrules;x++) {
+    if(rule_running(rules[x])) {
+      active = 1;
+      int8_t ret = 0;
+      *nr = x;
+      while((ret = rule_run(rules[x], 0)) == 2);
+      if(ret == -1) {
+        return -1;
+      }
+      if(ret == 0) {
+        return 0;
+      }
+      return 1;
+    }
+  }
+  if(active == 0) {
+    uint8_t x = 0;
+    if(rule_pop(&x) == 0) {
+      *nr = x;
+      int8_t ret = 0;
+      while((ret = rule_run(rules[x], 0)) == 2);
+      if(ret == -1) {
+        return -1;
+      }
+      if(ret == 0) {
+        return 0;
+      }
+      return 1;
+    } else {
+      return -2;
+    }
+  }
+  return -2;
 }
 
 /*LCOV_EXCL_START*/

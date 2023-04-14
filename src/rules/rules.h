@@ -307,8 +307,12 @@ typedef struct vm_teof_t {
 int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, uint16_t *bufsize);
 int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name);
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
-int8_t rule_run(struct rules_t *obj, uint8_t validate);
 int8_t rule_max_var_bytes(void);
+int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr);
+#ifdef COVERALLS
+int8_t rule_run(struct rules_t *obj, uint8_t validate);
+#endif
+int8_t rule_call(uint8_t nr);
 void vm_clear_values(struct rules_t *obj);
 void valprint(struct rules_t *obj, char *out, uint16_t size);
 

@@ -360,54 +360,16 @@ while((ret = rule_initialize(&input, &rules, &nrrules, &mem, NULL)) == 0) {
 A tip is to place the raw ruleset string at the end of the mempool. As soon as a rule block has been parsed from within the rule set it's no longer needed so it can be overwritten by the rule parser. Hardly no overhead is needed for this kind or parsing.
 
 ```c
-int8_t rule_run(struct rules_t *obj, uint8_t validate);
+int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr);
 ```
 
-The `rule_run` function is used to execute a specific rule. The validate value should be either 1 or 0. A 1 tells the parser to validate the rule (which is already when initializing the rules). Validation means that every part of the rule is reached meaning both the `if` and `else` blocks will be visited.
-
-Each call to the `rule_run` function will walk the rule block one step at a time. This allows developers to execute rules in an async manner. The `rule_run` function will return -1 when an error occured, a 0 means that the rule was done executing, a 1 means there are more steps to execute. This function will return 2 when a user has requested a synced execution. It will return 2 for as long as a synced execution is requested. In normal operation the `rule_run` should be called for as long as it returns 1 or 2.
-
-Example:
-```ruby
-if 1 == 1 then           // Async
-  $a = 1;                // Async
-  sync if 2 == 2 then    // Sync
-    $a = $a + 2;         // Sync
-    if 3 == 3 then       // Sync
-      $a = $a + 3;       // Sync
-    end                  // Sync
-  end                    // Sync
-  $b = $a;               // Async
-end
-```
-
-Running rules synced (ignoring the return value distinction) can be done by just running it within a while loop:
+The `rule_loop` function is used to (a)sync execute rule blocks. The `nr` argument returns the rule number currently being executed. This function will return `-1` when an error occured, `-2` when there are no rules listed for execution, `0` when a rule is done executing, and `1` when there is a rule being executed.
 
 ```c
-  int8_t ret = 0;
-  if(rules[0]->cont.go > 0) { // Check if rule was triggered
-    while((ret = rule_run(rules[0], 0)) > 0);
-    if(ret == -1) {
-      // Failure
-    }
-  }
+int8_t rule_call(uint8_t nr);
 ```
 
-or
-
-```c
-void loop(void) {
-  if(rules[0]->cont.go > 0) { // Check if rule was triggered
-    ret = rule_run(rules[0], 0);
-    if(ret == 2) {
-      while((ret = rule_run(rules[0], 0)) == 2);
-    }
-    if(ret == -1) {
-      // Failure
-    }
-  }
-}
-```
+To enlist a rule for execution, this function can be called with the rule nr that should be enqueued for execution. If the execution queue is full, this function returns `-1`. When enqueuing was succesfull it will return `0`.
 
 ```c
 int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, uint16_t *size);

@@ -952,9 +952,17 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
       printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
-      while((ret = rule_run(rules[nrrules-1], 0)));
-      if(ret == -1) {
-        exit(-1);
+      rule_call(nrrules-1);
+      while(1) {
+        int8_t ret = 0;
+        uint8_t nr = 0;
+        ret = rules_loop(rules, nrrules, &nr);
+        if(ret == -1) {
+          exit(-1);
+        }
+        if(ret == 0) {
+          break;
+        }
       }
 #if defined(DEBUG) && !defined(ESP8266)
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
