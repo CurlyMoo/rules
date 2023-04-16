@@ -971,7 +971,7 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         nrtokens++;
         tpos += len1;
         pos += len1;
-      } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb((*text), &pos, b)) > -1) {
+      } else if(rule_options.is_event_cb != NULL && (len1 = rule_options.is_event_cb(cpy, b)) > -1) {
         nrtokens++;
         char start = 0, end = 0;
         if(pos+b+1 < *len) {

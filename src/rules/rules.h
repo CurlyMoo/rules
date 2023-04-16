@@ -182,7 +182,7 @@ typedef struct rule_options_t {
    * Identifying callbacks
    */
   int8_t (*is_token_cb)(char *text, uint16_t size);
-  int8_t (*is_event_cb)(char *text, uint16_t *pos, uint16_t size);
+  int8_t (*is_event_cb)(char *text, uint16_t size);
 
   /*
    * Variables
