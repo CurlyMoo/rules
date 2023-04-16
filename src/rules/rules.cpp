@@ -6675,7 +6675,6 @@ int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
   for(x=0;x<nrrules;x++) {
     if(rule_running(rules[x])) {
       active = 1;
-      int8_t ret = 0;
       *nr = x;
       while((ret = rule_run(rules[x], 0)) == 2);
       if(ret == -1) {
@@ -6691,7 +6690,6 @@ int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
     uint8_t x = 0;
     if(rule_pop(&x) == 0) {
       *nr = x;
-      int8_t ret = 0;
       while((ret = rule_run(rules[x], 0)) == 2);
       if(ret == -1) {
         return -1;
@@ -7310,16 +7308,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     mempool->len = 1000;
   }
 
-  /*
-   * Check the size of the varstack of the previous
-   * ruleset. If it was bigger than the current one
-   * use that value for the current varstack size.
-   */
-  struct rule_stack_t *stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-  if(stack->bufsize > max_varstack_size) {
-    max_varstack_size = stack->bufsize;
-  }
-
   if(*nrrules >= 64) {
 #ifdef ESP8266
     Serial1.println(PSTR("more than the maximum of 25 rule blocks defined"));
@@ -7344,6 +7332,22 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
+
+  /*
+   * Check the size of the varstack of the previous
+   * ruleset. If it was bigger than the current one
+   * use that value for the current varstack size.
+   */
+  struct rule_stack_t *stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+  if(is_mmu == 1) {
+    if(mmu_get_uint16(&stack->bufsize) > max_varstack_size) {
+      max_varstack_size = mmu_get_uint16(&stack->bufsize);
+    }
+  } else {
+    if(stack->bufsize > max_varstack_size) {
+      max_varstack_size = stack->bufsize;
+    }
+  }
 
   if(newlen == 0) {
     return 1;
@@ -7444,8 +7448,13 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
      * we maximally need.
      */
     obj->varstack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-    obj->varstack->nrbytes = 4;
-    obj->varstack->bufsize = 4;
+    if(is_mmu == 1) {
+      mmu_set_uint16(&obj->varstack->nrbytes, 4);
+      mmu_set_uint16(&obj->varstack->bufsize, 4);
+    } else {
+      obj->varstack->nrbytes = 4;
+      obj->varstack->bufsize = 4;
+    }
     obj->varstack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
 
     /*
@@ -7545,8 +7554,14 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
    * make the final varstack shared across all rules have
    * enough space for all variables.
    */
-  if(max_varstack_size > obj->varstack->bufsize) {
-    obj->varstack->bufsize = max_varstack_size;
+  if(is_mmu == 1) {
+    if(max_varstack_size > mmu_get_uint16(&obj->varstack->bufsize)) {
+      mmu_set_uint16(&obj->varstack->bufsize, max_varstack_size);
+    }
+  } else {
+    if(max_varstack_size > obj->varstack->bufsize) {
+      obj->varstack->bufsize = max_varstack_size;
+    }
   }
 
 
