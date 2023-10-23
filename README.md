@@ -372,10 +372,11 @@ int8_t rule_call(uint8_t nr);
 To enlist a rule for execution, this function can be called with the rule nr that should be enqueued for execution. If the execution queue is full, this function returns `-1`. When enqueuing was succesfull it will return `0`.
 
 ```c
-int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char *out, uint16_t *size);
+int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out);
 ```
 
-The `rule_token` function is a helper function to make it easier to interface with the rule stack and to deal with all quirks associated with the 2nd heap on the ESP8266. The first parameter should contain the rule stack. For an individual rule this is the `varstack` field of the `rules_t` struct. The second parameter `pos` should point to a position on the stack. The `out` parameter should contain a pre-allocated block of memory. The `pos` value is passed by the library to the different (relevant) `rule_options_t` functions described below. To determine to necessary memory size for the `out` parameter, this function can be called with `NULL` as the `out` parameter. Parameter `size` shall be updated with the necessary size. If the function was called with the `out` parameter allocated but with a `size` parameter too small, the function will return with `-2` and a `size` parameter with the required memory size. The function will return `-1` in case of an error.
+The `rule_token` function is a helper function to make it easier to interface with the rule stack and to deal with all quirks associated with the 2nd heap on the ESP8266. The first parameter should contain the rule stack. For an individual rule this is the `varstack` field of the `rules_t` struct. The second parameter `pos` should point to a position on the stack. The `pos` value is passed by the library to the different (relevant) `rule_options_t` functions described below. The function will return `-1` in case of an error. Make sure to free the `out` parameter afterwards. To store an updated value back on the stack you can call the `rule_token` function with an allocation and filled `out` parameter.
+
 
 In this case, a rule stack was placed in the rule userdata field.
 
@@ -383,33 +384,25 @@ In this case, a rule stack was placed in the rule userdata field.
 struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
 
 unsigned char *out = NULL;
-uint16_t s_out = 0;
-int8_t ret = 0;
 
 // Determine the necessary memory size
-ret = rule_token(&obj->ast, token, NULL, &s_out);
-if(ret == -1) {
-  // A definite failure
-	return NULL;
-}
-if(ret == -2) {
-	// Allocate the necessary memory
-	out = (unsigned char *)realloc(out, s_out);
-	memset(out, 0, s_out);
-
-	// Actually fill the out parameter
-	if(rule_token(&obj->ast, token, &out, &s_out) < 0) {
-		// If it still fails with either -1 or -2
-		// the function will not succeed either way
-		return NULL;
-	}
+if(rule_token(&obj->ast, token, &out) < 0) {
+   return NULL;
 }
 
-if(out[0] == TVALUE) {
-  struct vm_tvalue_t *val = (struct vm_tvalue_t *)out;
-	[...]
+if(out[0] == VINTEGER) {
+  struct vm_vinteger_t *val = (struct vm_vinteger_t *)out;
+  val->value = 10; // Change the value of the integer
+
+  // Store the updated integer back on the stack
+  if(rule_token(&obj->ast, token, &out) < 0) {
+    FREE(out);
+    return NULL;
+  }
 }
+FREE(out);
 ```
+
 
 ### Modular functions and operators
 
