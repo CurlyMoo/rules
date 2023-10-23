@@ -428,7 +428,7 @@ typedef struct rule_options_t {
    * Identifying callbacks
    */
   int8_t (*is_token_cb)(char *text, uint16_t size);
-  int8_t (*is_event_cb)(char *text, uint16_t *pos, uint16_t size);
+  int8_t (*is_event_cb)(char *text, uint16_t size);
 
   /*
    * Variables
@@ -454,8 +454,7 @@ The `is_variable` function is called with two parameters:
 2. `uint16_t size` the size (number of characters) of the token encountered.
 
 The `is_event` function is called with three parameters:
-1. `char *text` contains the rule block currently being prepared.
-2. `uint16_t pos` contains the position inside the rule block where a token was encountered, possible an event.
+1. `char *text` contains the name of the token encountered, possibly a event name.
 3. `uint16_t size` the size (number of characters) of the token encountered.
 
 Both function should return a `-1` when the token isn't a variable neither an event. The `is_variable` function should return the length of the token found. The `is_event` should return `0` when a token was indeed an event.
