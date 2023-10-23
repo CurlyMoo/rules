@@ -1097,6 +1097,99 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   nrrules = 0;
 }
 
+void check_rule_name(int *i, unsigned char *mempool, uint16_t size) {
+  memset(&rule_options, 0, sizeof(struct rule_options_t));
+  rule_options.is_token_cb = is_variable;
+  rule_options.is_event_cb = is_event;
+  rule_options.set_token_val_cb = vm_value_set;
+  rule_options.get_token_val_cb = vm_value_get;
+  rule_options.prt_token_val_cb = vm_value_prt;
+  rule_options.clr_token_val_cb = vm_value_del;
+  rule_options.event_cb = event_cb;
+
+#ifdef ESP8266
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  Serial.printf("[ %-*s Retrieving rule name %-*s ]\n", 23, " ", 24, " ");
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#else
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  printf("[ %-*s Retrieving rule name %-*s ]\n", 23, " ", 24, " ");
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#endif
+
+  const char *rule = "on foo then $a = 1; end";
+
+  int len = strlen(rule);
+  struct rule_stack_t *varstack = (struct rule_stack_t *)MALLOC(sizeof(struct rule_stack_t));
+  if(varstack == NULL) {
+    OUT_OF_MEMORY
+  }
+  varstack->buffer = NULL;
+  varstack->nrbytes = 4;
+  varstack->bufsize = 4;
+
+  int ret = 0;
+
+  struct pbuf mem;
+  struct pbuf input;
+  memset(&mem, 0, sizeof(struct pbuf));
+  memset(&input, 0, sizeof(struct pbuf));
+
+  mem.payload = mempool;
+  mem.len = 0;
+  mem.tot_len = size;
+
+  uint8_t y = 0;
+  uint16_t txtoffset = alignedbuffer(size-len-5);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)rule[y]);
+    }
+  } else {
+#endif
+    for(y=0;y<len;y++) {
+      mempool[txtoffset+y] = (uint8_t)rule[y];
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  input.payload = &mempool[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+
+  unsigned char *cpytxt = (unsigned char *)MALLOC(len+1);
+  if(cpytxt == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(cpytxt, 0, len+1);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
+    }
+  } else {
+#endif
+    memcpy(cpytxt, input.payload, len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, &mem, varstack)) == 0);
+  assert(ret == 1);
+
+  assert(strcmp(rule_by_nr(rules, nrrules, 0), "foo") == 0);
+
+  struct rule_stack_t *node = (struct rule_stack_t *)rules[0]->userdata;
+  FREE(node->buffer);
+  FREE(node);
+
+  FREE(cpytxt);
+  nrrules = 0;
+}
+
+
 void run_async(int *i, unsigned char *mempool, uint16_t size) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_token_cb = is_variable;
@@ -1274,7 +1367,7 @@ int main(int argc, char **argv) {
   }
 
   memset(mempool, 0, MEMPOOL_SIZE*2);
-  run_async(&i, &mempool[0], MEMPOOL_SIZE);
+  check_rule_name(&i, &mempool[0], MEMPOOL_SIZE);
 
   FREE(mempool);
 }

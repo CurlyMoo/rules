@@ -82,6 +82,56 @@ int8_t rule_max_var_bytes(void) {
   return MAX(sizeof(struct vm_vinteger_t), MAX(sizeof(struct vm_vfloat_t), sizeof(struct vm_vnull_t)));
 }
 
+char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
+  uint16_t go = 0, type = 0;
+  if(nr > nrrules) {
+    return NULL;
+  }
+  struct rules_t *obj = rules[nr];
+  struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
+  if(start == NULL) {
+    return NULL;
+  }
+  if(is_mmu == 1) {
+    go = mmu_get_uint16(&start->go);
+    type = mmu_get_uint8(&obj->ast.buffer[go]);
+  } else {
+    go = start->go;
+    type = obj->ast.buffer[go];
+  }
+  if(type != TEVENT) {
+    return NULL;
+  } else {
+    char *cpy = NULL;
+    uint16_t len = 0, x = 0;
+    struct vm_tevent_t *ev = (struct vm_tevent_t *)&obj->ast.buffer[go];
+
+    if(is_mmu == 1) {
+      while(mmu_get_uint8(&ev->token[++len]) != 0);
+      if((cpy = (char *)MALLOC(len+1)) == NULL) {
+        return NULL;
+      }
+      memset(cpy, 0, len+1);
+      for(x=0;x<len;x++) {
+        cpy[x] = mmu_get_uint8(&ev->token[x]);
+      }
+      return cpy;
+    } else {
+      while(ev->token[++len] != 0);
+      if((cpy = (char *)MALLOC(len+1)) == NULL) {
+        return NULL;
+      }
+      memset(cpy, 0, len+1);
+      for(x=0;x<len;x++) {
+        cpy[x] = ev->token[x];
+      }
+
+      return cpy;
+    }
+  }
+  return NULL;
+}
+
 int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
   uint8_t a = 0;
   uint16_t go = 0, type = 0;
