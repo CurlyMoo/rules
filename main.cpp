@@ -280,7 +280,7 @@ struct unittest_t {
   { "on foo then if 5 == 6 then $a = 1; end $a = 2; end", { "$a = 2", 148 }, { "$a = 2", 148 } },
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "$b = 3$a = 2", 236 }, { "$a = 2", 228 } },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 76 }, { "$b = 3" , 100 } },  { { "$a = 6", 76 }, { "$b = 3" , 100 } } },
-  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 76 }, { "$b = 3", 116 } },  { { "$a = 6", 76 }, { "$b = 3", 116 } } },
+  { "on foo then $a = 6; end if 3 == 3 then foo(); $b = 3; end  ", { { "$a = 6", 76 }, { "$b = 3", 120 } },  { { "$a = 6", 76 }, { "$b = 3", 120 } } },
   { "on foo then $a = coalesce($b, 0); end  ", { { "$b = NULL$a = 0", 116 } },  { { "$b = NULL$a = 0", 116 } } }, // FIXME
   { "on foo then if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end end", { "$a = 2", 236 }, { "$a = 3", 236 } },
   { "on foo then if 2 == 2 then $c = 1; elseif 3 == 3 then $b = max(1); end end", { "$c = 1$b = 1", 240 }, { "$c = 1", 232 } },{ "if 3 == 3 then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "$a = 6", 100 }, { "$b = 3", 100 } },  { { "$a = 6", 100 }, { "$b = 3" , 100 } } },
@@ -320,6 +320,9 @@ struct unittest_t {
   { "if 1 == 1 then 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if on foo then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on foo then on foo then $a = 1; end end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then foo then $a = 1; end end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then on foo $a = 1; end end", { { NULL, 0 } },  { { NULL, 0 } } },
+  { "on foo then on then $a = 1; end end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "on if 1 == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if max == 1 then $a = 1; end", { { NULL, 0 } },  { { NULL, 0 } } },
   { "if 1 == 1 then $a = 1; foo() end", { { NULL, 0 } },  { { NULL, 0 } } },

@@ -468,7 +468,7 @@ end
 
 The library implements these calls using tail-recursion as follows.
 
-A function call like `foo()` is tokenized as a `TCEVENT` token. So a token which calls a defined event, where the `on` block is labeled as a `TEVENT`. So you have event blocks and event caller functions. Since this ruleset only contains two rule blocks the `on foo then` block is the first rule block in the `rules_t` array and `on bar then` the second.
+A function call like `foo()` and an `on` block is tokenized as `TEVENT`. So you have event callee and event caller functions. Since this ruleset only contains two rule blocks the `on foo then` block is the first rule block in the `rules_t` array and `on bar then` the second.
 
 ```
 static int8_t event_cb(struct rules_t *obj, char *name);
@@ -626,40 +626,39 @@ This rule contains some static tokens like `if`, `then`, `end`, `(`, `)`, `;`, `
 That leaves the variable tokens. These need to be stored exactly as they are defined.
 
 First we number the static tokens
-1.	  TOPERATOR
-2.	  TFUNCTION
-3.	  TSTRING
-4.	  TNUMBER
-5.	  TNUMBER1
-6.	  TNUMBER2
-7.	  TNUMBER3
-8.	  TEOF
-9.	  LPAREN
-10.	  RPAREN
-11.	  TCOMMA
-12.	  TIF
-13.	  TELSE
-14.   TELSEIF
-15.	  TTHEN
-16.	  TEVENT
-17.	  TCEVENT
-18.	  TEND
-19.	  TVAR
-20.	  TASSIGN
-21.	  TSEMICOLON
-22.	  TTRUE
-23.	  TFALSE
-24.	  TSTART
-25.	  TVALUE
-26.	  VCHAR
-27.	  VINTEGER
-28.	  VFLOAT
-29.	  VNULL
+1.  TOPERATOR
+2.  TFUNCTION
+3.  TSTRING
+4.  TNUMBER
+5.  TNUMBER1
+6.  TNUMBER2
+7.  TNUMBER3
+8.  TEOF
+9.  LPAREN
+10. RPAREN
+11. TCOMMA
+12. TIF
+13. TELSE
+14. TELSEIF
+15. TTHEN
+16. TEVENT
+17. TEND
+18. TVAR
+19. TASSIGN
+20. TSEMICOLON
+21. TTRUE
+22. TFALSE
+23. TSTART
+24. TVALUE
+25. VCHAR
+26. VINTEGER
+27. VFLOAT
+28. VNULL
 
 Let's say the `==` operator is the first operator (counted from zero) in the operator list and the `max` function is the second function in the functions list. Then this rule can be rewritten like this:
 
 ```
-12 5 1 1 0 5 1 15 19 $ a 20 2 1 9 5 1 11 5 2 10 21 18
+12 5 1 1 0 5 1 15 18 $ a 19 2 1 9 5 1 11 5 2 10 20 17
 ```
 
 The prepared rule overwrites the original rule so no new memory needs to be allocated. There are some tricks involved to enable this.
@@ -829,7 +828,7 @@ This shares the *generic* fields, but has three additional ones. A `go` of two b
 In bytecode this simply looks like this:
 ```
 | 0 | 1  2 | 3  4 | 5  6 | 7  8 |
-| 9 | . 12 | . 17 | . 20 | . 26 |
+| 9 | . 12 | . 16 | . 19 | . 25 |
 ```
 
 To easily read this information we look at the first byte. This tells us the upcoming 8 bytes belong to an `if` node, so we can cast the bytecode to `vm_tif_t` and the appropriate fields will be set:
@@ -894,10 +893,10 @@ typedef struct vm_vinteger_t {
 } vm_vinteger_t;
 ```
 
-Each value uses the generic fields `type` and `ret`, with an additional specific `value` field of the specific type (in this case `uint32_t`). In this libary, `vinteger` is of type 21. So the first byte has the value 20.
+Each value uses the generic fields `type` and `ret`, with an additional specific `value` field of the specific type (in this case `uint32_t`). In this libary, `vinteger` is of type 26. So the first byte has the value 26.
 ```
 |  0 |  1  2 |  3  4 |  5  6 |  7  8 | 9  10 |
-| 21 |  .  4 |  .  . |  .  . |  .  . |  .  5 |
+| 26 |  .  4 |  .  . |  .  . |  .  . |  .  5 |
 ```
 
 The next two bytes tells us to what token the value was linked. The next four bytes store the integer value. Each value (float, integer and char) are represented in structs which again are stored in the bytecode.

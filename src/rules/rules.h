@@ -80,19 +80,18 @@ typedef enum {
   TELSEIF = 14,
   TTHEN = 15,
   TEVENT = 16,
-  TCEVENT = 17,
-  TEND = 18,
-  TVAR = 19,
-  TASSIGN = 20,
-  TSEMICOLON = 21,
-  TTRUE = 22,
-  TFALSE = 23,
-  TSTART = 24,
-  TVALUE = 25,
-  VCHAR = 26,
-  VINTEGER = 27,
-  VFLOAT = 28,
-  VNULL = 29
+  TEND = 17,
+  TVAR = 18,
+  TASSIGN = 19,
+  TSEMICOLON = 20,
+  TTRUE = 21,
+  TFALSE = 22,
+  TSTART = 23,
+  TVALUE = 24,
+  VCHAR = 25,
+  VINTEGER = 26,
+  VFLOAT = 27,
+  VNULL = 28
 } token_types;
 
 #ifdef DEBUG
@@ -116,7 +115,6 @@ struct {
   "TELSEIF",
   "TTHEN",
   "TEVENT",
-  "TCEVENT",
   "TEND",
   "TVAR",
   "TASSIGN",
@@ -286,11 +284,6 @@ typedef struct vm_tevent_t {
   uint16_t go;
   uint8_t token[];
 } __attribute__((aligned(4))) vm_tevent_t;
-
-typedef struct vm_tcevent_t {
-  VM_GENERIC_FIELDS
-  uint8_t token[];
-} __attribute__((aligned(4))) vm_tcevent_t;
 
 typedef struct vm_toperator_t {
   VM_GENERIC_FIELDS
