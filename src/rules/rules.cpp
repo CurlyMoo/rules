@@ -7235,13 +7235,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     mempool->len = 1000;
   }
 
-  if(*nrrules >= 64) {
-#ifdef ESP8266
-    Serial1.println(PSTR("more than the maximum of 25 rule blocks defined"));
-#else
-    printf("more than the maximum of 25 rule blocks defined\n");
-#endif
-  }
   if(input->len < mempool->len) {
 #ifdef ESP8266
     Serial1.println(PSTR("not enough free space in rules mempool"));
@@ -7294,6 +7287,10 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   (*rules)[*nrrules] = (struct rules_t *)&((unsigned char *)mempool->payload)[mempool->len];
   memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
   mempool->len += sizeof(struct rules_t);
+  if(mempool->len >= mempool->tot_len) {
+    logprintf_P(F("FATAL: ruleset too large, out of memory"));
+    return -1;
+  }
 
   if(((*rules)[*nrrules]->timestamp = (struct rule_timer_t *)MALLOC(sizeof(struct rule_timer_t))) == NULL) {
     OUT_OF_MEMORY
@@ -7369,8 +7366,17 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     } else {
       mempool->len += obj->ast.bufsize;
     }
+    if(mempool->len >= mempool->tot_len) {
+      logprintf_P(F("FATAL: ruleset too large, out of memory"));
+      return -1;
+    }
 
     suggested_varstack_size = align((input->len-mempool->len-sizeof(struct rule_stack_t))-5, 4);
+
+    if((mempool->len+suggested_varstack_size) >= mempool->tot_len) {
+      logprintf_P(F("FATAL: ruleset too large, out of memory"));
+      return -1;
+    }
 
     /*
      * The memoffset will be increased below
