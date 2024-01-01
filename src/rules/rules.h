@@ -130,6 +130,16 @@ struct {
 };
 #endif
 
+typedef struct rule_timer_t {
+#ifdef ESP8266
+  uint32_t first;
+  uint32_t second;
+#else
+  struct timespec first;
+  struct timespec second;
+#endif
+} __attribute__((aligned(4))) rule_timer_t;
+
 typedef struct rules_t {
   /* --- PUBLIC MEMBERS --- */
 
@@ -148,16 +158,6 @@ typedef struct rules_t {
 
   /* --- PRIVATE MEMBERS --- */
 
-  struct {
-#ifdef ESP8266
-    uint32_t first;
-    uint32_t second;
-#else
-    struct timespec first;
-    struct timespec second;
-#endif
-  } __attribute__((aligned(4))) timestamp;
-
   /* Continue here after we processed
    * another rule call.
    */
@@ -172,6 +172,7 @@ typedef struct rules_t {
 
   struct rule_stack_t ast;
   struct rule_stack_t *varstack;
+  struct rule_timer_t *timestamp;
 
 } __attribute__((aligned(4))) rules_t;
 

@@ -958,7 +958,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       memset(varstack->buffer, 0, 4);
 
 #if defined(DEBUG) && !defined(ESP8266)
-      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
+      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->first);
       printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
       rule_call(nrrules-1);
@@ -974,11 +974,11 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
         }
       }
 #if defined(DEBUG) && !defined(ESP8266)
-      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
+      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->second);
 
       printf("rule #%d was executed in %.6f seconds\n", rules[nrrules-1]->nr,
-        ((double)rules[nrrules-1]->timestamp.second.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp.second.tv_nsec) -
-        ((double)rules[nrrules-1]->timestamp.first.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp.first.tv_nsec));
+        ((double)rules[nrrules-1]->timestamp->second.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp->second.tv_nsec) -
+        ((double)rules[nrrules-1]->timestamp->first.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp->first.tv_nsec));
 
       printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
@@ -1302,7 +1302,7 @@ void run_async(int *i, unsigned char *mempool, uint16_t size) {
   }
 
 #if defined(DEBUG) && !defined(ESP8266)
-  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.first);
+  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->first);
   printf("bytecode is %d bytes\n", rules[nrrules-1]->ast.nrbytes);
 #endif
   {
@@ -1319,11 +1319,11 @@ void run_async(int *i, unsigned char *mempool, uint16_t size) {
   }
 
 #if defined(DEBUG) && !defined(ESP8266)
-  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp.second);
+  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->second);
 
   printf("rule #%d was executed in %.6f seconds\n", 0,
-    ((double)rules[0]->timestamp.second.tv_sec + 1.0e-9*rules[0]->timestamp.second.tv_nsec) -
-    ((double)rules[0]->timestamp.first.tv_sec + 1.0e-9*rules[0]->timestamp.first.tv_nsec));
+    ((double)rules[0]->timestamp->second.tv_sec + 1.0e-9*rules[0]->timestamp->second.tv_nsec) -
+    ((double)rules[0]->timestamp->first.tv_sec + 1.0e-9*rules[0]->timestamp->first.tv_nsec));
 
   printf("bytecode is %d bytes\n", rules[0]->ast.nrbytes);
 #endif
