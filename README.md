@@ -304,60 +304,134 @@ The `typedef struct rules_t` array should be declared outside the rule library a
 
 **Example**
 
-Let's say the full rule set is saved in the `text` function and a 2nd heap is used. An example on how this could be implemented. Check the examples and unittest on how to implement variables and events.
+Let's say the full rule set is saved in the `text` variable and a 2nd heap is used. An example on how this could be implemented. Check the examples and unittest on how to implement variables and events.
 
 ```c
-/* Global vars */
+void main() {
+  /*
+   * All individually parsed rules reside in
+   * the rules_t struct array. This struct
+   * fully lives inside the mempool.
+   */
+  struct rules_t **rules = NULL;
+  /*
+   * The number of rules parsed.
+   */
+  int nrrules = 0;
 
-/*
- * All individually parsed rules reside in
- * the rules_t struct array. This struct
- * fully lives inside the mempool.
- */
-static struct rules_t **rules = NULL;
-/*
- * The number of rules parsed.
- */
-static int nrrules = 0;
+  /*
+   * The pbuf struct that contains all info
+   * for the rules library to interface with
+   * the mempool and rulesets.
+   */
+  struct pbuf mem;
+  struct pbuf input;
 
-/*
- * MMU_SEC_HEAP_SIZE are MMU_SEC_HEAP are
- * special defines for the ESP8266 when
- * using the 2nd heap. In this example the
- * full 2nd heap is used.
- */
-#define MEMPOOL_SIZE MMU_SEC_HEAP_SIZE
-unsigned char *mempool = (unsigned char *)MMU_SEC_HEAP;
+  /*
+   * MMU_SEC_HEAP_SIZE are MMU_SEC_HEAP are
+   * special defines for the ESP8266 when
+   * using the 2nd heap. In this example the
+   * full 2nd heap is used.
+   */
+  mem.payload = (unsigned char *)MMU_SEC_HEAP;
+  mem.len = 0;
+  mem.tot_len = MMU_SEC_HEAP_SIZE;
 
-/* Inside function */
+  /*
+   * The text variable is just a string
+   * containing the ruleset.
+   */
+  input.payload = &text[0];
+  input.len = 0;
+  input.tot_len = strlen(text);
 
-/*
- * The pbuf struct that contains all info
- * for the rules library to interface with
- * the mempool and rulesets.
- */
-struct pbuf mem;
-struct pbuf input;
-
-mem.payload = mempool;
-mem.len = 0;
-mem.tot_len = MEMPOOL_SIZE;
-
-/*
- * The text variable is just a string
- * containing the ruleset.
- */
-input.payload = &text[0];
-input.len = 0;
-input.tot_len = strlen(text);
-
-int ret = 0;
-while((ret = rule_initialize(&input, &rules, &nrrules, &mem, NULL)) == 0) {
-  input.payload = &text[input.len];
+  int ret = 0;
+  while((ret = rule_initialize(&input, &rules, &nrrules, &mem, NULL)) == 0) {
+    input.payload = &text[input.len];
+  }
 }
 ```
 
-A tip is to place the raw ruleset string at the end of the mempool. As soon as a rule block has been parsed from within the rule set it's no longer needed so it can be overwritten by the rule parser. Hardly no overhead is needed for this kind or parsing.
+A tip is to place the raw ruleset string at the end of the mempool. As soon as a rule block has been parsed from within the ruleset it's no longer needed so it can be overwritten by the rule parser. Hardly no overhead is needed for this kind of parsing.
+
+**Example**
+
+```c
+void main() {
+  struct rules_t **rules = NULL;
+  int nrrules = 0;
+
+  const char *rule = "on foo then sync if 1 == 1 then $a = 1; $b = 1.25; $c = 10; $d = 100; else $a = 1; end end on bar then $e = NULL; $f = max(1, 2); $g = 1 + 1.25; foo(); end";
+
+  int len = strlen(rule);
+  struct pbuf input;
+  memset(&input, 0, sizeof(struct pbuf));
+
+  struct pbuf mem;
+  memset(&mem, 0, sizeof(struct pbuf));
+  mem.payload = (unsigned char *)malloc(1024);
+  mem.len = 0;
+  mem.tot_len = 1024;
+  memset(mem.payload, 0, 1024);
+
+  uint16_t txtoffset = mem->tot_len-len;
+  for(y=0;y<len;y++) {
+    ((unsigned char *)mem->payload)[txtoffset+y] = (uint8_t)rule[y];
+  }
+
+  input.payload = &((unsigned char *)mem->payload)[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, mem, NULL)) == 0) {
+    input.payload = &((unsigned char *)mem->payload)[input.len];
+  }
+```
+
+Although one single mempool is provided to the `rule_initialize` function, the rules library can handle multiple mempools; both in the 1st and/or 2nd heap. `pbuf` structs can be linked together as a linked list. This comes in handy when for example the 2nd heap cannot provide enough storage for your need.
+
+**Example**
+
+```c
+void main() {
+  /*
+   * Rule read from the filesystem
+   */
+  const char *rule = ...;
+
+  int len = strlen(rule);
+  struct pbuf input;
+  memset(&input, 0, sizeof(struct pbuf));
+
+  struct pbuf mem[2];
+  memset(&mem[0], 0, sizeof(struct pbuf));
+  memset(&mem[1], 0, sizeof(struct pbuf));
+
+  mem[0].payload = (unsigned char *)malloc(1024);
+  mem[0].len = 0;
+  mem[0].tot_len = 1024;
+  memset(mem[0].payload, 0, 1024);
+
+  mem[1].payload = (unsigned char *)MMU_SEC_HEAP;
+  mem[1].len = 0;
+  mem[1].tot_len = MMU_SEC_HEAP_SIZE;
+  memset(mem[1].payload, 0, 1024);
+
+  mem[0]->next = mem[1];
+
+  uint16_t txtoffset = mem[0]->tot_len-len;
+  for(y=0;y<len;y++) {
+    ((unsigned char *)mem[0]->payload)[txtoffset+y] = (uint8_t)rule[y];
+  }
+
+  input.payload = &((unsigned char *)mem[0]->payload)[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, mem[0], NULL)) == 0) {
+    input.payload = &((unsigned char *)mem[0]->payload)[input.len];
+  }
+```
 
 ```c
 int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr);

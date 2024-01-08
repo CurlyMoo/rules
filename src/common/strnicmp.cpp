@@ -33,7 +33,9 @@ int strnicmp(char const *a, char const *b, size_t len) {
       x = mmu_get_uint8((void *)&(*a));
     } else {
 #endif
+      /* LCOV_EXCL_START*/
       x = *a;
+      /* LCOV_EXCL_STOP*/
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
     if((void *)b >= (void *)MMU_SEC_HEAP) {

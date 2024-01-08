@@ -52,14 +52,14 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj, uint16_t argc, uint1
 
           *ret = rule_stack_push(obj->varstack, &out);
           return 0;
-        } break;
         /* LCOV_EXCL_START*/
+        } break;
         case VCHAR: {
           exit(-1);
         } break;
-        /* LCOV_EXCL_STOP*/
         default: {
         } break;
+        /* LCOV_EXCL_STOP*/
       }
     }
   }

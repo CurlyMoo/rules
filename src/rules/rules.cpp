@@ -58,7 +58,9 @@ static struct vm_cache_t {
 } __attribute__((aligned(4))) **vmcache;
 
 static uint16_t nrcache = 0;
-static uint8_t is_mmu = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+static uint8_t is_mmu_input = 0;
+#endif
 
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
@@ -84,21 +86,36 @@ int8_t rule_max_var_bytes(void) {
 
 char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
   uint16_t go = 0, type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+#endif
+
   if(nr > nrrules) {
     return NULL;
   }
   struct rules_t *obj = rules[nr];
   struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+#endif
+
   if(start == NULL) {
     return NULL;
   }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if(is_mmu == 1) {
     go = mmu_get_uint16(&start->go);
     type = mmu_get_uint8(&obj->ast.buffer[go]);
   } else {
+#endif
     go = start->go;
     type = obj->ast.buffer[go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   if(type != TEVENT) {
     return NULL;
   } else {
@@ -106,6 +123,7 @@ char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
     uint16_t len = 0, x = 0;
     struct vm_tevent_t *ev = (struct vm_tevent_t *)&obj->ast.buffer[go];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       while(mmu_get_uint8(&ev->token[++len]) != 0);
       if((cpy = (char *)MALLOC(len+1)) == NULL) {
@@ -117,6 +135,7 @@ char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
       }
       return cpy;
     } else {
+#endif
       while(ev->token[++len] != 0);
       if((cpy = (char *)MALLOC(len+1)) == NULL) {
         return NULL;
@@ -127,30 +146,50 @@ char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
       }
 
       return cpy;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
   }
   return NULL;
 }
 
 int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
-  uint8_t a = 0;
   uint16_t go = 0, type = 0;
+  uint8_t a = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+#endif
+
   for(a=0;a<nrrules;a++) {
     struct rules_t *obj = rules[a];
     struct vm_tstart_t *start = (struct vm_tstart_t *)&obj->ast.buffer[0];
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+      is_mmu = 1;
+    }
+
     if(is_mmu == 1) {
       go = mmu_get_uint16(&start->go);
       type = mmu_get_uint8(&obj->ast.buffer[go]);
     } else {
+#endif
       go = start->go;
       type = obj->ast.buffer[go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(type != TEVENT) {
       return -1;
     } else {
-      uint16_t len = 0, x = 0;
+      uint16_t len = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      uint16_t x = 0;
+#endif
+
       struct vm_tevent_t *ev = (struct vm_tevent_t *)&obj->ast.buffer[go];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         while(mmu_get_uint8(&ev->token[++len]) != 0);
         char cpy[len+1];
@@ -163,6 +202,7 @@ int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
           return a;
         }
       } else {
+#endif
         len = strlen((char *)ev->token);
         char cpy[len+1];
         memset(&cpy, 0, len+1);
@@ -170,7 +210,9 @@ int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
         if(len == strlen(name) && strnicmp(name, cpy, len) == 0) {
           return a;
         }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     }
   }
   return -1;
@@ -184,11 +226,15 @@ static int8_t is_function(char *text, uint16_t *pos, uint16_t size) {
       uint16_t x = 0;
       for(x=0;x<len;x++) {
         char cpy = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           cpy = mmu_get_uint8(&text[*pos+x]);
         } else {
+#endif
           cpy = text[*pos+x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(tolower(cpy) != tolower(rule_functions[i].name[x])) {
           break;
         }
@@ -210,11 +256,15 @@ static int8_t is_operator(char *text, uint16_t *pos, uint16_t size) {
       uint16_t x = 0;
       for(x=0;x<len;x++) {
         char cpy = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           cpy = mmu_get_uint8(&text[*pos+x]);
         } else {
+#endif
           cpy = text[*pos+x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(tolower(cpy) != tolower(rule_operators[i].name[x])) {
           break;
         }
@@ -231,11 +281,15 @@ static int8_t is_operator(char *text, uint16_t *pos, uint16_t size) {
 static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
   uint16_t i = 0, nrdot = 0;
   char current = 0;
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_input == 1) {
     current = mmu_get_uint8(&text[*pos]);
   } else {
+#endif
     current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
   if(isdigit(current) || current == '-') {
     /*
@@ -253,11 +307,15 @@ static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
         nrdot++;
       }
       (*pos)++;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         current = mmu_get_uint8(&text[*pos]);
       } else {
+#endif
         current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       i++;
     }
 
@@ -269,11 +327,15 @@ static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
 
 static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
   char current = 0;
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_input == 1) {
     current = mmu_get_uint8(&text[*pos]);
   } else {
+#endif
     current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   while(*pos <= len &&
       (current != ' ' &&
       current != ',' &&
@@ -281,11 +343,15 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
       current != '(' &&
       current != ')')) {
     (*pos)++;
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
       current = mmu_get_uint8(&text[*pos]);
     } else {
+#endif
       current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
   }
 
   return 0;
@@ -293,22 +359,30 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
 
 static int8_t lexer_parse_skip_characters(char *text, uint16_t len, uint16_t *pos) {
   char current = 0;
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_input == 1) {
     current = mmu_get_uint8(&text[*pos]);
   } else {
+#endif
     current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   while(*pos <= len &&
       (current == ' ' ||
       current == '\n' ||
       current == '\t' ||
       current == '\r')) {
     (*pos)++;
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
       current = mmu_get_uint8(&text[*pos]);
     } else {
+#endif
       current = text[*pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
   }
 
   return 0;
@@ -319,11 +393,15 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
   uint8_t loop = 1;
 
   while(loop) {
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
       *type = mmu_get_uint8(&(*text)[i]);
     } else {
+#endif
       *type = (*text)[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     *start = i;
     *len = 0;
     switch(*type) {
@@ -382,20 +460,28 @@ static int16_t lexer_peek(char **text, uint16_t skip, uint8_t *type, uint16_t *s
       case TVAR: {
         i++;
         uint8_t current = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           current = mmu_get_uint8(&(*text)[i]);
         } else {
+#endif
           current = (*text)[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         /*
          * Consider tokens above 31 as regular characters
          */
         while(current >= 32 && current < 126) {
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             current = mmu_get_uint8(&(*text)[++i]);
           } else {
+#endif
             current = (*text)[++i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
         *len = i - *start - 1;
       } break;
@@ -427,17 +513,21 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
     lexer_parse_skip_characters(*text, *len, &pos);
 
     next = 0;
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
       current = mmu_get_uint8(&(*text)[pos]);
       if(pos < *len) {
         next = mmu_get_uint8(&(*text)[pos+1]);
       }
     } else {
+#endif
       current = (*text)[pos];
       if(pos < *len) {
         next = (*text)[pos+1];
       }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     if(isdigit(current) || (current == '-' && pos < *len && isdigit(next))) {
       uint16_t newlen = 0;
@@ -446,7 +536,8 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 
       char tmp = 0;
       float var = 0;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         tmp = mmu_get_uint8(&(*text)[pos+newlen]);
         mmu_set_uint8(&(*text)[pos+newlen], 0);
         char cpy[newlen+1];
@@ -456,10 +547,13 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         }
         var = atof(cpy);
       } else {
+#endif
         tmp = (*text)[pos+newlen];
         (*text)[pos+newlen] = 0;
         var = atof((char *)&(*text)[pos]);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       float nr = 0;
 
@@ -490,35 +584,51 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       if(newlen < 4) {
         switch(newlen) {
           case 1: {
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_input == 1) {
               mmu_set_uint8(&(*text)[tpos++], TNUMBER1);
             } else {
+#endif
               (*text)[tpos++] = TNUMBER1;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case 2: {
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_input == 1) {
               mmu_set_uint8(&(*text)[tpos++], TNUMBER2);
             } else {
+#endif
               (*text)[tpos++] = TNUMBER2;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case 3: {
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_input == 1) {
               mmu_set_uint8(&(*text)[tpos++], TNUMBER3);
             } else {
+#endif
               (*text)[tpos++] = TNUMBER3;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
         }
 
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           for(uint16_t x=0;x<newlen;x++) {
             mmu_set_uint8(&(*text)[tpos+x], mmu_get_uint8(&(*text)[pos+x]));
           }
         } else {
+#endif
           memcpy(&(*text)[tpos], &(*text)[pos], newlen);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         tpos += newlen;
       } else {
         uint32_t x = 0;
@@ -528,73 +638,102 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
            * take less bytes when stored
            * as ascii characters.
            */
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             mmu_set_uint8(&(*text)[tpos++], VINTEGER);
           } else {
+#endif
             (*text)[tpos++] = VINTEGER;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           x = (uint32_t)var;
         } else {
           float2uint32(var, &x);
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             mmu_set_uint8(&(*text)[tpos++], VFLOAT);
           } else {
+#endif
             (*text)[tpos++] = VFLOAT;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           mmu_set_uint8(&(*text)[tpos++], (x >> 24) & 0xFF);
           mmu_set_uint8(&(*text)[tpos++], (x >> 16) & 0xFF);
           mmu_set_uint8(&(*text)[tpos++], (x >> 8) & 0xFF);
           mmu_set_uint8(&(*text)[tpos++], x & 0xFF);
         } else {
+#endif
           memcpy(&(*text)[tpos], &x, sizeof(uint32_t));
           tpos += sizeof(uint32_t);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       }
 
       if(tmp == ' ' || tmp == '\n' || tmp != '\t' || tmp != '\r') {
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           mmu_set_uint8(&(*text)[pos+newlen], tmp);
         } else {
+#endif
           (*text)[pos+newlen] = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         pos += newlen;
       } else {
         uint16_t x = 0;
         while(tmp != ' ' && tmp != '\n'  && tmp != '\t' && tmp != '\r') {
           char tmp1 = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             tmp = mmu_get_uint8(&(*text)[pos+newlen+1]);
             mmu_set_uint8(&(*text)[pos+newlen+1], tmp);
           } else {
+#endif
             tmp = (*text)[pos+newlen+1];
             (*text)[pos+newlen+1] = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           tmp = tmp1;
           newlen += 1;
           x++;
         }
 
         char cpy = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           cpy = mmu_get_uint8(&(*text)[pos+newlen]);
         } else {
+#endif
           cpy = (*text)[pos+newlen];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(cpy == ' ' || cpy == '\t' || cpy == '\r' || cpy == '\n') {
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             mmu_set_uint8(&(*text)[pos+newlen], tmp);
           } else {
+#endif
             (*text)[pos+newlen] = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
         pos += newlen-x+1;
       }
     } else if(tolower(current) == 's' && tolower(next) == 'y' &&
               pos+5 < *len &&
               (
-                (is_mmu == 1 &&
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                (is_mmu_input == 1 &&
                   tolower(mmu_get_uint8(&(*text)[pos+2])) == 'n' &&
                   tolower(mmu_get_uint8(&(*text)[pos+3])) == 'c' &&
                   tolower(mmu_get_uint8(&(*text)[pos+4])) == ' ' &&
@@ -602,7 +741,10 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                   tolower(mmu_get_uint8(&(*text)[pos+6])) == 'f'
                 )
               ||
-                (is_mmu == 0 &&
+                (is_mmu_input == 0 &&
+#else
+                (
+#endif
                   tolower((*text)[pos+2]) == 'n' &&
                   tolower((*text)[pos+3]) == 'c' &&
                   tolower((*text)[pos+4]) == ' ' &&
@@ -627,13 +769,17 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TIF);
         mmu_set_uint8(&(*text)[tpos++], 1);
       } else {
+#endif
         (*text)[tpos++] = TIF;
         (*text)[tpos++] = 1;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       pos += 7;
       nrblocks++;
@@ -654,27 +800,35 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TIF);
         mmu_set_uint8(&(*text)[tpos++], 0);
       } else {
+#endif
         (*text)[tpos++] = TIF;
         (*text)[tpos++] = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       pos += 2;
       nrblocks++;
     } else if(tolower(current) == 'e' && tolower(next) == 'l' &&
               pos+4 < *len &&
               (
-                (is_mmu == 1 &&
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                (is_mmu_input == 1 &&
                   tolower(mmu_get_uint8(&(*text)[pos+2])) == 's' &&
                   tolower(mmu_get_uint8(&(*text)[pos+3])) == 'e' &&
                   tolower(mmu_get_uint8(&(*text)[pos+4])) == 'i' &&
                   tolower(mmu_get_uint8(&(*text)[pos+5])) == 'f'
                 )
               ||
-                (is_mmu == 0 &&
+                (is_mmu_input == 0 &&
+#else
+                (
+#endif
                   tolower((*text)[pos+2]) == 's' &&
                   tolower((*text)[pos+3]) == 'e' &&
                   tolower((*text)[pos+4]) == 'i' &&
@@ -703,19 +857,25 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
       // printf("TELSEIF: %d\n", tpos);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TELSEIF);
         mmu_set_uint8(&(*text)[tpos++], 0);
       } else {
+#endif
         (*text)[tpos++] = TELSEIF;
         (*text)[tpos++] = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       pos+=6;
     } else if(tolower(current) == 'o' && tolower(next) == 'n') {
       nrtokens++;
       pos+=2;
-      lexer_parse_skip_characters((*text), *len, &pos);
+      if(pos < *len) {
+        lexer_parse_skip_characters((*text), *len, &pos);
+      }
       uint16_t s = pos;
       lexer_parse_string((*text), *len, &pos);
 
@@ -727,16 +887,20 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         printf("TEVENT: %lu\n", sizeof(struct vm_tevent_t)+len+1);
         printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
 #endif
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           uint16_t x = 0;
           mmu_set_uint8(&(*text)[tpos++], TEVENT);
           for(x=0;x<len;x++) {
             mmu_set_uint8(&(*text)[tpos+x], mmu_get_uint8(&(*text)[s+x]));
           }
         } else {
+#endif
           (*text)[tpos++] = TEVENT;
           memcpy(&(*text)[tpos], &(*text)[s], len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         tpos += len;
 
         /*
@@ -751,12 +915,16 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
     } else if(tolower(current) == 'e' && tolower(next) == 'l' &&
               pos+2 < *len &&
               (
-                (is_mmu == 1 &&
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                (is_mmu_input == 1 &&
                   tolower(mmu_get_uint8(&(*text)[pos+2])) == 's' &&
                   tolower(mmu_get_uint8(&(*text)[pos+3])) == 'e'
                 )
               ||
-                (is_mmu == 0 &&
+                (is_mmu_input == 0 &&
+#else
+                (
+#endif
                   tolower((*text)[pos+2]) == 's' &&
                   tolower((*text)[pos+3]) == 'e'
                 )
@@ -768,20 +936,28 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       printf("TTRUE: %lu\n", sizeof(struct vm_ttrue_t));
 #endif
       pos+=4;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TELSE);
       } else {
+#endif
         (*text)[tpos++] = TELSE;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } else if(tolower(current) == 't' && tolower(next) == 'h' &&
               pos+2 < *len &&
               (
-                (is_mmu == 1 &&
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                (is_mmu_input == 1 &&
                   tolower(mmu_get_uint8(&(*text)[pos+2])) == 'e' &&
                   tolower(mmu_get_uint8(&(*text)[pos+3])) == 'n'
                 )
               ||
-                (is_mmu == 0 &&
+                (is_mmu_input == 0 &&
+#else
+                (
+#endif
                   tolower((*text)[pos+2]) == 'e' &&
                   tolower((*text)[pos+3]) == 'n'
                 )
@@ -789,16 +965,25 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
             ) {
       nrtokens++;
       pos+=4;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TTHEN);
       } else {
+#endif
         (*text)[tpos++] = TTHEN;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } else if(tolower(current) == 'e' && tolower(next) == 'n' &&
               pos+1 < *len &&
                 (
-                  (is_mmu == 1 && tolower(mmu_get_uint8(&(*text)[pos+2])) == 'd') ||
-                  (is_mmu == 0 && tolower((*text)[pos+2]) == 'd')
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                  (is_mmu_input == 1 && tolower(mmu_get_uint8(&(*text)[pos+2])) == 'd') ||
+                  (is_mmu_input == 0 &&
+#else
+                  (
+#endif
+                    tolower((*text)[pos+2]) == 'd')
                 )
               ) {
       nrtokens++;
@@ -808,14 +993,18 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
     } else if(tolower(current) == 'n' && tolower(next) == 'u' &&
               pos+2 < *len &&
               (
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 (
-                  is_mmu == 1 &&
+                  is_mmu_input == 1 &&
                   tolower(mmu_get_uint8(&(*text)[pos+2])) == 'l' &&
                   tolower(mmu_get_uint8(&(*text)[pos+3])) == 'l'
                 )
               ||
                 (
-                  is_mmu == 0 &&
+                  is_mmu_input == 0 &&
+#else
+                (
+#endif
                   tolower((*text)[pos+2]) == 'l' &&
                   tolower((*text)[pos+3]) == 'l'
                 )
@@ -826,11 +1015,15 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("VNULL: %lu\n", sizeof(struct vm_vnull_t));
 #endif
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], VNULL);
       } else {
+#endif
         (*text)[tpos++] = VNULL;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       pos+=4;
     } else if(current == ',') {
       nrtokens++;
@@ -841,11 +1034,15 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("TFUNCTION: %lu\n", sizeof(uint16_t));
 #endif
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TCOMMA);
       } else {
+#endif
         (*text)[tpos++] = TCOMMA;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       pos++;
     } else if(current == '(') {
       nrtokens++;
@@ -853,19 +1050,27 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
       printf("LPAREN: %lu\n", sizeof(struct vm_lparen_t));
 #endif
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], LPAREN);
       } else {
+#endif
         (*text)[tpos++] = LPAREN;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       pos++;
     } else if(current == ')') {
       nrtokens++;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], RPAREN);
       } else {
+#endif
         (*text)[tpos++] = RPAREN;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       pos++;
     } else if(current == '=' && next != '=') {
       nrtokens++;
@@ -881,26 +1086,38 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       printf("TTRUE: %lu\n", sizeof(uint16_t));
 #endif
       pos++;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TSEMICOLON);
-      } else{
+      } else {
+#endif
         (*text)[tpos++] = TSEMICOLON;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } else {
       uint16_t a = 0, b = *len-(pos)-1;
       char chr = 0;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         chr = mmu_get_uint8(&(*text)[a]);
       } else {
+#endif
         chr = (*text)[a];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       int16_t len1 = 0;
       for(a=(pos);a<*len;a++) {
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           chr = mmu_get_uint8(&(*text)[a]);
         } else {
+#endif
           chr = (*text)[a];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(chr == ' ' || chr == '(' || chr == ')' || chr == ',' || chr == ';') {
           b = a-(pos);
           break;
@@ -909,11 +1126,15 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       char cpy[b+1];
       memset(&cpy, 0, b+1);
       for(a=0;a<b;a++) {
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           cpy[a] = mmu_get_uint8(&(*text)[pos+a]);
         } else {
+#endif
           cpy[a] = (*text)[pos+a];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       }
 
       if((len1 = is_function((*text), &pos, b)) > -1) {
@@ -930,13 +1151,17 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         printf("TFUNCTION: %lu\n", sizeof(struct vm_tfunction_t)+sizeof(uint16_t));
 #endif
 
-       if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+       if(is_mmu_input == 1) {
           mmu_set_uint8(&(*text)[tpos++], TFUNCTION);
           mmu_set_uint8(&(*text)[tpos++], len1);
         } else {
+#endif
           (*text)[tpos++] = TFUNCTION;
           (*text)[tpos++] = len1;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         pos += b;
       } else if((len1 = is_operator((*text), &pos, b)) > -1) {
         nrtokens++;
@@ -947,13 +1172,17 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #endif
         pos += b;
 
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           mmu_set_uint8(&(*text)[tpos++], TOPERATOR);
           mmu_set_uint8(&(*text)[tpos++], len1);
         } else {
+#endif
           (*text)[tpos++] = TOPERATOR;
           (*text)[tpos++] = len1;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } else if(rule_options.is_token_cb != NULL && (len1 = rule_options.is_token_cb((char *)&cpy, b)) > -1) {
         *nrbytes += sizeof(struct vm_tvar_t);
         /*
@@ -975,7 +1204,8 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
            */
           while(lexer_peek(text, y, &type, &start, &len) >= 0 && ++y < nrtokens && match == 0) {
             if(type == TVAR) {
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_input == 1) {
                 uint16_t a = 0;
                 if(len == len1) {
                   for(a=0;a<len;a++) {
@@ -988,11 +1218,14 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
                   }
                 }
               } else {
+#endif
                 if(len == len1 && strncmp(&(*text)[start+1], &(*text)[pos], len) == 0) {
                   match = 1;
                   break;
                 }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             }
           }
           if(match == 0) {
@@ -1003,19 +1236,23 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         printf("TVAR: %lu\n", sizeof(struct vm_tvar_t)+align(len1+1, 4));
         printf("TVALUE: %lu\n", sizeof(struct vm_tvar_t)+align(len1+1, 4));
 #endif
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_input == 1) {
           mmu_set_uint8(&(*text)[tpos++], TVAR);
           uint16_t a = 0;
           for(a=0;a<len1;a++) {
             mmu_set_uint8(&(*text)[tpos+a], mmu_get_uint8(&(*text)[pos+a]));
           }
         } else {
+#endif
           (*text)[tpos++] = TVAR;
           uint16_t a = 0;
           for(a=0;a<len1;a++) {
             (*text)[tpos+a] = (*text)[pos+a];
           }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         nrtokens++;
         tpos += len1;
@@ -1024,16 +1261,22 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
         nrtokens++;
         char start = 0, end = 0;
         if(pos+b+1 < *len) {
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_input == 1) {
             start = mmu_get_uint8(&(*text)[(pos)+b]);
             end = mmu_get_uint8(&(*text)[(pos)+b+1]);
           } else {
+#endif
             start = (*text)[(pos)+b];
             end = (*text)[(pos)+b+1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
         if(start == '(' && end == ')') {
-          lexer_parse_skip_characters((*text), *len, &pos);
+          if(pos < *len) {
+            lexer_parse_skip_characters((*text), *len, &pos);
+          }
           int16_t s = pos;
           lexer_parse_string((*text), *len, &pos);
 
@@ -1044,16 +1287,20 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
             printf("TEVENT: %lu\n", sizeof(struct vm_tevent_t)+len+1);
 #endif
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_input == 1) {
               mmu_set_uint8(&(*text)[tpos++], TEVENT);
               uint16_t a = 0;
               for(a=0;a<len;a++) {
                 mmu_set_uint8(&(*text)[tpos+a], mmu_get_uint8(&(*text)[s+a]));
               }
             } else {
+#endif
               (*text)[tpos++] = TEVENT;
               memcpy(&(*text)[tpos], &(*text)[s], len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
 
             tpos += len;
           }
@@ -1097,13 +1344,19 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
 #endif
 
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[tpos++], TEOF);
       } else {
+#endif
         (*text)[tpos++] = TEOF;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       uint16_t oldpos = pos;
-      lexer_parse_skip_characters((*text), *len, &pos);
+      if(pos < *len) {
+        lexer_parse_skip_characters((*text), *len, &pos);
+      }
       if(*len == pos) {
         return 0;
       }
@@ -1111,7 +1364,9 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
       *len = oldpos;
       return 0;
     }
-    lexer_parse_skip_characters((*text), *len, &pos);
+    if(pos < *len) {
+      lexer_parse_skip_characters((*text), *len, &pos);
+    }
   }
 
   /*
@@ -1132,31 +1387,50 @@ static int8_t rule_prepare(char **text, uint16_t *nrbytes, uint16_t *len) {
 #ifdef DEBUG
   printf("TEOF: %lu\n", sizeof(struct vm_teof_t));
 #endif
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_input == 1) {
     mmu_set_uint8(&(*text)[tpos++], TEOF);
   } else {
+#endif
     (*text)[tpos++] = TEOF;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   return 0;
 }
 
 static uint16_t rule_next(struct rule_stack_t *stack, uint16_t *i) {
   uint16_t x = *i, nrbytes = 0;
   uint8_t type = 0;
-  if(is_mmu == 1) {
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(stack->buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+
+  if(stack >= (void *)MMU_SEC_HEAP) {
     nrbytes = mmu_get_uint16(&stack->nrbytes);
   } else {
+#endif
     nrbytes = stack->nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
   if(*i >= nrbytes) {
     return 0;
   } else {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       type = mmu_get_uint8(&stack->buffer[*i]);
     } else {
+#endif
       type = stack->buffer[*i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     switch(type) {
       case TSTART: {
         (*i) += sizeof(struct vm_tstart_t);
@@ -1178,21 +1452,29 @@ static uint16_t rule_next(struct rule_stack_t *stack, uint16_t *i) {
       case TTRUE: {
         struct vm_ttrue_t *node = (struct vm_ttrue_t *)&stack->buffer[*i];
         uint8_t nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
         } else {
+#endif
           nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         (*i) += sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*nrgo), 4);
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&stack->buffer[*i];
         uint8_t nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
         } else {
+#endif
           nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         (*i) += sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*nrgo), 4);
       } break;
       case TVAR: {
@@ -1201,31 +1483,43 @@ static uint16_t rule_next(struct rule_stack_t *stack, uint16_t *i) {
       case TVALUE: {
         struct vm_tvalue_t *node = (struct vm_tvalue_t *)&stack->buffer[*i];
         uint16_t len = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++len]) != 0);
         } else {
+#endif
           len = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         (*i) += sizeof(struct vm_tvalue_t)+align(len+1, 4);
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&stack->buffer[*i];
         uint16_t len = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++len]) != 0);
         } else {
+#endif
           len = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         (*i) += sizeof(struct vm_tevent_t)+align(len+1, 4);
       } break;
       case TNUMBER: {
         struct vm_tnumber_t *node = (struct vm_tnumber_t *)&stack->buffer[*i];
         uint16_t len = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++len]) != 0);
         } else {
+#endif
           len = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         (*i) += sizeof(struct vm_tnumber_t)+align(len+1, 4);
       } break;
       case VINTEGER: {
@@ -1242,177 +1536,317 @@ static uint16_t rule_next(struct rule_stack_t *stack, uint16_t *i) {
     }
   }
   uint8_t ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if(is_mmu == 1) {
     ret = mmu_get_uint8(&stack->buffer[x]);
   } else {
+#endif
     ret = stack->buffer[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   return ret;
 }
 
 static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_t start, uint16_t len, uint16_t opt) {
   uint16_t ret = 0, size = 0, i = 0;
-  if(is_mmu == 1) {
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu_ast = 0, is_mmu_buf = 0;
+
+  if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+    is_mmu_ast = 1;
+  }
+  if((void *)obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu_buf = 1;
+  }
+
+  if(is_mmu_ast == 1) {
      ret = mmu_get_uint16(&obj->ast.nrbytes);
   } else {
+#endif
      ret = obj->ast.nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
   switch(type) {
     case TSTART: {
       size = ret+sizeof(struct vm_tstart_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->go, 0);
         mmu_set_uint16(&node->ret, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->go = 0;
         node->ret = 0;
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TELSEIF:
     case TIF: {
       size = ret+sizeof(struct vm_tif_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->go, 0);
         mmu_set_uint16(&node->ret, 0);
         mmu_set_uint16(&node->true_, 0);
         mmu_set_uint16(&node->false_, 0);
-        mmu_set_uint8(&node->sync, mmu_get_uint8(&(*text)[start+1]));
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->go = 0;
         node->ret = 0;
         node->true_ = 0;
         node->false_ = 0;
-        node->sync = (*text)[start+1];
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_input == 1 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->sync, mmu_get_uint8(&(*text)[start+1]));
+      } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->sync, (*text)[start+1]);
+      } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+        node->sync = mmu_get_uint8(&(*text)[start+1]);
+      } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
+        node->sync = (*text)[start+1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case LPAREN: {
       size = ret+sizeof(struct vm_lparen_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->go, 0);
         mmu_set_uint16(&node->ret, 0);
         mmu_set_uint16(&node->value, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = 0;
         node->go = 0;
         node->value = 0;
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TOPERATOR: {
       size = ret+sizeof(struct vm_toperator_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[ret];
 
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, 0);
-        mmu_set_uint8(&node->token, mmu_get_uint8(&(*text)[start+1]));
         mmu_set_uint16(&node->left, 0);
         mmu_set_uint16(&node->right, 0);
         mmu_set_uint16(&node->value, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = 0;
-        node->token = (*text)[start+1];
         node->left = 0;
         node->right = 0;
         node->value = 0;
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+
+      if(is_mmu_input == 1 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->token, mmu_get_uint8(&(*text)[start+1]));
+      } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->token, (*text)[start+1]);
+      } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+        node->token = mmu_get_uint8(&(*text)[start+1]);
+      } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
+        node->token = (*text)[start+1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case VINTEGER: {
       size = ret+sizeof(struct vm_vinteger_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
+      uint32_t tmp = 0;
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&value->type, type);
         mmu_set_uint16(&value->ret, 0);
-        uint32_t tmp = 0;
+      } else {
+#endif
+        value->type = type;
+        value->ret = ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+
+      if(is_mmu_input == 1) {
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+1]) << 24;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+2]) << 16;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+3]) << 8;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+4]);
+      } else {
+#endif
+        memcpy(&tmp, &(*text)[start+1], sizeof(uint32_t));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_buf == 1) {
         value->value = tmp;
+      } else {
+#endif
+        memcpy(&value->value, &tmp, sizeof(uint32_t));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
         mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
-        value->type = type;
-        value->ret = ret;
-        memcpy(&value->value, &(*text)[start+1], sizeof(uint32_t));
+#endif
         obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case VFLOAT: {
       size = ret+sizeof(struct vm_vfloat_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
+      uint32_t tmp = 0;
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&value->type, type);
         mmu_set_uint16(&value->ret, 0);
-        uint32_t tmp = 0;
+      } else {
+#endif
+        value->type = type;
+        value->ret = ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_input == 1) {
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+1]) << 24;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+2]) << 16;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+3]) << 8;
         tmp |= (unsigned char)mmu_get_uint8(&(*text)[start+4]);
+      } else {
+#endif
+        memcpy(&tmp, &(*text)[start+1], sizeof(uint32_t));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_buf == 1) {
         value->value = tmp;
+      } else {
+#endif
+        memcpy(&value->value, &tmp, sizeof(uint32_t));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
         mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
-        value->type = type;
-        value->ret = ret;
-        memcpy(&value->value, &(*text)[start+1], sizeof(uint32_t));
+#endif
         obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case TNUMBER1:
     case TNUMBER2:
     case TNUMBER3: {
       char tmp = 0;
       float var = 0;
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         tmp = mmu_get_uint8(&(*text)[start+1+len]);
         mmu_set_uint8(&(*text)[start+1+len], 0);
         char cpy[len+1];
@@ -1422,10 +1856,13 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
         }
         var = atof(cpy);
       } else {
+#endif
         tmp = (*text)[start+1+len];
         (*text)[start+1+len] = 0;
         var = atof((char *)&(*text)[start+1]);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       float nr = 0;
       if(modff(var, &nr) == 0) {
         /*
@@ -1435,174 +1872,296 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
          */
         if(var < 100 && var > -9) {
           size = ret+sizeof(struct vm_tnumber_t)+align(len+1, 4);
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             assert(size <= mmu_get_uint16(&obj->ast.bufsize));
           } else {
+#endif
             assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[ret];
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_buf == 1) {
             mmu_set_uint8(&node->type, TNUMBER);
             mmu_set_uint16(&node->ret, 0);
-            mmu_set_uint16(&obj->ast.nrbytes, size);
+          } else {
+#endif
+            node->type = TNUMBER;
+            node->ret = ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          }
+          if(is_mmu_input == 1 && is_mmu_buf == 1) {
             for(uint16_t x=0;x<len;x++) {
               mmu_set_uint8(&node->token[x], mmu_get_uint8(&(*text)[start+1+x]));
             }
-          } else {
-            node->type = TNUMBER;
-            node->ret = ret;
+          } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+            for(uint16_t x=0;x<len;x++) {
+              mmu_set_uint8(&node->token[x], (*text)[start+1+x]);
+            }
+          } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+            for(uint16_t x=0;x<len;x++) {
+              node->token[x] = mmu_get_uint8(&(*text)[start+1+x]);
+            }
+          } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
             memcpy(node->token, &(*text)[start+1], len);
-            obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
-        } else {
-          size = ret+sizeof(struct vm_vinteger_t);
-          if(is_mmu == 1) {
-            assert(size <= mmu_get_uint16(&obj->ast.bufsize));
-          } else {
-            assert(size <= obj->ast.bufsize);
-          }
-          struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->ast.buffer[ret];
-          if(is_mmu == 1) {
-            mmu_set_uint8(&node->type, VINTEGER);
-            mmu_set_uint16(&node->ret, ret);
+          if(is_mmu_ast == 1) {
             mmu_set_uint16(&obj->ast.nrbytes, size);
           } else {
+#endif
+            obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          }
+#endif
+        } else {
+          size = ret+sizeof(struct vm_vinteger_t);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_buf == 1) {
+            assert(size <= mmu_get_uint16(&obj->ast.bufsize));
+          } else {
+#endif
+            assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          }
+#endif
+          struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->ast.buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_buf == 1) {
+            mmu_set_uint8(&node->type, VINTEGER);
+            mmu_set_uint16(&node->ret, ret);
+          } else {
+#endif
             node->type = VINTEGER;
             node->ret = ret;
-            obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           node->value = var;
         }
-      } else {
-        size = ret+sizeof(struct vm_vfloat_t);
-        if(is_mmu == 1) {
-          assert(size <= mmu_get_uint16(&obj->ast.bufsize));
-        } else {
-          assert(size <= obj->ast.bufsize);
-        }
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->ast.buffer[ret];
-        if(is_mmu == 1) {
-          mmu_set_uint8(&node->type, VFLOAT);
-          mmu_set_uint16(&node->ret, ret);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           mmu_set_uint16(&obj->ast.nrbytes, size);
         } else {
+#endif
+          obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+#endif
+      } else {
+        size = ret+sizeof(struct vm_vfloat_t);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
+          assert(size <= mmu_get_uint16(&obj->ast.bufsize));
+        } else {
+#endif
+          assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+#endif
+        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->ast.buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_buf == 1) {
+          mmu_set_uint8(&node->type, VFLOAT);
+          mmu_set_uint16(&node->ret, ret);
+        } else {
+#endif
           node->type = VFLOAT;
           node->ret = ret;
-          obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         float2uint32(var, &node->value);
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
+          mmu_set_uint16(&obj->ast.nrbytes, size);
+        } else {
+#endif
+          obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+#endif
       }
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_input == 1) {
         mmu_set_uint8(&(*text)[start+1+len], tmp);
       } else {
+#endif
         (*text)[start+1+len] = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case TFALSE:
     case TTRUE: {
       struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
       size = ret+sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*opt), 4);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
-      if(is_mmu == 1) {
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, ret);
         mmu_set_uint8(&node->nrgo, opt);
         for(i=0;i<opt;i++) {
           mmu_set_uint16(&node->go[i], 0);
         }
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = ret;
         node->nrgo = opt;
         for(i=0;i<opt;i++) {
           node->go[i] = 0;
         }
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TFUNCTION: {
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
       size = ret+sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*opt), 4);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
-      if(is_mmu == 1) {
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, ret);
         mmu_set_uint8(&node->nrgo, opt);
-        mmu_set_uint8(&node->token, mmu_get_uint8(&(*text)[start+1]));
         for(i=0;i<opt;i++) {
           mmu_set_uint16(&node->go[i], 0);
         }
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = ret;
         node->nrgo = opt;
-        node->token = (*text)[start+1];
         for(i=0;i<opt;i++) {
           node->go[i] = 0;
         }
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_input == 1 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->token, mmu_get_uint8(&(*text)[start+1]));
+      } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+        mmu_set_uint8(&node->token, (*text)[start+1]);
+      } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+        node->token = mmu_get_uint8(&(*text)[start+1]);
+      } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
+        node->token = (*text)[start+1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case VNULL: {
       size = ret+sizeof(struct vm_vnull_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint8(&node->ret, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = 0;
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TVAR: {
       size = ret+sizeof(struct vm_tvar_t);
 
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, 0);
         mmu_set_uint16(&node->go, 0);
         mmu_set_uint16(&node->value, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
         node->type = type;
         node->ret = ret;
         node->go = 0;
         node->value = 0;
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TVALUE: {
       {
-        uint16_t i = 0, x = 0, a = 0;
+        uint16_t i = 0, x = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        uint16_t a = 0;
+#endif
         uint8_t type = 0;
         while((type = rule_next(&obj->ast, &i)) > 0) {
           if(type == TVALUE) {
             struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[x];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_input == 1 && is_mmu_buf == 1) {
               for(a=0;a<len;a++) {
                 if(mmu_get_uint8(&node->token[a]) != mmu_get_uint8(&(*text)[start+1+a])) {
                   break;
@@ -1610,81 +2169,166 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
               }
               if(a == len) {
                 return x;
+              }              
+            } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+              for(a=0;a<len;a++) {
+                if(mmu_get_uint8(&node->token[a]) != (*text)[start+1+a]) {
+                  break;
+                }
               }
-            } else {
+              if(a == len) {
+                return x;
+              }
+            } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+              for(a=0;a<len;a++) {
+                if(node->token[a] != mmu_get_uint8(&(*text)[start+1+a])) {
+                  break;
+                }
+              }
+              if(a == len) {
+                return x;
+              }
+            } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
               if(strlen((char *)node->token) == len && strncmp((char *)node->token, &(*text)[start+1], len) == 0) {
                 return x;
               }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
           x = i;
         }
       }
       size = ret+sizeof(struct vm_tvalue_t)+align(len+1, 4);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
         mmu_set_uint16(&node->ret, 0);
         mmu_set_uint16(&node->go, 0);
-        mmu_set_uint16(&obj->ast.nrbytes, size);
-        for(uint16_t x=0;x<len;x++) {
-          mmu_set_uint8(&node->token[x], mmu_get_uint8(&(*text)[start+1+x]));
-        }
       } else {
+#endif
         node->type = type;
         node->ret = ret;
         node->go = 0;
-        memcpy(node->token, &(*text)[start+1], len);
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
-    } break;
-    case TEVENT: {
-      size = ret+sizeof(struct vm_tevent_t)+align(len+1, 4);
-      if(is_mmu == 1) {
-        assert(size <= mmu_get_uint16(&obj->ast.bufsize));
-      } else {
-        assert(size <= obj->ast.bufsize);
-      }
-      struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
-        mmu_set_uint8(&node->type, type);
-        mmu_set_uint16(&node->ret, 0);
-        mmu_set_uint16(&node->go, 0);
+
+      if(is_mmu_input == 1 && is_mmu_buf == 1) {
         for(uint16_t x=0;x<len;x++) {
           mmu_set_uint8(&node->token[x], mmu_get_uint8(&(*text)[start+1+x]));
         }
+      } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+        for(uint16_t x=0;x<len;x++) {
+          mmu_set_uint8(&node->token[x], (*text)[start+1+x]);
+        }
+      } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+        for(uint16_t x=0;x<len;x++) {
+          node->token[x] = mmu_get_uint8(&(*text)[start+1+x]);
+        }
+      } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
+        memcpy(node->token, &(*text)[start+1], len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
         mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
+    } break;
+    case TEVENT: {
+      size = ret+sizeof(struct vm_tevent_t)+align(len+1, 4);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
+        assert(size <= mmu_get_uint16(&obj->ast.bufsize));
+      } else {
+#endif
+        assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
+      struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
+        mmu_set_uint8(&node->type, type);
+        mmu_set_uint16(&node->ret, 0);
+        mmu_set_uint16(&node->go, 0);
+      } else {
+#endif
         node->type = type;
         node->ret = 0;
         node->go = 0;
-        /*
-         * memcpy triggers a -Wstringop-overflow here
-         */
-        memcpy(node->token, &(*text)[start+1], len);
-        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+
+      if(is_mmu_input == 1 && is_mmu_buf == 1) {
+        for(uint16_t x=0;x<len;x++) {
+          mmu_set_uint8(&node->token[x], mmu_get_uint8(&(*text)[start+1+x]));
+        }
+      } else if(is_mmu_input == 0 && is_mmu_buf == 1) {
+        for(uint16_t x=0;x<len;x++) {
+          mmu_set_uint8(&node->token[x], (*text)[start+1+x]);
+        }
+      } else if(is_mmu_input == 1 && is_mmu_buf == 0) {
+        for(uint16_t x=0;x<len;x++) {
+          node->token[x] = mmu_get_uint8(&(*text)[start+1+x]);
+        }
+      } else if(is_mmu_input == 0 && is_mmu_buf == 0) {
+#endif
+        memcpy(node->token, &(*text)[start+1], len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
+        mmu_set_uint16(&obj->ast.nrbytes, size);
+      } else {
+#endif
+        obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+#endif
     } break;
     case TEOF: {
       size = ret+sizeof(struct vm_teof_t);
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         assert(size <= mmu_get_uint16(&obj->ast.bufsize));
       } else {
+#endif
         assert(size <= obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       struct vm_teof_t *node = (struct vm_teof_t *)&obj->ast.buffer[ret];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_buf == 1) {
         mmu_set_uint8(&node->type, type);
+      } else {
+#endif
+        node->type = type;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      }
+      if(is_mmu_ast == 1) {
         mmu_set_uint16(&obj->ast.nrbytes, size);
       } else {
-        node->type = type;
+#endif
         obj->ast.nrbytes = size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     default: {
       return -1;
@@ -1696,13 +2340,24 @@ static int16_t vm_parent(char **text, struct rules_t *obj, uint8_t type, uint16_
 
 static int16_t vm_rewind3(struct rules_t *obj, int16_t step, uint8_t type, uint8_t type2, uint8_t type3) {
   uint16_t tmp = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+#endif
   while(1) {
     uint8_t tmp_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       tmp_type = mmu_get_uint8(&obj->ast.buffer[tmp]);
     } else {
+#endif
       tmp_type = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(tmp_type == type || (type2 > -1 && tmp_type == type2) || (type3 > -1 && tmp_type == type3)) {
       return tmp;
     } else {
@@ -1719,11 +2374,15 @@ static int16_t vm_rewind3(struct rules_t *obj, int16_t step, uint8_t type, uint8
         case TVAR:
         case TOPERATOR: {
           struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             tmp = mmu_get_uint16(&node->ret);
           } else {
+#endif
             tmp = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } break;
         /* LCOV_EXCL_START*/
         case TNUMBER1:
@@ -1829,6 +2488,13 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
   uint16_t start = 0, len = 0;
   int16_t step = 0;
   uint8_t first = 1, b = 0, c = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+#endif
 
   while(1) {
     int right = 0;
@@ -1879,11 +2545,15 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
             uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
             struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[right];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               mmu_set_uint16(&node->value, ptr);
             } else {
+#endif
               node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
         } break;
         default: {
@@ -1894,28 +2564,40 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
     }
 
     struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[right];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       mmu_set_uint16(&node->ret, step);
     } else {
+#endif
       node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     struct vm_toperator_t *op2 = (struct vm_toperator_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       mmu_set_uint16(&op2->left, *step_out);
       mmu_set_uint16(&op2->right, right);
     } else {
+#endif
       op2->left = *step_out;
       op2->right = right;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     {
       uint8_t type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         type = mmu_get_uint8(&obj->ast.buffer[*step_out]);
       } else {
+#endif
         type = obj->ast.buffer[*step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       switch(type) {
         case TNUMBER:
         case TNUMBER1:
@@ -1929,11 +2611,15 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
         case TFUNCTION:
         case VNULL: {
           struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[*step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&node->ret, step);
           } else {
+#endif
             node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } break;
         /* LCOV_EXCL_START*/
         default: {
@@ -1949,40 +2635,58 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
     if(type == LPAREN) {
       if(first == 1) {
         struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[*step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint16(&node->ret, step);
         } else {
+#endif
           node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       }
     } else if(type == TOPERATOR) {
       if(first == 1) {
         struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint16(&node->ret, source);
         } else {
+#endif
           node->ret = source;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
 
         if(is_mmu == 1) {
           mmu_set_uint16(&op2->ret, step);
         } else {
+#endif
           op2->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             type = mmu_get_uint8(&obj->ast.buffer[source]);
           } else {
+#endif
             type = obj->ast.buffer[source];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           if(type == TIF) {
             struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[source];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               mmu_set_uint16(&node->ret, step);
             } else {
+#endif
               node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
         }
       }
@@ -1990,13 +2694,17 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
 
     uint8_t step_type = 0;
     uint8_t step_out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       step_type = mmu_get_uint8(&obj->ast.buffer[step]);
       step_out_type = mmu_get_uint8(&obj->ast.buffer[*step_out]);
     } else {
+#endif
       step_type = obj->ast.buffer[step];
       step_out_type = obj->ast.buffer[*step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     if(step_type == TOPERATOR && step_out_type == TOPERATOR) {
       struct vm_toperator_t *op3 = NULL;
@@ -2004,13 +2712,17 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
 
       uint8_t idx1 = 0;
       uint8_t idx2 = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         idx1 = mmu_get_uint8(&op1->token);
         idx2 = mmu_get_uint8(&op2->token);
       } else {
+#endif
         idx1 = op1->token;
         idx2 = op2->token;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       uint8_t x = rule_operators[idx1].precedence;
       uint8_t y = rule_operators[idx2].precedence;
@@ -2019,24 +2731,32 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
       if(y > x || (x == y && a == 2)) {
         if(a == 1) {
           uint16_t left = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&op2->left, mmu_get_uint16(&op1->right));
             left = mmu_get_uint16(&op2->left);
           } else {
+#endif
             op2->left = op1->right;
             left = op2->left;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           op3 = (struct vm_toperator_t *)&obj->ast.buffer[left];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&op3->ret, step);
             mmu_set_uint16(&op1->right, step);
             mmu_set_uint16(&op2->ret, *step_out);
           } else {
+#endif
             op3->ret = step;
             op1->right = step;
             op2->ret = *step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } else {
           /*
            * Find the last operator with an operator
@@ -2044,13 +2764,17 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
            */
           uint16_t tmp = 0;
           uint8_t tmp_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             tmp = mmu_get_uint16(&op1->right);
             tmp_type = mmu_get_uint8(&obj->ast.buffer[tmp]);
           } else {
+#endif
             tmp = op1->right;
             tmp_type = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           if(tmp_type != LPAREN &&
              tmp_type != TFUNCTION &&
@@ -2060,21 +2784,29 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
              tmp_type != VNULL) {
             while(tmp_type == TOPERATOR) {
               uint8_t right_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 uint16_t right = mmu_get_uint16(&((struct vm_toperator_t *)&obj->ast.buffer[tmp])->right);
                 right_type = mmu_get_uint8(&obj->ast.buffer[right]);
               } else {
+#endif
                 right_type = (obj->ast.buffer[((struct vm_toperator_t *)&obj->ast.buffer[tmp])->right]);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
 
               if(right_type == TOPERATOR) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   tmp = mmu_get_uint16(&((struct vm_toperator_t *)&obj->ast.buffer[tmp])->right);
                   tmp_type = mmu_get_uint8(&obj->ast.buffer[tmp]);
                 } else {
+#endif
                   tmp = ((struct vm_toperator_t *)&obj->ast.buffer[tmp])->right;
                   tmp_type = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } else {
                 break;
               }
@@ -2086,15 +2818,19 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
           op3 = (struct vm_toperator_t *)&obj->ast.buffer[tmp];
           uint16_t tright = 0;
           uint8_t tright_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             tright = mmu_get_uint16(&op3->right);
             mmu_set_uint16(&op3->right, step);
             tright_type = mmu_get_uint8(&obj->ast.buffer[tright]);
           } else {
+#endif
             tright = op3->right;
             op3->right = step;
             tright_type = obj->ast.buffer[tright];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           switch(tright_type) {
             case TNUMBER:
@@ -2103,11 +2839,15 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
             case TFUNCTION:
             case LPAREN: {
               struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[tright];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 mmu_set_uint16(&node->ret, step);
               } else {
+#endif
                 node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             /* LCOV_EXCL_START*/
             default: {
@@ -2116,22 +2856,29 @@ static int16_t lexer_parse_math_order(char **text, struct rules_t *obj, int16_t 
             } break;
             /* LCOV_EXCL_STOP*/
           }
-
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&op2->left, tright);
             mmu_set_uint16(&op2->ret, tmp);
           } else {
+#endif
             op2->left = tright;
             op2->ret = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
         step = *step_out;
       } else {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint16(&op1->ret, step);
         } else {
+#endif
           op1->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         *step_out = step;
       }
     }
@@ -2150,6 +2897,14 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
   int16_t has_elseif = -1, offset = 0, has_paren = -1, has_function = -1;
   int16_t has_if = -1, has_on = -1;
   uint8_t type = 0, type1 = 0;
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if((void *)obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+#endif
 
   /* LCOV_EXCL_START*/
   if(lexer_peek(text, 0, &type, &start, &len) < 0) {
@@ -2195,10 +2950,16 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           }
 
           uint16_t step_out_type = 0;
-          if(is_mmu == 1) {
-            step_out_type = mmu_get_uint8(&obj->ast.buffer[step_out]);
-          } else {
-            step_out_type = obj->ast.buffer[step_out];
+          if(step_out >= 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu == 1) {
+              step_out_type = mmu_get_uint8(&obj->ast.buffer[step_out]);
+            } else {
+#endif
+              step_out_type = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            }
+#endif
           }
           if((step_out == -1 || step_out_type == TTRUE) && type != TTHEN) {
             if(type == TEVENT) {
@@ -2259,13 +3020,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->ast.buffer[step];
                 struct vm_tevent_t *b = (struct vm_tevent_t *)&obj->ast.buffer[step_out];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&b->go, step);
                   mmu_set_uint16(&a->ret, step_out);
                 } else {
+#endif
                   b->go = step;
                   a->ret = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 go = TEVENT;
 
@@ -2286,24 +3051,36 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 struct vm_ttrue_t *node1 = (struct vm_ttrue_t *)&obj->ast.buffer[tmp];
 
                 uint8_t x = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   nrgo = mmu_get_uint8(&node1->nrgo);
                 } else {
+#endif
                   nrgo = node1->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 for(x=0;x<nrgo;x++) {
                   uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     go = mmu_get_uint16(&node1->go[x]);
                   } else {
+#endif
                     go = node1->go[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node1->go[x], step);
                     } else {
+#endif
                       node1->go[x] = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
                     break;
                   }
                 }
@@ -2314,18 +3091,26 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   return -1;
                 }
                 /* LCOV_EXCL_STOP*/
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&node->ret, step_out);
                 } else {
+#endif
                   node->ret = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 int16_t tmp1 = vm_rewind3(obj, step_out, TIF, TELSEIF, TEVENT);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
                 } else {
+#endif
                   go = obj->ast.buffer[tmp1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 step_out = tmp;
               } else {
@@ -2356,31 +3141,47 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                         int16_t tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->ast.buffer[x->step];
                         struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           mmu_set_uint16(&f->ret, tmp);
                         } else {
+#endif
                           f->ret = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
 
                         int16_t i = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           nrgo = mmu_get_uint8(&t->nrgo);
                         } else {
+#endif
                           nrgo = t->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
                         for(i=0;i<nrgo;i++) {
                           uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           if(is_mmu == 1) {
                             go = mmu_get_uint16(&t->go[i]);
                           } else {
+#endif
                             go = t->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           }
+#endif
                           if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                             if(is_mmu == 1) {
                               mmu_set_uint16(&t->go[i], x->step);
                             } else {
+#endif
                               t->go[i] = x->step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                             }
+#endif
                             break;
                           }
                         }
@@ -2436,13 +3237,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                    */
 
                   uint16_t step_out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&i->ret, step_out);
                     step_out_type = mmu_get_uint8(&obj->ast.buffer[step_out]);
                   } else {
+#endif
                     i->ret = step_out;
                     step_out_type = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   switch(step_out_type) {
                     case TFALSE:
                     case TTRUE: {
@@ -2453,24 +3258,36 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                        * TRUE / FALSE go slot.
                        */
                       int16_t x = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       if(is_mmu == 1) {
                         nrgo = mmu_get_uint8(&t->nrgo);
                       } else {
+#endif
                         nrgo = t->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       }
+#endif
                       for(x=0;x<nrgo;x++) {
                         uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           go = mmu_get_uint16(&t->go[x]);
                         } else {
+#endif
                           go = t->go[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
                         if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           if(is_mmu == 1) {
                             mmu_set_uint16(&t->go[x], step);
                           } else {
+#endif
                             t->go[x] = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           }
+#endif
                           break;
                         }
                       }
@@ -2514,13 +3331,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->ast.buffer[startnode];
                     struct vm_tif_t *a = (struct vm_tif_t *)&obj->ast.buffer[tmp];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&b->go, tmp);
                       mmu_set_uint16(&a->ret, startnode);
                     } else {
+#endif
                       b->go = tmp;
                       a->ret = startnode;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
 
                     step = vm_parent(text, obj, TEOF, 0, 0, 0);
 #ifdef DEBUG
@@ -2530,11 +3351,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
                     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[tmp];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node->ret, step);
                     } else {
+#endif
                       node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
 
                     if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                       /* LCOV_EXCL_START*/
@@ -2585,10 +3410,16 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             return -1;
             /* LCOV_EXCL_STOP*/
           }
-          if(is_mmu == 1) {
-            current = mmu_get_uint8(&obj->ast.buffer[step_out]);
-          } else {
-            current = obj->ast.buffer[step_out];
+          if(step_out >= 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu == 1) {
+              current = mmu_get_uint8(&obj->ast.buffer[step_out]);
+            } else {
+#endif
+              current = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            }
+#endif
           }
 
           if(
@@ -2619,11 +3450,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               /*
                * Relabel ELSEIF to just IF
                */
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 mmu_set_uint8(&i->type, TIF);
               } else {
+#endif
                 i->type = TIF;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
 
               /*
                * An ELSEIF is always attached to the FALSE node of
@@ -2647,6 +3482,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                 int16_t step1 = vm_parent(text, obj, TFALSE, 0, 0, 1);
                 struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->ast.buffer[step1];
                 struct vm_tif_t *b = (struct vm_tif_t *)&obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   if(mmu_get_uint16(&b->false_) > 0) {
                     /* LCOV_EXCL_START*/
@@ -2657,6 +3493,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   mmu_set_uint16(&b->false_, step1);
                   mmu_set_uint16(&a->ret, tmp);
                 } else {
+#endif
                   if(b->false_ > 0) {
                     /* LCOV_EXCL_START*/
                     logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -2665,7 +3502,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   }
                   b->false_ = step1;
                   a->ret = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 step_out = step1;
               }
@@ -2673,19 +3512,27 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               /*
                * Attach IF block to TRUE / FALSE node
                */
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 mmu_set_uint16(&i->ret, step_out);
               } else {
+#endif
                 i->ret = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               pos = cache->end;
 
               uint8_t step_out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 step_out_type = mmu_get_uint8(&obj->ast.buffer[step_out]);
               } else {
+#endif
                 step_out_type = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               switch(step_out_type) {
                 case TFALSE:
                 case TTRUE: {
@@ -2696,24 +3543,36 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                    * TRUE / FALSE go slot.
                    */
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     nrgo = mmu_get_uint8(&t->nrgo);
                   } else {
+#endif
                     nrgo = t->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   for(x=0;x<nrgo;x++) {
                     uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       go = mmu_get_uint16(&t->go[x]);
                     } else {
+#endif
                       go = t->go[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
                     if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       if(is_mmu == 1) {
                         mmu_set_uint16(&t->go[x], step);
                       } else {
+#endif
                         t->go[x] = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       }
+#endif
                       break;
                     }
                   }
@@ -2766,13 +3625,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
               if(pos == 0) {
                 struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->ast.buffer[start];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&b->go, step);
                   mmu_set_uint16(&a->ret, start);
                 } else {
+#endif
                   b->go = step;
                   a->ret = start;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               }
 
               pos++;
@@ -2812,20 +3675,28 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   step_out = step;
                   continue;
                 } else if(type == TTHEN) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     step_out = mmu_get_uint16(&c->go);
                   } else {
+#endif
                     step_out = c->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   go = TIF;
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&a->go, cache->step);
                     mmu_set_uint16(&c->ret, step);
                   } else {
+#endif
                     a->go = cache->step;
                     c->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 } else {
                   logprintf_P(F("ERROR: Unexpected token"));
                   return -1;
@@ -2884,31 +3755,47 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                         int16_t tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->ast.buffer[x->step];
                         struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           mmu_set_uint16(&f->ret, tmp);
                         } else {
+#endif
                           f->ret = tmp;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
 
                         int16_t i = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           nrgo = mmu_get_uint8(&t->nrgo);
                         } else {
+#endif
                           nrgo = t->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
                         for(i=0;i<nrgo;i++) {
                           uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           if(is_mmu == 1) {
                             go = mmu_get_uint16(&t->go[i]);
                           } else {
+#endif
                             go = t->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                           }
+#endif
                           if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                             if(is_mmu == 1) {
                               mmu_set_uint16(&t->go[i], x->step);
                             } else {
+#endif
                               t->go[i] = x->step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                             }
+#endif
                             break;
                           }
                         }
@@ -2969,13 +3856,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     struct vm_tstart_t *b = (struct vm_tstart_t *)&obj->ast.buffer[startnode];
                     struct vm_tif_t *a = (struct vm_tif_t *)&obj->ast.buffer[tmp];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&b->go, tmp);
                       mmu_set_uint16(&a->ret, startnode);
                     } else {
+#endif
                       b->go = tmp;
                       a->ret = startnode;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
 
                     step = vm_parent(text, obj, TEOF, 0, 0, 0);
 #ifdef DEBUG
@@ -2984,11 +3875,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     tmp = vm_rewind(obj, tmp, TSTART);
 
                     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node->ret, step);
                     } else {
+#endif
                       node->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
 
                     if(lexer_peek(text, pos, &type, &start, &len) < 0) {
                       /* LCOV_EXCL_START*/
@@ -3126,6 +4021,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             struct vm_ttrue_t *a = (struct vm_ttrue_t *)&obj->ast.buffer[step];
             struct vm_tif_t *b = (struct vm_tif_t *)&obj->ast.buffer[step_out];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               if(t == TTRUE) {
                 mmu_set_uint16(&b->true_, step);
@@ -3135,6 +4031,7 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               mmu_set_uint16(&a->ret, step_out);
               go = mmu_get_uint8(&b->type);
             } else {
+#endif
               if(t == TTRUE) {
                 b->true_ = step;
               } else {
@@ -3142,7 +4039,9 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               }
               a->ret = step_out;
               go = b->type;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
 
             step_out = step;
           }
@@ -3192,11 +4091,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
                   struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node->value, ptr);
                   } else {
+#endif
                     node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 }
               } break;
               /* LCOV_EXCL_START*/
@@ -3220,31 +4123,43 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           {
             struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[step_out];
             uint8_t source_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               source_type = mmu_get_uint8(&obj->ast.buffer[source]);
               mmu_set_uint16(&node->ret, source);
             } else {
+#endif
               source_type = obj->ast.buffer[source];
               node->ret = source;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
 
             switch(source_type) {
               case TELSEIF:
               case TIF: {
                 struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[source];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&node->go, step);
                 } else {
+#endif
                   node->go = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case TVAR: {
                 struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[source];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&node->go, step);
                 } else {
+#endif
                   node->go = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               /*
                * If this operator block is a function
@@ -3253,24 +4168,36 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               case TFUNCTION: {
                 struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[source];
                 uint8_t i = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   nrgo = mmu_get_uint8(&node->nrgo);
                 } else {
+#endif
                   nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 for(i=0;i<nrgo;i++) {
                   uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     go = mmu_get_uint16(&node->go[i]);
                   } else {
+#endif
                     go = node->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node->go[i], step);
                     } else {
+#endif
                       node->go[i] = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
                     break;
                   }
                 }
@@ -3288,11 +4215,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           if(lexer_peek(text, pos, &type, &start, &len) >= 0) {
             switch(type) {
               case TTHEN: {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   go = mmu_get_uint8(&obj->ast.buffer[source]);
                 } else {
+#endif
                   go = obj->ast.buffer[source];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case TSEMICOLON: {
                 go = TVAR;
@@ -3318,19 +4249,27 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
           {
             uint16_t type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               type = mmu_get_uint8(&obj->ast.buffer[step_out]);
             } else {
+#endif
               type = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             switch(type) {
               case TVAR: {
                 struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   mmu_set_uint16(&tmp->go, step);
                 } else {
+#endif
                   tmp->go = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               /*
                * FIXME: Think of a rule that can trigger this
@@ -3345,17 +4284,25 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           }
 
           node = (struct vm_vnull_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&node->ret, step_out);
           } else {
+#endif
             node->ret = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           int16_t tmp = vm_rewind2(obj, step_out, TVAR, TOPERATOR);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             go = mmu_get_uint8(&obj->ast.buffer[tmp]);
           } else {
+#endif
             go = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           step_out = step;
         } break;
         /* LCOV_EXCL_START*/
@@ -3366,11 +4313,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
         /* LCOV_EXCL_STOP*/
         case TVAR: {
           uint8_t step_out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             step_out_type = mmu_get_uint8(&obj->ast.buffer[step_out]);
           } else {
+#endif
             step_out_type = obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           /*
            * We came from the TRUE node from the IF root,
            * which means we start parsing the variable name.
@@ -3393,34 +4344,50 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             node = (struct vm_tvar_t *)&obj->ast.buffer[step];
             {
               uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 mmu_set_uint16(&node->value, ptr);
               } else {
+#endif
                 node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             }
             node1 = (struct vm_ttrue_t *)&obj->ast.buffer[step_out];
 
             {
               uint8_t x = 0, nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 nrgo = mmu_get_uint8(&node1->nrgo);
               } else {
+#endif
                 nrgo = node1->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               for(x=0;x<nrgo;x++) {
                 uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   go = mmu_get_uint16(&node1->go[x]);
                 } else {
+#endif
                   go = node1->go[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 if(go == 0) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node1->go[x], step);
                   } else {
+#endif
                     node1->go[x] = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   break;
                 }
               }
@@ -3433,11 +4400,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
               /* LCOV_EXCL_STOP*/
             }
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               mmu_set_uint16(&node->ret, step_out);
             } else {
+#endif
               node->ret = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             step_out = step;
 
             if(lexer_peek(text, pos, &type, &start, &len) < 0 || type != TASSIGN) {
@@ -3467,13 +4438,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   int16_t foo = vm_parent(text, obj, type, start, len, 0);
                   struct vm_tgeneric_t *a = (struct vm_tgeneric_t *)&obj->ast.buffer[foo];
                   node = (struct vm_tvar_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node->go, foo);
                     mmu_set_uint16(&a->ret, step);
                   } else {
+#endif
                     node->go = foo;
                     a->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
 
                   pos++;
 
@@ -3500,22 +4475,30 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                       case TSEMICOLON: {
                         struct vm_tfunction_t *f = (struct vm_tfunction_t *)&obj->ast.buffer[x->step];
                         struct vm_tvar_t *v = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           mmu_set_uint16(&f->ret, step);
                           mmu_set_uint16(&v->go, x->step);
                         } else {
+#endif
                           f->ret = step;
                           v->go = x->step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
 
                         int16_t tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
                         int16_t tmp1 = vm_rewind3(obj, tmp, TIF, TELSEIF, TEVENT);
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         if(is_mmu == 1) {
                           go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
                         } else {
+#endif
                           go = obj->ast.buffer[tmp1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                         }
+#endif
                         step_out = tmp;
                         pos = x->end + 1;
                         vm_cache_del(x->start);
@@ -3544,13 +4527,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     if(type == TSEMICOLON) {
                       struct vm_lparen_t *l = (struct vm_lparen_t *)&obj->ast.buffer[x->step];
                       struct vm_tvar_t *v = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       if(is_mmu == 1) {
                         mmu_set_uint16(&l->ret, step);
                         mmu_set_uint16(&v->go, x->step);
                       } else {
+#endif
                         l->ret = step;
                         v->go = x->step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                       }
+#endif
                       int16_t tmp = vm_rewind2(obj, step_out, TTRUE, TFALSE);
 
                       go = TIF;
@@ -3585,22 +4572,30 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
             {
               uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
               struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 mmu_set_uint16(&node->value, ptr);
               } else {
+#endif
                 node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             }
 
             struct vm_tvar_t *in = (struct vm_tvar_t *)&obj->ast.buffer[step];
             struct vm_tvar_t *out = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               mmu_set_uint16(&in->ret, step_out);
               mmu_set_uint16(&out->go, step);
             } else {
+#endif
               in->ret = step_out;
               out->go = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
 
             if(lexer_peek(text, pos, &type, &start, &len) >= 0) {
               switch(type) {
@@ -3623,30 +4618,43 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
             int16_t tmp = step_out;
             uint8_t step_out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               step_out_type = mmu_get_uint8(&obj->ast.buffer[tmp]);
             } else {
+#endif
               step_out_type = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             pos++;
 
             while(1) {
               if(step_out_type != TTRUE && step_out_type != TFALSE) {
                 struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   tmp = mmu_get_uint16(&node->ret);
                   step_out_type = mmu_get_uint8(&obj->ast.buffer[tmp]);
                 } else {
+#endif
                   tmp = node->ret;
                   step_out_type = obj->ast.buffer[tmp];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } else {
                 int16_t tmp1 = vm_rewind3(obj, tmp, TIF, TELSEIF, TEVENT);
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   go = mmu_get_uint8(&obj->ast.buffer[tmp1]);
                 } else {
+#endif
                   go = obj->ast.buffer[tmp1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 step_out = tmp;
                 break;
               }
@@ -3696,11 +4704,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
                   struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step_out];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node->value, ptr);
                   } else {
+#endif
                     node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 }
               } break;
               case RPAREN: {
@@ -3743,11 +4755,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
 
           {
             struct vm_tgeneric_t *node = (struct vm_tgeneric_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             if(is_mmu == 1) {
               mmu_set_uint16(&node->ret, 0);
             } else {
+#endif
               node->ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
 
           if(lexer_peek(text, has_paren, &type, &start, &len) < 0 || type != LPAREN) {
@@ -3760,22 +4776,30 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
           step = vm_parent(text, obj, LPAREN, start, len, 0);
 
           struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&node->go, step_out);
           } else {
+#endif
             node->go = step_out;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           vm_cache_add(LPAREN, step, has_paren, pos);
 
           r_rewind = has_paren;
 
           struct vm_tgeneric_t *node1 = (struct vm_tgeneric_t *)&obj->ast.buffer[step_out];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           if(is_mmu == 1) {
             mmu_set_uint16(&node1->ret, step);
           } else {
+#endif
             node1->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           go = -1;
 
@@ -3871,18 +4895,26 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
              */
             {
               uint16_t nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               if(is_mmu == 1) {
                 nrgo = mmu_get_uint8(&node->nrgo);
               } else {
+#endif
                 nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               for(i=0;i<nrgo;i++) {
                 uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 if(is_mmu == 1) {
                   go = mmu_get_uint16(&node->go[i]);
                 } else {
+#endif
                   go = node->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 if(go == step_out) {
                   arg = i+1;
                   break;
@@ -3979,13 +5011,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     break;
                   } else {
                     pos = cache->end;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node->go[arg++], cache->step);
                       mmu_set_uint16(&paren->ret, step);
                     } else {
+#endif
                       node->go[arg++] = cache->step;
                       paren->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
                     vm_cache_del(oldpos);
                   }
                 } break;
@@ -4003,13 +5039,17 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                   int16_t oldpos = pos;
                   pos = cache->end;
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node->go[arg++], cache->step);
                     mmu_set_uint16(&func->ret, step);
                   } else {
+#endif
                     node->go[arg++] = cache->step;
                     func->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   vm_cache_del(oldpos);
                 } break;
                 case VNULL:
@@ -4025,27 +5065,39 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
                     uint16_t ptr = vm_parent(text, obj, TVALUE, start, len, 0);
                     struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[a];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     if(is_mmu == 1) {
                       mmu_set_uint16(&node->value, ptr);
                     } else {
+#endif
                       node->value = ptr;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                     }
+#endif
                   }
                   pos++;
 
                   node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&node->go[arg++], a);
                   } else {
+#endif
                     node->go[arg++] = a;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
 
                   struct vm_tvar_t *tmp = (struct vm_tvar_t *)&obj->ast.buffer[a];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   if(is_mmu == 1) {
                     mmu_set_uint16(&tmp->ret, step);
                   } else {
+#endif
                     tmp->ret = step;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 } break;
                 default: {
                   logprintf_P(F("ERROR: Unexpected token"));
@@ -4221,11 +5273,15 @@ static int16_t rule_parse(char **text, struct rules_t *obj) {
     /* LCOV_EXCL_START*/
     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[0];
     uint16_t go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       go = mmu_get_uint16(&node->go);
     } else {
+#endif
       go = node->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(go == 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
       return -1;
@@ -4584,27 +5640,68 @@ static void print_tree(struct rules_t *obj) {
 #endif
 /*LCOV_EXCL_STOP*/
 
-static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
+static uint32_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
   uint16_t out = 0;
   uint8_t step_type = 0;
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu_ast = 0, is_mmu_varstack = 0;
+#endif
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu_ast = 1;
+  }
+  if((void *)obj->varstack >= (void *)MMU_SEC_HEAP) {
+    is_mmu_varstack = 1;
+  }
+
+  if(is_mmu_varstack == 1) {
     out = mmu_get_uint16(&obj->varstack->nrbytes);
+  } else {
+#endif
+    out = obj->varstack->nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+  if(is_mmu_ast == 1) {
     step_type = mmu_get_uint8(&obj->ast.buffer[step]);
   } else {
-    out = obj->varstack->nrbytes;
+#endif
     step_type = obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
 #ifdef DEBUG
   printf("%s %d %d\n", __FUNCTION__, __LINE__, out);
 #endif
 
   uint16_t size = out+rule_max_var_bytes();
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_varstack == 1) {
+    if(out+size >= mmu_get_uint16(&obj->varstack->maxsize)) {
+      /*
+       * Varstack is too small
+       */
+      return -2;
+    }
+  } else {
+#endif
+    if(out+size >= obj->varstack->maxsize) {
+      /*
+       * Varstack is too small
+       */
+      return -2;
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
   switch(step_type) {
     case TNUMBER: {
       uint32_t var = 0;
       struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[step];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         uint16_t len = 0, x = 0;
         while(mmu_get_uint8(&node->token[++len]) != 0);
         char cpy[len+1];
@@ -4614,23 +5711,30 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
         }
         var = atoi(cpy);
       } else {
+#endif
         var = atoi((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[out];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_varstack == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, ret);
         value->value = var;
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VINTEGER;
         value->ret = ret;
         value->value = var;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 #ifdef DEBUG
       printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, (int)var);
 #endif
@@ -4638,19 +5742,23 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
     case VFLOAT: {
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack->buffer[out];
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&obj->ast.buffer[step];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_varstack == 1) {
         mmu_set_uint8(&value->type, VFLOAT);
         mmu_set_uint16(&value->ret, ret);
         value->value = cpy->value;
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VFLOAT;
         value->ret = ret;
         value->value = cpy->value;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 #ifdef DEBUG
       float v = 0;
       uint322float(cpy->value, &v);
@@ -4660,36 +5768,44 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
     case VINTEGER: {
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[out];
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&obj->ast.buffer[step];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_varstack == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, ret);
         value->value = cpy->value;
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VINTEGER;
         value->ret = ret;
         value->value = cpy->value;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 #ifdef DEBUG
       printf("%s %d %d %d\n", __FUNCTION__, __LINE__, out, cpy->value);
 #endif
     } break;
     case VNULL: {
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack->buffer[out];
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_varstack == 1) {
         mmu_set_uint8(&value->type, VNULL);
         mmu_set_uint16(&value->ret, ret);
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VNULL;
         value->ret = ret;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
 #ifdef DEBUG
       printf("%s %d %d NULL\n", __FUNCTION__, __LINE__, out);
 #endif
@@ -4707,35 +5823,57 @@ static uint16_t vm_value_set(struct rules_t *obj, uint16_t step, uint16_t ret) {
 
 static int16_t vm_value_upd_pos(struct rules_t *obj, uint16_t val, uint16_t step) {
   uint16_t type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+
   if(is_mmu == 1) {
     type = mmu_get_uint8(&obj->ast.buffer[step]);
   } else {
+#endif
     type = obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   switch(type) {
     case TOPERATOR: {
       struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint16(&node->value, val);
       } else {
+#endif
         node->value = val;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case TVAR: {
       struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint16(&node->value, val);
       } else {
+#endif
         node->value = val;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case TFUNCTION: {
       struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[step];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint16(&node->value, val);
       } else {
+#endif
         node->value = val;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case VNULL: {
     } break;
@@ -4749,15 +5887,24 @@ static int16_t vm_value_upd_pos(struct rules_t *obj, uint16_t val, uint16_t step
   return 0;
 }
 
-static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
+static int32_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
   int16_t ret = 0;
   uint8_t valtype = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if((void *)obj->varstack >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
 
   if(is_mmu == 1) {
     ret = mmu_get_uint16(&obj->varstack->nrbytes);
   } else {
+#endif
     ret = obj->varstack->nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)val >= (void *)MMU_SEC_HEAP) {
@@ -4774,10 +5921,31 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
 #endif
 
   uint16_t size = ret+rule_max_var_bytes();
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu == 1) {
+    if(ret+size >= mmu_get_uint16(&obj->varstack->maxsize)) {
+      /*
+       * Varstack is too small
+       */
+      return -2;
+    }
+  } else {
+#endif
+    if(ret+size >= obj->varstack->maxsize) {
+      /*
+       * Varstack is too small
+       */
+      return -2;
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
   switch(valtype) {
     case VINTEGER: {
       struct vm_vinteger_t *cpy = (struct vm_vinteger_t *)&val[0];
       struct vm_vinteger_t *value = (struct vm_vinteger_t *)&obj->varstack->buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VINTEGER);
         mmu_set_uint16(&value->ret, 0);
@@ -4785,16 +5953,20 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VINTEGER;
         value->ret = 0;
         value->value = cpy->value;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case VFLOAT: {
       struct vm_vfloat_t *cpy = (struct vm_vfloat_t *)&val[0];
       struct vm_vfloat_t *value = (struct vm_vfloat_t *)&obj->varstack->buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VFLOAT);
         mmu_set_uint16(&value->ret, 0);
@@ -4802,26 +5974,33 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VFLOAT;
         value->ret = 0;
         value->value = cpy->value;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     case VNULL: {
       struct vm_vnull_t *value = (struct vm_vnull_t *)&obj->varstack->buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       if(is_mmu == 1) {
         mmu_set_uint8(&value->type, VNULL);
         mmu_set_uint16(&value->ret, 0);
         mmu_set_uint16(&obj->varstack->nrbytes, size);
         mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), size));
       } else {
+#endif
         value->type = VNULL;
         value->ret = 0;
         obj->varstack->nrbytes = size;
         obj->varstack->bufsize = MAX(obj->varstack->bufsize, size);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } break;
     /* LCOV_EXCL_START*/
     default: {
@@ -4835,14 +6014,23 @@ static int16_t vm_value_clone(struct rules_t *obj, unsigned char *val) {
 
 static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
   uint16_t x = 0, ret = 0, nrbytes = 0, type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if((void *)obj->varstack >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
 
   if(is_mmu == 1) {
     nrbytes = mmu_get_uint16(&obj->varstack->nrbytes);
     type = mmu_get_uint8(&obj->varstack->buffer[idx]);
   } else {
+#endif
     nrbytes = obj->varstack->nrbytes;
     type = obj->varstack->buffer[idx];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   if(idx == nrbytes) {
     return -1;
   }
@@ -4853,23 +6041,31 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
 
   ret = rule_max_var_bytes();
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if(is_mmu == 1) {
     uint16_t i = 0;
     for(i=0;i<nrbytes-idx-ret;i++) {
       mmu_set_uint8(&obj->varstack->buffer[idx+i], mmu_get_uint8(&obj->varstack->buffer[idx+ret+i]));
     }
   } else {
+#endif
     memmove(&obj->varstack->buffer[idx], &obj->varstack->buffer[idx+ret], nrbytes-idx-ret);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
   nrbytes -= ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if(is_mmu == 1) {
     mmu_set_uint16(&obj->varstack->nrbytes, nrbytes);
     mmu_set_uint16(&obj->varstack->bufsize, MAX(mmu_get_uint16(&obj->varstack->bufsize), nrbytes));
   } else {
+#endif
     obj->varstack->nrbytes = nrbytes;
     obj->varstack->bufsize = MAX(obj->varstack->bufsize, nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   /*
    * Values are linked back to their root node,
    * by their absolute position in the bytecode.
@@ -4880,20 +6076,28 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
 #ifdef DEBUG
     printf("%s %d %d\n", __FUNCTION__, __LINE__, x);
 #endif
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       type = mmu_get_uint8(&obj->varstack->buffer[x]);
     } else {
+#endif
       type = obj->varstack->buffer[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     switch(type) {
       case VINTEGER: {
         struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
         } else {
+#endif
           ret = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
@@ -4901,11 +6105,15 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VFLOAT: {
         struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
         } else {
+#endif
           ret = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
@@ -4913,11 +6121,15 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
       case VNULL: {
         struct vm_vnull_t *node = (struct vm_vnull_t *)&obj->varstack->buffer[x];
         uint16_t ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           ret = mmu_get_uint16(&node->ret);
         } else {
+#endif
           ret = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(ret > 0) {
           vm_value_upd_pos(obj, x, ret);
         }
@@ -4938,62 +6150,104 @@ static uint16_t vm_value_del(struct rules_t *obj, uint16_t idx) {
 /*LCOV_EXCL_START*/
 void valprint(struct rules_t *obj, char *out, uint16_t size) {
   uint16_t x = 0, pos = 0, nrbytes = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu_varstack = 0, is_mmu_ast = 0;
+
+  if((void *)obj->varstack >= (void *)MMU_SEC_HEAP) {
+    is_mmu_varstack = 1;
+  }
+  if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+    is_mmu_ast = 1;
+  }
+#endif
+
   memset(out, 0, size);
   /*
    * This is only used for debugging purposes
    */
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_varstack == 1) {
     nrbytes = mmu_get_uint16(&obj->varstack->nrbytes);
   } else {
+#endif
     nrbytes = obj->varstack->nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
   for(x=4;x<nrbytes;x++) {
     uint16_t val_ret = 0;
     uint8_t type = 0, type_ret = 0;
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_varstack == 1) {
       type = mmu_get_uint8(&obj->varstack->buffer[x]);
     } else {
+#endif
       type = obj->varstack->buffer[x];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     switch(type) {
       case VINTEGER: {
         struct vm_vinteger_t *val = (struct vm_vinteger_t *)&obj->varstack->buffer[x];
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_varstack == 1) {
           val_ret = mmu_get_uint16(&val->ret);
+        } else {
+#endif
+          val_ret = val->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+
+        if(is_mmu_ast == 1) {
           type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
         } else {
-          val_ret = mmu_get_uint16(&val->ret);
+#endif
           type_ret = obj->ast.buffer[val_ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
+
         switch(type_ret) {
           case TVALUE: {
             struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
                 pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
               }
               pos += snprintf(&out[pos], size - pos, " = %d", (int)val->value);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %d", node->token, val->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TFUNCTION: {
             struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = %d", rule_functions[mmu_get_uint8(&node->token)].name, (int)val->value);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %d", rule_functions[node->token].name, val->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TOPERATOR: {
             struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = %d", rule_operators[mmu_get_uint8(&node->token)].name, (int)val->value);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %d", rule_operators[node->token].name, val->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -5006,41 +6260,64 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
         float a = 0;
         uint322float(val->value, &a);
 
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_varstack == 1) {
           val_ret = mmu_get_uint16(&val->ret);
+        } else {
+#endif
+          val_ret = val->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+
+        if(is_mmu_ast == 1) {
           type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
         } else {
-          val_ret = mmu_get_uint16(&val->ret);
+#endif
           type_ret = obj->ast.buffer[val_ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
+
         switch(type_ret) {
           case TVALUE: {
             struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
                 pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
               }
               pos += snprintf(&out[pos], size - pos, " = %g", a);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %g", node->token, a);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TFUNCTION: {
             struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = %g", rule_functions[mmu_get_uint8(&node->token)].name, a);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %g", rule_functions[node->token].name, a);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TOPERATOR: {
             struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = %g", rule_operators[mmu_get_uint8(&node->token)].name, a);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = %g", rule_operators[node->token].name, a);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -5050,41 +6327,64 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
       } break;
       case VNULL: {
         struct vm_vnull_t *val = (struct vm_vnull_t *)&obj->varstack->buffer[x];
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_varstack == 1) {
           val_ret = mmu_get_uint16(&val->ret);
+        } else {
+#endif
+          val_ret = val->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+
+        if(is_mmu_ast == 1) {
           type_ret = mmu_get_uint8(&obj->ast.buffer[val_ret]);
         } else {
-          val_ret = mmu_get_uint16(&val->ret);
+#endif
           type_ret = obj->ast.buffer[val_ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
+
         switch(type_ret) {
           case TVALUE: {
             struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               uint16_t i = 0;
               while(mmu_get_uint8(&node->token[i]) != 0) {
                 pos += snprintf(&out[pos], size - pos, "%c", mmu_get_uint8(&node->token[i++]));
               }
               pos += snprintf(&out[pos], size - pos, " = NULL");
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = NULL", node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TFUNCTION: {
             struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_functions[mmu_get_uint8(&node->token)].name);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_functions[node->token].name);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           case TOPERATOR: {
             struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[val_ret];
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_operators[mmu_get_uint8(&node->token)].name);
             } else {
+#endif
               pos += snprintf(&out[pos], size - pos, "%s = NULL", rule_operators[node->token].name);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } break;
           default: {
             // printf("err: %s %d %d\n", __FUNCTION__, __LINE__, obj->ast.buffer[val->ret]);
@@ -5114,17 +6414,31 @@ void valprint(struct rules_t *obj, char *out, uint16_t size) {
 void vm_clear_values(struct rules_t *obj) {
   uint16_t i = 0, nrbytes = 0;
   uint8_t type = 0;
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+
+  if(&obj->ast >= (void *)MMU_SEC_HEAP) {
     nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
   } else {
+#endif
     nrbytes = obj->ast.nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   for(i=0;i<nrbytes;i++) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       type = mmu_get_uint8(&obj->ast.buffer[i]);
     } else {
+#endif
       type = obj->ast.buffer[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     switch(type) {
       case TSTART: {
@@ -5141,34 +6455,46 @@ void vm_clear_values(struct rules_t *obj) {
       } break;
       case LPAREN: {
         struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint16(&node->value, 0);
         } else {
+#endif
           node->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_lparen_t)-1;
       } break;
       case TFALSE:
       case TTRUE: {
         struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[i];
         uint8_t nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
         } else {
+#endif
           nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_ttrue_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
       } break;
       case TFUNCTION: {
         struct vm_tfunction_t *node = (struct vm_tfunction_t *)&obj->ast.buffer[i];
         uint8_t nrgo = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
           mmu_set_uint16(&node->value, 0);
         } else {
+#endif
           nrgo = node->nrgo;
           node->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_tfunction_t)+align((sizeof(node->go[0])*nrgo), 4)-1;
       } break;
       case TVAR: {
@@ -5177,41 +6503,57 @@ void vm_clear_values(struct rules_t *obj) {
       case TVALUE: {
         struct vm_tvalue_t *node = (struct vm_tvalue_t *)&obj->ast.buffer[i];
         uint16_t x = 0, go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           go = mmu_get_uint16(&node->go);
           mmu_set_uint16(&node->go, 0);
         } else {
+#endif
           go = node->go;
           node->go = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(rule_options.clr_token_val_cb != NULL && go > 0) {
           rule_options.clr_token_val_cb(obj, go);
         }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++x]) != 0);
         } else {
+#endif
           x = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_tvalue_t)+align(x+1, 4)-1;
       } break;
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[i];
         uint16_t x = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++x]) != 0);
         } else {
+#endif
           x = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_tevent_t)+align(x+1, 4)-1;
       } break;
       case TNUMBER: {
         struct vm_tnumber_t *node = (struct vm_tnumber_t *)&obj->ast.buffer[i];
         uint16_t x = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           while(mmu_get_uint8(&node->token[++x]) != 0);
         } else {
+#endif
           x = strlen((char *)node->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_tnumber_t)+align(x+1, 4)-1;
       } break;
       case VINTEGER: {
@@ -5222,11 +6564,15 @@ void vm_clear_values(struct rules_t *obj) {
       } break;
       case TOPERATOR: {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint16(&node->value, 0);
         } else {
+#endif
           node->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         i+=sizeof(struct vm_toperator_t)-1;
       } break;
       /* LCOV_EXCL_START*/
@@ -5241,11 +6587,15 @@ void vm_clear_values(struct rules_t *obj) {
 }
 
 static int8_t rule_running(struct rules_t *obj) {
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)obj >= (void *)MMU_SEC_HEAP) {
     return mmu_get_uint16(&obj->cont.go) > 0;
   } else {
+#endif
     return obj->cont.go > 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 }
 
 int8_t rule_call(uint8_t nr) {
@@ -5274,6 +6624,9 @@ static int8_t rule_pop(uint8_t *nr) {
 int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   int16_t go = 0, ret = -1, i = -1, start = -1;
   uint16_t goval = 0, retval = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu_varstack = 0, is_mmu_obj = 0, is_mmu_ast = 0;
+#endif
   go = start = 0;
 
   if(obj->ctx.go != NULL) {
@@ -5284,24 +6637,44 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     obj = newctx;
   }
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)obj >= (void *)MMU_SEC_HEAP) {
+    is_mmu_obj = 1;
+  }
+  if((void *)obj->varstack >= (void *)MMU_SEC_HEAP) {
+    is_mmu_varstack = 1;
+  }
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu_ast = 1;
+  }
+#endif
+
   {
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_obj == 1) {
       goval = mmu_get_uint16(&obj->cont.go);
       retval = mmu_get_uint16(&obj->cont.ret);
     } else {
+#endif
       goval = obj->cont.go;
       retval = obj->cont.ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
   }
 
   if(goval == 0 && retval == 0) {
 #ifdef DEBUG
     printf("-----------------------\n");
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_obj == 1) {
       printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->nr));
     } else {
+#endif
       printf("%s %d ", __FUNCTION__, obj->nr);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(validate == 1) {
       printf("[validation]\n");
     } else {
@@ -5314,23 +6687,31 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   {
     struct vm_tstart_t *node = (struct vm_tstart_t *)&obj->ast.buffer[go];
     if(goval > 0) {
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_obj == 1) {
         go = mmu_get_uint16(&obj->cont.go);
         ret = mmu_get_uint16(&obj->cont.ret);
         mmu_set_uint16(&obj->cont.go, 0);
         mmu_set_uint16(&obj->cont.ret, 0);
       } else {
+#endif
         go = obj->cont.go;
         ret = obj->cont.ret;
         obj->cont.go = 0;
         obj->cont.ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } else {
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_ast == 1) {
         go = mmu_get_uint16(&node->go);
       } else {
+#endif
         go = node->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       vm_clear_values(obj);
     }
   }
@@ -5342,15 +6723,53 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
-    if(is_mmu == 1) {
-      printf("rule: %d, goto: %3d, ret: %3d, bytes: %3d\n", mmu_get_uint8(&obj->nr), go, ret, mmu_get_uint8(&obj->ast.nrbytes));
-      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", mmu_get_uint16(&obj->ast.nrbytes), mmu_get_uint16(&obj->varstack->nrbytes));
-      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", mmu_get_uint16(&obj->ast.bufsize), mmu_get_uint16(&obj->varstack->bufsize));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_obj == 1) {
+      printf("rule: %d, " mmu_get_uint8(&obj->nr));
     } else {
-      printf("rule: %d, goto: %3d, ret: %3d, bytes: %3d\n", obj->nr, go, ret, obj->ast.nrbytes);
-      printf("AST stack is\t%3d bytes, local stack is\t%3d bytes\n", obj->ast.nrbytes, obj->varstack->nrbytes);
-      printf("AST bufsize is\t%3d bytes, local bufsize is\t%3d bytes\n", obj->ast.bufsize, obj->varstack->bufsize);
+#endif
+      printf("rule: %d, " obj->nr);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
+    printf("goto: %3d, ret: %3d, ", go, ret);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+      printf("bytes: %3d\n", mmu_get_uint8(&obj->ast.nrbytes));
+    } else {
+#endif
+      printf("bytes: %3d\n", obj->ast.nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+    if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+      printf("AST stack is\t%3d bytes", mmu_get_uint16(&obj->ast.nrbytes));
+    } else {
+#endif
+      printf("AST stack is\t%3d bytes", obj->ast.nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+    if(is_mmu_varstack == 1) {
+      printf(", local stack is\t%3d bytes\n", mmu_get_uint16(&obj->varstack->nrbytes));
+    } else {
+#endif
+      printf(", local stack is\t%3d bytes\n", obj->varstack->nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+    if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+      printf("AST bufsize is\t%3d bytes", mmu_get_uint16(&obj->ast.bufsize));
+    } else {
+#endif
+      printf("AST bufsize is\t%3d bytes", obj->ast.bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+    if(is_mmu_varstack == 1) {
+      printf(", local bufsize is\t%3d bytes\n", mmu_get_uint16(&obj->varstack->bufsize));
+    } else {
+#endif
+      printf(", local bufsize is\t%3d bytes\n", obj->varstack->bufsize);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+#endif
 
     {
       char out[1024];
@@ -5361,24 +6780,42 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*LCOV_EXCL_STOP*/
 
     uint8_t go_type = 0;
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_ast == 1) {
       go_type = mmu_get_uint8(&obj->ast.buffer[go]);
     } else {
+#endif
       go_type = obj->ast.buffer[go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     switch(go_type) {
       case TEVENT: {
         struct vm_tevent_t *node = (struct vm_tevent_t *)&obj->ast.buffer[go];
-        if(node->ret == 0) {
+        uint16_t tmp = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
+          tmp = mmu_get_uint16(&node->ret);
+        } else {
+#endif
+          tmp = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        }
+#endif
+        if(tmp == 0) {
           uint16_t node_go = 0, node_ret = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             node_go = mmu_get_uint16(&node->go);
             node_ret = mmu_get_uint16(&node->ret);
           } else {
+#endif
             node_go = node->go;
             node_ret = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           if(node_go == ret) {
             ret = go;
             go = node_ret;
@@ -5394,19 +6831,31 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             /* LCOV_EXCL_STOP*/
           }
 
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_obj == 1 && is_mmu_ast == 1) {
             mmu_set_uint16(&obj->cont.ret, go);
             mmu_set_uint16(&obj->cont.go, mmu_get_uint16(&node->ret));
-          } else {
+          } else if(is_mmu_obj == 1 && is_mmu_ast == 0) {
+            mmu_set_uint16(&obj->cont.ret, go);
+            mmu_set_uint16(&obj->cont.go, node->ret);
+          } else if(is_mmu_obj == 0 && is_mmu_ast == 1) {
+            obj->cont.ret = go;
+            obj->cont.go = mmu_get_uint16(&node->ret);
+          } else if(is_mmu_obj == 0 && is_mmu_ast == 0) {
+#endif
             obj->cont.ret = go;
             obj->cont.go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           /*
            * Tail recursive
            */
-          uint16_t len = 0, x = 0;
-          if(is_mmu == 1) {
+          uint16_t len = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          uint16_t x = 0;
+          if(is_mmu_ast == 1) {
             while(mmu_get_uint8(&node->token[++len]) != 0);
             char cpy[len+1];
             memset(&cpy, 0, len+1);
@@ -5415,12 +6864,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             }
             return rule_options.event_cb(obj, cpy);
           } else {
+#endif
             len = strlen((char *)node->token);
             char cpy[len+1];
             memset(&cpy, 0, len+1);
             strcpy(cpy, (char *)node->token);
             return rule_options.event_cb(obj, cpy);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
       } break;
       case TIF: {
@@ -5430,29 +6882,41 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         uint8_t has_val = 0;
         if(ret > -1) {
           uint8_t type = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             type = mmu_get_uint8(&obj->ast.buffer[ret]);
           } else {
+#endif
             type = obj->ast.buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           switch(type) {
             case TOPERATOR: {
               uint16_t intpos = 0;
               struct vm_toperator_t *op = (struct vm_toperator_t *)&obj->ast.buffer[ret];
               struct vm_vinteger_t *tmp = NULL;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 intpos = mmu_get_uint16(&op->value);
               } else {
+#endif
                 intpos = op->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[intpos];
 
               val = tmp->value;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 vm_value_del(obj, mmu_get_uint16(&op->value));
               } else {
+#endif
                 vm_value_del(obj, op->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               has_val = 1;
 
               /*
@@ -5464,19 +6928,27 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               uint16_t intpos = 0;
               struct vm_lparen_t *op = (struct vm_lparen_t *)&obj->ast.buffer[ret];
               struct vm_vinteger_t *tmp = NULL;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 intpos = mmu_get_uint16(&op->value);
               } else {
+#endif
                 intpos = op->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[intpos];
 
               val = tmp->value;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 vm_value_del(obj, mmu_get_uint16(&op->value));
               } else {
+#endif
                 vm_value_del(obj, op->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               has_val = 1;
 
               /*
@@ -5488,41 +6960,73 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               struct vm_ttrue_t *t = (struct vm_ttrue_t *)&obj->ast.buffer[ret];
               uint16_t node_go = 0;
               uint8_t nrgo = 0, match = 0;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 nrgo = mmu_get_uint8(&t->nrgo);
               } else {
+#endif
                 nrgo = t->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               for(i=0;i<nrgo;i++) {
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   node_go = mmu_get_uint16(&t->go[i]);
                 } else {
+#endif
                   node_go = t->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
                 if(node_go == go) {
                   match = 1;
                   break;
                 }
               }
               if(match == 1) {
-                if(is_mmu == 1) {
-                  if(mmu_get_uint8(&node->sync) == 1) {
-                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
-                  }
+                uint8_t sync = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
+                  sync = mmu_get_uint8(&node->sync);
                 } else {
-                  if(node->sync == 1) {
+#endif
+                  sync = node->sync;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+#endif
+                if(sync == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                  if(is_mmu_obj == 1) {
+                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
+                  } else {
+#endif
                     obj->sync++;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 }
               } else {
-                if(is_mmu == 1) {
-                  if(mmu_get_uint8(&node->sync) == 1) {
-                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)-1);
-                  }
+                uint8_t sync = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
+                  sync = mmu_get_uint8(&node->sync);
                 } else {
-                  if(node->sync == 1) {
+#endif
+                  sync = node->sync;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+#endif
+                if(sync == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                  if(is_mmu_obj == 1) {
+                    mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)-1);
+                  } else {
+#endif
                     obj->sync--;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                 }
               }
             } break;
@@ -5538,29 +7042,45 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             /* LCOV_EXCL_STOP*/
           }
         } else {
-          if(is_mmu == 1) {
-            if(mmu_get_uint8(&node->sync) == 1) {
-              mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
-            }
+          uint8_t sync = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
+            sync = mmu_get_uint8(&node->sync);
           } else {
-            if(node->sync == 1) {
+#endif
+            sync = node->sync;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          }
+#endif
+          if(sync == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_obj == 1) {
+              mmu_set_uint8(&obj->sync, mmu_get_uint8(&obj->sync)+1);
+            } else {
+#endif
               obj->sync++;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
         }
 
         uint16_t false_ = 0, true_ = 0, node_go = 0, node_ret = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           false_ = mmu_get_uint16(&node->false_);
           true_ = mmu_get_uint16(&node->true_);
           node_go = mmu_get_uint16(&node->go);
           node_ret = mmu_get_uint16(&node->ret);
         } else {
+#endif
           false_ = node->false_;
           true_ = node->true_;
           node_go = node->go;
           node_ret = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(false_ == ret && false_ > 0) {
           ret = go;
           go = node_ret;
@@ -5592,31 +7112,43 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
         uint16_t match = 0, tmp = go;
         uint8_t nrgo = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
         } else {
+#endif
           nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         for(i=0;i<nrgo;i++) {
           uint16_t node_go = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             node_go = mmu_get_uint16(&node->go[i]);
           } else {
+#endif
             node_go = node->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           if(node_go == ret) {
             match = 1;
             if(i+1 < nrgo) {
               uint16_t node_go_next = 0;
               uint8_t type = 0;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 node_go_next = mmu_get_uint16(&node->go[i+1]);
                 type = mmu_get_uint8(&obj->ast.buffer[node_go_next]);
               } else {
+#endif
                 node_go_next = node->go[i+1];
                 type = obj->ast.buffer[node_go_next];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               switch(type) {
                 case TNUMBER:
                 case VINTEGER:
@@ -5643,32 +7175,44 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
         if(match == 0) {
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->go[0]);
           } else {
+#endif
             go = node->go[0];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
 
         if(go == 0) {
           go = tmp;
           int8_t nrgo = 0;
 
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             nrgo = mmu_get_uint8(&node->nrgo);
           } else {
+#endif
             nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           uint16_t idx = 0, i = 0, shift = 0, c = 0;
           uint16_t values[nrgo];
           memset(&values, 0, nrgo);
 
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             idx = mmu_get_uint8(&node->token);
           } else {
+#endif
             idx = node->token;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           /* LCOV_EXCL_START*/
           if(idx > nr_rule_functions) {
@@ -5680,18 +7224,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           for(i=0;i<nrgo;i++) {
             uint16_t node_go = 0;
             uint8_t node_type = 0;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               node_go = mmu_get_uint16(&node->go[i]);
               node_type = mmu_get_uint8(&obj->ast.buffer[node_go]);
             } else {
+#endif
               node_go = node->go[i];
               node_type = obj->ast.buffer[node_go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             switch(node_type) {
               case TNUMBER:
               case VINTEGER:
               case VFLOAT: {
-                values[i] = vm_value_set(obj, node_go, 0);
+                int32_t ret = vm_value_set(obj, node_go, 0);
+                if(ret < 0) {
+                  return ret;
+                }
+                values[i] = ret;
 
                 /*
                  * Reassign node due to possible reallocs
@@ -5702,17 +7254,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 uint16_t tmp_val = 0;
                 struct vm_lparen_t *tmp = (struct vm_lparen_t *)&obj->ast.buffer[node_go];
                 struct vm_tgeneric_t *val = NULL;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
+                } else {
+#endif
+                  tmp_val = tmp->value;
+                  tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_varstack == 1) {
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&val->ret, 0);
                 } else {
-                  tmp_val = tmp->value;
+#endif
                   val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
-                  tmp->value = 0;
                   val->ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 values[i] = tmp_val;
               } break;
@@ -5720,17 +7281,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 uint16_t tmp_val = 0;
                 struct vm_toperator_t *tmp = (struct vm_toperator_t *)&obj->ast.buffer[node_go];
                 struct vm_tgeneric_t *val = NULL;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
+                } else {
+#endif
+                  tmp_val = tmp->value;
+                  tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_varstack == 1) {
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&val->ret, 0);
                 } else {
-                  tmp_val = tmp->value;
+#endif
                   val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
-                  tmp->value = 0;
                   val->ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 values[i] = tmp_val;
               } break;
@@ -5738,43 +7308,65 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 uint16_t tmp_val = 0;
                 struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->ast.buffer[node_go];
                 struct vm_tgeneric_t *val = NULL;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   tmp_val = mmu_get_uint16(&tmp->value);
-                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&tmp->value, 0);
+                } else {
+#endif
+                  tmp_val = tmp->value;
+                  tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_varstack == 1) {
+                  val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
                   mmu_set_uint16(&val->ret, 0);
                 } else {
-                  tmp_val = tmp->value;
+#endif
                   val = (struct vm_tgeneric_t *)&obj->varstack->buffer[tmp_val];
-                  tmp->value = 0;
                   val->ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 values[i] = tmp_val;
               } break;
               case VNULL: {
-                values[i] = vm_value_set(obj, node_go, node_go);
+                int32_t ret = vm_value_set(obj, node_go, node_go);
+                if(ret < 0) {
+                  return ret;
+                }
+                values[i] = ret;
+
                 /*
-                * Reassign node due to possible reallocs
-                */
+                 * Reassign node due to possible reallocs
+                 */
                 node = (struct vm_tfunction_t *)&obj->ast.buffer[go];
               } break;
               case TVAR: {
                 if(rule_options.get_token_val_cb != NULL) {
                   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[node_go];
                   unsigned char *val = NULL;
-                  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                  if(is_mmu_ast == 1) {
                     val = rule_options.get_token_val_cb(obj, mmu_get_uint16(&var->value));
                   } else {
+#endif
                     val = rule_options.get_token_val_cb(obj, var->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
                     logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  values[i] = vm_value_clone(obj, val);
+                  int32_t ret = vm_value_clone(obj, val);
+                  if(ret < 0) {
+                    return ret;
+                  }
+                  values[i] = ret;
 
                   /*
                    * Reassign node due to possible reallocs
@@ -5809,41 +7401,72 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           node = (struct vm_tfunction_t *)&obj->ast.buffer[go];
           if(c > 0) {
             uint8_t c_type = 0;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_varstack == 1) {
               c_type = mmu_get_uint8(&obj->varstack->buffer[c]);
             } else {
+#endif
               c_type = obj->varstack->buffer[c];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             switch(c_type) {
               case VINTEGER: {
                 struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[c];
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
                   mmu_set_uint16(&tmp->ret, go);
+                } else {
+#endif
+                  tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_ast == 1) {
                   mmu_set_uint16(&node->value, c);
                 } else {
-                  tmp->ret = go;
+#endif
                   node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case VNULL: {
                 struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack->buffer[c];
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
                   mmu_set_uint16(&tmp->ret, go);
+                } else {
+#endif
+                  tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_ast == 1) {
                   mmu_set_uint16(&node->value, c);
                 } else {
-                  tmp->ret = go;
+#endif
                   node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case VFLOAT: {
                 struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack->buffer[c];
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
                   mmu_set_uint16(&tmp->ret, go);
+                } else {
+#endif
+                  tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+                if(is_mmu_ast == 1) {
                   mmu_set_uint16(&node->value, c);
                 } else {
-                  tmp->ret = go;
+#endif
                   node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               /* LCOV_EXCL_START*/
               default: {
@@ -5853,20 +7476,28 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               /* LCOV_EXCL_STOP*/
             }
           } else {
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               mmu_set_uint16(&node->value, 0);
             } else {
+#endif
               node->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
 
           for(i=0;i<nrgo;i++) {
             uint16_t type = 0;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_varstack == 1) {
               type = mmu_get_uint8(&obj->varstack->buffer[values[i] - shift]);
             } else {
+#endif
               type = obj->varstack->buffer[values[i] - shift];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             switch(type) {
               case VFLOAT:
               case VNULL:
@@ -5888,11 +7519,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           }
 
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->ret);
           } else {
+#endif
             go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
 
       } break;
@@ -5900,17 +7535,21 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         struct vm_toperator_t *node = (struct vm_toperator_t *)&obj->ast.buffer[go];
         uint16_t right = 0, left = 0;
         uint8_t left_type = 0, right_type = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           right = mmu_get_uint16(&node->right);
           left = mmu_get_uint16(&node->left);
           left_type = mmu_get_uint8(&obj->ast.buffer[left]);
           right_type = mmu_get_uint8(&obj->ast.buffer[right]);
         } else {
+#endif
           right = node->right;
           left = node->left;
           left_type = obj->ast.buffer[left];
           right_type = obj->ast.buffer[right];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         if(right == ret ||
             (
@@ -5926,7 +7565,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             case TNUMBER:
             case VFLOAT:
             case VINTEGER: {
-              a = vm_value_set(obj, step, step);
+              int32_t ret = vm_value_set(obj, step, step);
+              if(ret < 0) {
+                return ret;
+              }
+              a = ret;
               /*
                * Reassign node due to possible reallocs
                */
@@ -5934,36 +7577,52 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *tmp = (struct vm_toperator_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 a = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 a = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case LPAREN: {
               struct vm_lparen_t *tmp = (struct vm_lparen_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 a = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 a = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 a = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 a = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case VNULL: {
-              a = vm_value_set(obj, step, step);
+              int32_t ret = vm_value_set(obj, step, step);
+              if(ret < 0) {
+                return ret;
+              }
+              a = ret;
               /*
                * Reassign node due to possible reallocs
                */
@@ -5976,11 +7635,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               if(rule_options.get_token_val_cb != NULL) {
                 struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[step];
                 unsigned char *val = NULL;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   val = rule_options.get_token_val_cb(obj, mmu_get_uint16(&var->value));
                 } else {
+#endif
                   val = rule_options.get_token_val_cb(obj, var->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 /* LCOV_EXCL_START*/
                 if(val == NULL) {
@@ -5989,7 +7652,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 }
                 /* LCOV_EXCL_STOP*/
 
-                a = vm_value_clone(obj, val);
+                int32_t ret = vm_value_clone(obj, val);
+                if(ret < 0) {
+                  return ret;
+                }
+                a = ret;
 
                 /*
                  * Reassign node due to possible reallocs
@@ -6016,7 +7683,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             case TNUMBER:
             case VFLOAT:
             case VINTEGER: {
-              b = vm_value_set(obj, step, step);
+              int32_t ret = vm_value_set(obj, step, step);
+              if(ret < 0) {
+                return ret;
+              }
+              b = ret;
               /*
                * Reassign node due to possible reallocs
                */
@@ -6024,36 +7695,52 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             } break;
             case TOPERATOR: {
               struct vm_toperator_t *tmp = (struct vm_toperator_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 b = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 b = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case LPAREN: {
               struct vm_lparen_t *tmp = (struct vm_lparen_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 b = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 b = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case TFUNCTION: {
               struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->ast.buffer[step];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 b = mmu_get_uint16(&tmp->value);
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 b = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case VNULL: {
-              b = vm_value_set(obj, step, step);
+              int32_t ret = vm_value_set(obj, step, step);
+              if(ret < 0) {
+                return ret;
+              }
+              b = ret;
               /*
                * Reassign node due to possible reallocs
                */
@@ -6066,11 +7753,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
               if(rule_options.get_token_val_cb != NULL ) {
                 struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[step];
                 unsigned char *val = NULL;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   val = rule_options.get_token_val_cb(obj, mmu_get_uint16(&var->value));
                 } else {
+#endif
                   val = rule_options.get_token_val_cb(obj, var->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
 
                 /* LCOV_EXCL_START*/
                 if(val == NULL) {
@@ -6079,7 +7770,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 }
                 /* LCOV_EXCL_STOP*/
 
-                b = vm_value_clone(obj, val);
+                int32_t ret = vm_value_clone(obj, val);
+                if(ret < 0) {
+                  return ret;
+                }
+                b = ret;
 
                 /*
                  * Reassign node due to possible reallocs
@@ -6101,11 +7796,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           }
 
           uint8_t idx = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             idx = mmu_get_uint8(&node->token);
           } else {
+#endif
             idx = node->token;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
 
           /* LCOV_EXCL_START*/
           if(idx > nr_rule_operators) {
@@ -6127,11 +7826,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           node = (struct vm_toperator_t *)&obj->ast.buffer[go];
 
           uint8_t c_type = 0;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_varstack == 1) {
             c_type = mmu_get_uint8(&obj->varstack->buffer[c]);
           } else {
+#endif
             c_type = obj->varstack->buffer[c];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           switch(c_type) {
             case VINTEGER: {
               struct vm_vinteger_t *tmp = (struct vm_vinteger_t *)&obj->varstack->buffer[c];
@@ -6139,13 +7842,22 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->ast.buffer[go];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_varstack == 1) {
                 mmu_set_uint16(&tmp->ret, go);
+              } else {
+#endif
+                tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              }
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, c);
               } else {
-                tmp->ret = go;
+#endif
                 node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case VFLOAT: {
               struct vm_vfloat_t *tmp = (struct vm_vfloat_t *)&obj->varstack->buffer[c];
@@ -6153,13 +7865,22 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->ast.buffer[go];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_varstack == 1) {
                 mmu_set_uint16(&tmp->ret, go);
+              } else {
+#endif
+                tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              }
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, c);
               } else {
-                tmp->ret = go;
+#endif
                 node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case VNULL: {
               struct vm_vnull_t *tmp = (struct vm_vnull_t *)&obj->varstack->buffer[c];
@@ -6167,13 +7888,22 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                * Reassign node due to possible reallocs
                */
               node = (struct vm_toperator_t *)&obj->ast.buffer[go];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_varstack == 1) {
                 mmu_set_uint16(&tmp->ret, go);
+              } else {
+#endif
+                tmp->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              }
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, c);
               } else {
-                tmp->ret = go;
+#endif
                 node->value = c;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             /* LCOV_EXCL_START*/
             default: {
@@ -6198,11 +7928,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           node = (struct vm_toperator_t *)&obj->ast.buffer[go];
 
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->ret);
           } else {
+#endif
             go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } else if(left == ret) {
           ret = go;
           go = right;
@@ -6231,34 +7965,46 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       case LPAREN: {
         struct vm_lparen_t *node = (struct vm_lparen_t *)&obj->ast.buffer[go];
         uint16_t node_go = 0, type = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           node_go = mmu_get_uint16(&node->go);
           type = mmu_get_uint8(&obj->ast.buffer[node_go]);
         } else {
+#endif
           node_go = node->go;
           type = obj->ast.buffer[node_go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         if(node_go == ret) {
           switch(type) {
             case TOPERATOR: {
               struct vm_toperator_t *tmp = (struct vm_toperator_t *)&obj->ast.buffer[ret];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, mmu_get_uint16(&tmp->value));
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 node->value = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             case LPAREN: {
               struct vm_lparen_t *tmp = (struct vm_lparen_t *)&obj->ast.buffer[ret];
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, mmu_get_uint16(&tmp->value));
                 mmu_set_uint16(&tmp->value, 0);
               } else {
+#endif
                 node->value = tmp->value;
                 tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } break;
             /* LCOV_EXCL_START*/
             default: {
@@ -6268,29 +8014,41 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             /* LCOV_EXCL_STOP*/
           }
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->ret);
           } else {
+#endif
             go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } else {
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->go);
           } else {
+#endif
             go = node->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
       } break;
       case TFALSE:
       case TTRUE: {
         struct vm_ttrue_t *node = (struct vm_ttrue_t *)&obj->ast.buffer[go];
         uint16_t ret_type = 0;
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           ret_type = mmu_get_uint8(&obj->ast.buffer[ret]);
         } else {
+#endif
           ret_type = obj->ast.buffer[ret];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
         switch(ret_type) {
           case TVAR: {
           } break;
@@ -6302,11 +8060,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           case TFUNCTION: {
             struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
             uint16_t val = 0;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               val = mmu_get_uint16(&tmp->value);
             } else {
+#endif
               val = tmp->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
             if(val > 0) {
               vm_value_del(obj, val);
             }
@@ -6337,27 +8099,39 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         uint16_t nrgo = 0, tmp = go, node_go = 0;
         uint8_t match = 0;
 
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           nrgo = mmu_get_uint8(&node->nrgo);
         } else {
+#endif
           nrgo = node->nrgo;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         for(i=0;i<nrgo;i++) {
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             node_go = mmu_get_uint16(&node->go[i]);
           } else {
+#endif
             node_go = node->go[i];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           if(node_go == ret) {
             match = 1;
             if(i+1 < nrgo) {
               ret = go;
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 go = mmu_get_uint16(&node->go[i+1]);
               } else {
+#endif
                 go = node->go[i+1];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             } else {
               go = 0;
             }
@@ -6367,19 +8141,27 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
         if(match == 0) {
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->go[0]);
           } else {
+#endif
             go = node->go[0];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         }
 
         if(go == 0) {
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->ret);
           } else {
+#endif
             go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
           ret = tmp;
         }
       } break;
@@ -6387,11 +8169,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         struct vm_tvar_t *node = (struct vm_tvar_t *)&obj->ast.buffer[go];
         uint16_t node_go = 0;
 
-        if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+        if(is_mmu_ast == 1) {
           node_go = mmu_get_uint16(&node->go);
         } else {
+#endif
           node_go = node->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
 
         if(node_go == 0) {
           /*
@@ -6400,11 +8186,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           node = (struct vm_tvar_t *)&obj->ast.buffer[go];
 
           ret = go;
-          if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+          if(is_mmu_ast == 1) {
             go = mmu_get_uint16(&node->ret);
           } else {
+#endif
             go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
           }
+#endif
         } else {
           /*
            * When we can find the value in the
@@ -6414,62 +8204,91 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           if(node_go == ret) {
             int16_t idx = 0, shift = 0;
             uint16_t node_type = 0;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               node_type = mmu_get_uint8(&obj->ast.buffer[node_go]);
             } else {
+#endif
               node_type = obj->ast.buffer[node_go];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
 
             switch(node_type) {
               case TOPERATOR: {
                 struct vm_toperator_t *tmp = (struct vm_toperator_t *)&obj->ast.buffer[ret];
                 struct vm_tgeneric_t *val = NULL;
                 uint16_t validx = 0;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   validx = mmu_get_uint16(&tmp->value);
-                } else {
-                  validx = tmp->value;
-                }
-                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
-                if(is_mmu == 1) {
-                  idx = mmu_get_uint16(&tmp->value);
                   mmu_set_uint16(&tmp->value, 0);
+                } else {
+#endif
+                  validx = tmp->value;
+                  tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+#endif
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
+                  idx = validx  ;
                   mmu_set_uint16(&val->ret, go);
                 } else {
-                  idx = tmp->value;
-                  tmp->value = 0;
+#endif
+                  idx = validx;
                   val->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case TFUNCTION: {
                 struct vm_tfunction_t *tmp = (struct vm_tfunction_t *)&obj->ast.buffer[ret];
                 struct vm_tgeneric_t *val = NULL;
                 uint16_t validx = 0;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   validx = mmu_get_uint16(&tmp->value);
-                } else {
-                  validx = tmp->value;
-                }
-                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
-                if(is_mmu == 1) {
-                  idx = mmu_get_uint16(&tmp->value);
                   mmu_set_uint16(&tmp->value, 0);
+                } else {
+#endif
+                  validx = tmp->value;
+                  tmp->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+#endif
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
+                  idx = validx;
                   mmu_set_uint16(&val->ret, go);
                 } else {
-                  idx = tmp->value;
-                  tmp->value = 0;
+#endif
+                  idx = validx;
                   val->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
               } break;
               case TNUMBER:
               case VFLOAT:
               case VINTEGER:
               case VNULL: {
-                if(is_mmu == 1) {
-                  idx = vm_value_set(obj, node_go, mmu_get_uint16(&node->value));
+                int32_t ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
+                  ret = vm_value_set(obj, node_go, mmu_get_uint16(&node->value));
                 } else {
-                  idx = vm_value_set(obj, node_go, node->value);
+#endif
+                  ret = vm_value_set(obj, node_go, node->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
+                if(ret < 0) {
+                  return ret;
+                }
+                idx = ret;
 
                 /*
                  * Reassign node due to various (unsigned char *)REALLOC's
@@ -6484,18 +8303,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
                   struct vm_tvar_t *var = (struct vm_tvar_t *)&obj->ast.buffer[ret];
                   unsigned char *val = NULL;
-                  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                  if(is_mmu_ast == 1) {
                     val = rule_options.get_token_val_cb(obj, mmu_get_uint16(&var->value));
                   } else {
+#endif
                     val = rule_options.get_token_val_cb(obj, var->value);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                   }
+#endif
                   /* LCOV_EXCL_START*/
                   if(val == NULL) {
                     logprintf_P(F("FATAL: 'get_token_val_cb' did not return a value"));
                     return -1;
                   }
                   /* LCOV_EXCL_STOP*/
-                  idx = vm_value_clone(obj, val);
+                  int32_t ret = vm_value_clone(obj, val);
+                  if(ret < 0) {
+                    return ret;
+                  }
+                  idx = ret;
                 } else {
                   /* LCOV_EXCL_START*/
                   logprintf_P(F("FATAL: No 'get_token_val_cb' set to handle variables"));
@@ -6511,21 +8338,29 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 struct vm_lparen_t *tmp = (struct vm_lparen_t *)&obj->ast.buffer[ret];
                 struct vm_tgeneric_t *val = NULL;
                 uint16_t validx = 0;
-                if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_ast == 1) {
                   validx = mmu_get_uint16(&tmp->value);
-                } else {
-                  validx = tmp->value;
-                }
-                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx - shift];
-                if(is_mmu == 1) {
                   idx = mmu_get_uint16(&tmp->value) - shift;
                   mmu_set_uint16(&tmp->value, 0);
-                  mmu_set_uint16(&val->ret, go);
                 } else {
+#endif
+                  validx = tmp->value;
                   idx = tmp->value - shift;
                   tmp->value = 0;
-                  val->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
                 }
+#endif
+                val = (struct vm_tgeneric_t *)&obj->varstack->buffer[validx - shift];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                if(is_mmu_varstack == 1) {
+                  mmu_set_uint16(&val->ret, go);
+                } else {
+#endif
+                  val->ret = go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+                }
+#endif
               } break;
               /* LCOV_EXCL_START*/
               default: {
@@ -6543,11 +8378,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                 /* LCOV_EXCL_STOP*/
               }
 
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 rule_options.set_token_val_cb(obj, mmu_get_uint16(&node->value), idx);
               } else {
+#endif
                 rule_options.set_token_val_cb(obj, node->value, idx);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
               vm_value_del(obj, idx);
 
               /*
@@ -6555,26 +8394,38 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
                */
               node = (struct vm_tvar_t *)&obj->ast.buffer[go];
             } else {
-              if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+              if(is_mmu_ast == 1) {
                 mmu_set_uint16(&node->value, 0);
               } else {
+#endif
                 node->value = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
               }
+#endif
             }
 
             ret = go;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               go = mmu_get_uint16(&node->ret);
             } else {
+#endif
               go = node->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           } else {
             ret = go;
-            if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+            if(is_mmu_ast == 1) {
               go = mmu_get_uint16(&node->go);
             } else {
+#endif
               go = node->go;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
             }
+#endif
           }
         }
       } break;
@@ -6588,21 +8439,29 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   }
 
   if(go == 0 && ret > -1) {
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_obj == 1) {
       mmu_set_uint16(&obj->cont.go, 0);
       mmu_set_uint16(&obj->cont.ret, 0);
     } else {
+#endif
       obj->cont.go = 0;
       obj->cont.ret = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(obj->ctx.ret != NULL) {
 #ifdef DEBUG
       printf("-----------------------\n");
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_obj == 1) {
         printf("%s %d ", __FUNCTION__, mmu_get_uint8(&obj->ctx.ret->nr));
       } else {
+#endif
         printf("%s %d ", __FUNCTION__, obj->ctx.ret->nr);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
       if(validate == 1) {
         printf("[continuing]\n");
       } else {
@@ -6614,27 +8473,39 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       obj->ctx.ret->ctx.go = NULL;
       obj->ctx.ret = NULL;
 
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_obj == 1) {
         return mmu_get_uint8(&obj->sync);
       } else {
+#endif
         return obj->sync;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     }
     return 0;
   } else {
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_obj == 1) {
       mmu_set_uint16(&obj->cont.go, go);
       mmu_set_uint16(&obj->cont.ret, ret);
     } else {
+#endif
       obj->cont.go = go;
       obj->cont.ret = ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
     if(go > 0) {
-      if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+      if(is_mmu_obj == 1) {
         return mmu_get_uint8(&obj->sync);
       } else {
+#endif
         return obj->sync;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
       }
+#endif
     } else {
       return 0;
     }
@@ -6646,12 +8517,18 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
   uint8_t x = 0;
   int8_t ret = 0, active = 0;
+
   for(x=0;x<nrrules;x++) {
     if(rule_running(rules[x])) {
       active = 1;
       *nr = x;
       while((ret = rule_run(rules[x], 0)) == 2);
+
       if(ret == -1) {
+        return -1;
+      }
+      if(ret == -2) {
+        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
       }
       if(ret == 0) {
@@ -6665,7 +8542,12 @@ int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
     if(rule_pop(&x) == 0) {
       *nr = x;
       while((ret = rule_run(rules[x], 0)) == 2);
+
       if(ret == -1) {
+        return -1;
+      }
+      if(ret == -2) {
+        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
         return -1;
       }
       if(ret == 0) {
@@ -6683,7 +8565,12 @@ int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr) {
 #ifdef DEBUG
 #ifdef ESP8266
 static void print_bytecode_mmu(struct rules_t *obj) {
-  uint16_t i = 0, nrbytes = mmu_get_uint16(&obj->ast.nrbytes);
+  uint16_t i = 0;
+  uint16_t nrbytes = 0;
+
+  if(&obj->ast >= (void *)MMU_SEC_HEAP) {
+    mmu_get_uint16(&obj->ast.nrbytes);
+  }
 
   for(i=0;i<nrbytes;i++) {
     switch(mmu_get_uint8(&obj->ast.buffer[i])) {
@@ -6871,7 +8758,7 @@ static void print_bytecode_mmu(struct rules_t *obj) {
 
 void print_bytecode(struct rules_t *obj) {
 #ifdef ESP8266
-  if(is_mmu == 1) {
+  if(obj->ast.buffer >= (void *)MMU_SEC_HEAP) {
     print_bytecode_mmu(obj);
     return;
   }
@@ -7039,18 +8926,30 @@ void print_bytecode(struct rules_t *obj) {
 
 int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
   uint16_t bufsize = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  uint8_t is_mmu = 0;
+
+  if(obj->buffer >= (void *)MMU_SEC_HEAP) {
+    is_mmu = 1;
+  }
+#endif
   if(out == NULL || *out == NULL) {
     uint8_t out_type = 0;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu == 1) {
       out_type = mmu_get_uint8(&obj->buffer[pos]);
     } else {
+#endif
       out_type = obj->buffer[pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
+#endif
 
     switch(out_type) {
       case TVALUE: {
         struct vm_tvalue_t *nodeA = (struct vm_tvalue_t *)&obj->buffer[pos];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           uint16_t x = 0, len = 0;
           while(mmu_get_uint8(&nodeA->token[++x]) != 0);
@@ -7073,6 +8972,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
           nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->go = mmu_get_uint16(&nodeA->go);
         } else {
+#endif
           bufsize = sizeof(struct vm_tvalue_t)+strlen((char *)nodeA->token)+1;
           if((*out = (unsigned char *)MALLOC(bufsize)) == NULL) {
             return -1;
@@ -7085,7 +8985,9 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
           nodeB->go = nodeA->go;
 
           strcpy((char *)nodeB->token, (char *)nodeA->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VINTEGER: {
         struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)&obj->buffer[pos];
@@ -7098,15 +9000,19 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
 
         struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)*out;
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
           nodeB->value = nodeA->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VFLOAT: {
         struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)&obj->buffer[pos];
@@ -7119,15 +9025,19 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
 
         struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)*out;
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
           nodeB->value = nodeA->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VNULL: {
         struct vm_vnull_t *nodeA = (struct vm_vnull_t *)&obj->buffer[pos];
@@ -7140,13 +9050,17 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
 
         struct vm_vnull_t *nodeB = (struct vm_vnull_t *)*out;
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           nodeB->type = mmu_get_uint8(&nodeA->type);
           nodeB->ret = mmu_get_uint16(&nodeA->ret);
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -7158,6 +9072,7 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
       case TVALUE: {
         struct vm_tvalue_t *nodeA = (struct vm_tvalue_t *)*out;
         struct vm_tvalue_t *nodeB = (struct vm_tvalue_t *)&obj->buffer[pos];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           uint16_t x = 0, len = strlen((char *)nodeA->token);
 
@@ -7169,51 +9084,66 @@ int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out) {
             x++;
           }
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->go = nodeA->go;
 
           strcpy((char *)nodeB->token, (char *)nodeA->token);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VINTEGER: {
         struct vm_vinteger_t *nodeA = (struct vm_vinteger_t *)*out;
         struct vm_vinteger_t *nodeB = (struct vm_vinteger_t *)&obj->buffer[pos];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
           nodeB->value = nodeA->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VFLOAT: {
         struct vm_vfloat_t *nodeA = (struct vm_vfloat_t *)*out;
         struct vm_vfloat_t *nodeB = (struct vm_vfloat_t *)&obj->buffer[pos];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
           nodeB->value = nodeA->value;
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
           nodeB->value = nodeA->value;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       case VNULL: {
         struct vm_vnull_t *nodeA = (struct vm_vnull_t *)*out;
         struct vm_vnull_t *nodeB = (struct vm_vnull_t *)&obj->buffer[pos];
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         if(is_mmu == 1) {
           mmu_set_uint8(&nodeB->type, nodeA->type);
           mmu_set_uint16(&nodeB->ret, nodeA->ret);
         } else {
+#endif
           nodeB->type = nodeA->type;
           nodeB->ret = nodeA->ret;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
         }
+#endif
       } break;
       default: {
         logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -7229,29 +9159,28 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   assert(nrcache == 0);
   assert(vmcache == NULL);
 
+  struct pbuf *mempool_ori = mempool;
+  struct pbuf *mempool_rule = NULL;
   uint16_t nrbytes = 0, newlen = input->tot_len;
   uint16_t suggested_varstack_size = 0, max_varstack_size = 0;
-  if(mempool->len < 1000) {
-    mempool->len = 1000;
-  }
-
-  if(input->len < mempool->len) {
-#ifdef ESP8266
-    Serial1.println(PSTR("not enough free space in rules mempool"));
-#else
-    printf("not enough free space in rules mempool\n");
-#endif
-  }
 
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-  if((void *)mempool->payload >= (void *)MMU_SEC_HEAP) {
-    is_mmu = 1;
+  if((void *)input->payload >= (void *)MMU_SEC_HEAP) {
+    is_mmu_input = 1;
   } else {
-#endif
-    is_mmu = 0;
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    is_mmu_input = 0;
   }
 #endif
+
+  while(mempool) {
+    if(mempool->flags == 1) {
+      break;
+    }
+    mempool = mempool->next;
+  }
+  if(mempool == NULL) {
+    mempool = mempool_ori;
+  }
 
   /*
    * Check the size of the varstack of the previous
@@ -7259,38 +9188,72 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
    * use that value for the current varstack size.
    */
   struct rule_stack_t *stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(stack >= (void *)MMU_SEC_HEAP) {
     if(mmu_get_uint16(&stack->bufsize) > max_varstack_size) {
       max_varstack_size = mmu_get_uint16(&stack->bufsize);
     }
   } else {
+#endif
     if(stack->bufsize > max_varstack_size) {
       max_varstack_size = stack->bufsize;
     }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
+  mempool = mempool_ori;
 
   if(newlen == 0) {
     return 1;
   }
 
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(is_mmu_input == 1) {
     if(mmu_get_uint8(&((char *)input->payload)[0]) == 0) {
       return 1;
     }
   } else {
+#endif
     if(((char *)input->payload)[0] == 0) {
       return 1;
     }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  {
+    char *a = (char *)input->payload;
+    while(mempool) {
+      char *b = (char *)mempool->payload;
+      /*
+       * Check if input is location inside this mempool
+       */
+      if(&a[0] >= &b[0] && &a[0] <= &b[mempool->tot_len]) {
+        if((mempool->len+sizeof(struct rules_t)) >= input->len) {
+          mempool = mempool->next;
+          continue;
+        }
+      }
+      if((mempool->len+sizeof(struct rules_t)) >= mempool->tot_len) {
+        mempool = mempool->next;
+        continue;
+      } else {
+        break;
+      }
+    }
+    if(mempool == NULL) {
+      logprintf_P(F("FATAL #%d: ruleset too large, out of memory"), __LINE__);
+      return -1;
+    }
   }
 
-  *rules = (struct rules_t **)&((unsigned char *)mempool->payload)[0];
+  mempool_rule = mempool;
+  if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)+1))) == NULL) {
+    OUT_OF_MEMORY
+  }
   (*rules)[*nrrules] = (struct rules_t *)&((unsigned char *)mempool->payload)[mempool->len];
   memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
   mempool->len += sizeof(struct rules_t);
-  if(mempool->len >= mempool->tot_len) {
-    logprintf_P(F("FATAL: ruleset too large, out of memory"));
-    return -1;
-  }
 
   if(((*rules)[*nrrules]->timestamp = (struct rule_timer_t *)MALLOC(sizeof(struct rule_timer_t))) == NULL) {
     OUT_OF_MEMORY
@@ -7298,13 +9261,17 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   (*rules)[*nrrules]->userdata = userdata;
   struct rules_t *obj = (*rules)[*nrrules];
 
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((*rules)[*nrrules] >= (void *)MMU_SEC_HEAP) {
     mmu_set_uint8(&obj->nr, (*nrrules)+1);
     mmu_set_uint8(&obj->sync, 1);
   } else {
+#endif
     obj->nr = (*nrrules)+1;
     obj->sync = 1;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
   (*nrrules)++;
 
   obj->ctx.go = NULL;
@@ -7321,6 +9288,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 /*LCOV_EXCL_STOP*/
 
   if(rule_prepare((char **)&input->payload, &nrbytes, &newlen) == -1) {
+    FREE((*rules)[*nrrules-1]->timestamp);
+    if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
+      OUT_OF_MEMORY
+    }
+    mempool_rule->len -= sizeof(struct rules_t);
+    (*nrrules)--;
     return -1;
   }
 
@@ -7355,98 +9328,100 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 /*LCOV_EXCL_STOP*/
 
   {
-    if(is_mmu == 1) {
-      mmu_set_uint16(&obj->ast.bufsize, nrbytes);
-    } else {
-      obj->ast.bufsize = nrbytes;
-    }
-    obj->ast.buffer = (unsigned char *)&((unsigned char *)mempool->payload)[mempool->len];
-    if(is_mmu == 1) {
-      mempool->len += mmu_get_uint16(&obj->ast.bufsize);
-    } else {
-      mempool->len += obj->ast.bufsize;
-    }
-    if(mempool->len >= mempool->tot_len) {
-      logprintf_P(F("FATAL: ruleset too large, out of memory"));
-      return -1;
-    }
-
-    suggested_varstack_size = align((input->len-mempool->len-sizeof(struct rule_stack_t))-5, 4);
-
-    if((mempool->len+suggested_varstack_size) >= mempool->tot_len) {
-      logprintf_P(F("FATAL: ruleset too large, out of memory"));
-      return -1;
-    }
-
-    /*
-     * The memoffset will be increased below
-     * as soon as we know how many bytes
-     * we maximally need.
-     */
-    obj->varstack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-    if(is_mmu == 1) {
-      mmu_set_uint16(&obj->varstack->nrbytes, 4);
-      mmu_set_uint16(&obj->varstack->bufsize, 4);
-    } else {
-      obj->varstack->nrbytes = 4;
-      obj->varstack->bufsize = 4;
-    }
-    obj->varstack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
-
-    /*
-     * Since previous varstacks are overwritten we must
-     * remap the pointer to the current varstack. This
-     * also makes sure that rule sets that are called from
-     * other rulesets share the same varstack. This helps
-     * determine how big the final varstack for all rulesets
-     * together should be.
-     */
     {
-      uint8_t x = 0;
-      for(x=0;x<*nrrules;x++) {
-        (*rules)[x]->varstack = obj->varstack;
+      char *a = (char *)input->payload;
+      while(mempool) {
+        char *b = (char *)mempool->payload;
+        /*
+         * Check if input is location inside this mempool
+         */
+        if(&a[0] >= &b[0] && &a[0] <= &b[mempool->tot_len]) {
+          if((mempool->len+nrbytes) >= input->len) {
+            mempool = mempool->next;
+            continue;
+          }
+        }
+        if((mempool->len+nrbytes) >= mempool->tot_len) {
+          mempool = mempool->next;
+          continue;
+        } else {
+          break;
+        }
+      }
+      if(mempool == NULL) {
+        logprintf_P(F("FATAL #%d: ruleset too large, out of memory"), __LINE__);
+        FREE((*rules)[*nrrules-1]->timestamp);
+        if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
+          OUT_OF_MEMORY
+        }
+        mempool_rule->len -= sizeof(struct rules_t);
+        (*nrrules)--;
+        return -1;
       }
     }
 
-    if(is_mmu == 1) {
-      memset(obj->ast.buffer, 0, mmu_get_uint16(&obj->ast.bufsize));
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if((void *)&obj->ast >= (void *)MMU_SEC_HEAP) {
+      mmu_set_uint16(&obj->ast.bufsize, nrbytes);
     } else {
-      memset(obj->ast.buffer, 0, obj->ast.bufsize);
+#endif
+      obj->ast.bufsize = nrbytes;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
-    memset(obj->varstack->buffer, 0, suggested_varstack_size);
+#endif
+
+    obj->ast.buffer = (unsigned char *)&((unsigned char *)mempool->payload)[mempool->len];
+
+    mempool->len += nrbytes;
+    memset(obj->ast.buffer, 0, nrbytes);
 
     if(rule_parse((char **)&input->payload, obj) == -1) {
       vm_cache_gc();
+      FREE((*rules)[*nrrules-1]->timestamp);
+      if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
+        OUT_OF_MEMORY
+      }
+      mempool_rule->len -= sizeof(struct rules_t);
+      (*nrrules)--;
       return -1;
     }
 
-    if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
       mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + newlen);
       if(mmu_get_uint8(&((char *)input->payload)[newlen]) == 0) {
         mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + 1);
       }
       mmu_set_uint16(&input->tot_len, mmu_get_uint16(&input->tot_len) - newlen);
     } else {
+#endif
       input->len += newlen;
-
-      if(((char *)input->payload)[newlen] == 0) {
-        input->len += 1;
+      if(newlen < input->tot_len) {
+        if(((unsigned char *)input->payload)[newlen] == 0) {
+          input->len += 1;
+        }
       }
       input->tot_len -= newlen;
     }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
   obj->timestamp->second = micros();
 
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj >= (void *)MMU_SEC_HEAP) {
     logprintf_P(F("rule #%d was parsed in %d microseconds"), mmu_get_uint8(&obj->nr), obj->timestamp->second - obj->timestamp->first);
     logprintf_P(F("bytecode is %d bytes"), mmu_get_uint16(&obj->ast.nrbytes));
   } else {
+#endif
     logprintf_P(F("rule #%d was parsed in %d microseconds"), obj->nr, obj->timestamp->second - obj->timestamp->first);
     logprintf_P(F("bytecode is %d bytes"), obj->ast.nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 #else
   clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
 
@@ -7477,11 +9452,119 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-  int8_t ret = 0;
-  while((ret = rule_run(obj, 1)) > 0);
-  if(ret == -1) {
-    vm_cache_gc();
-    return -1;
+  /*
+   * If the varstack is too small rerun the rule with an
+   * increased varstack until we found the safe size
+   */
+  int8_t ret = -2;
+  uint16_t initial_varstack_size = suggested_varstack_size*2;
+
+  while(ret == -2) {
+    initial_varstack_size = suggested_varstack_size*2;
+
+    char *a = (char *)input->payload;
+    while(mempool) {
+      char *b = (char *)mempool->payload;
+      /*
+       * Check if input is location inside this mempool
+       */
+      if(&a[0] >= &b[0] && &a[0] <= &b[mempool->tot_len]) {
+        suggested_varstack_size = align((input->len-mempool->len-sizeof(struct rule_stack_t))-5, 4);
+        if(suggested_varstack_size <= initial_varstack_size || (mempool->len+suggested_varstack_size) >= input->len) {
+          mempool = mempool->next;
+          suggested_varstack_size = initial_varstack_size;
+          continue;
+        }
+      } else {
+        suggested_varstack_size = align((mempool->tot_len-mempool->len)-sizeof(struct rule_stack_t)-5, 4);
+      }
+
+      if(suggested_varstack_size <= initial_varstack_size || (mempool->len+suggested_varstack_size) >= mempool->tot_len) {
+        mempool = mempool->next;
+        suggested_varstack_size = initial_varstack_size;
+        continue;
+      } else {
+        break;
+      }
+    }
+    if(mempool == NULL) {
+      logprintf_P(F("FATAL #%d: ruleset too large, out of memory"), __LINE__);
+      FREE((*rules)[*nrrules-1]->timestamp);
+      if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
+        OUT_OF_MEMORY
+      }
+      mempool_rule->len -= sizeof(struct rules_t);
+      (*nrrules)--;
+      return -1;
+    }
+
+    /*
+     * The memoffset will be increased below
+     * as soon as we know how many bytes
+     * we maximally need.
+     */
+    obj->varstack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(obj->varstack >= (void *)MMU_SEC_HEAP) {
+      mmu_set_uint16(&obj->varstack->nrbytes, 4);
+      mmu_set_uint16(&obj->varstack->bufsize, 4);
+      mmu_set_uint16(&obj->varstack->maxsize, suggested_varstack_size);
+    } else {
+#endif
+      obj->varstack->nrbytes = 4;
+      obj->varstack->bufsize = 4;
+      obj->varstack->maxsize = suggested_varstack_size;
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    }
+#endif
+    obj->varstack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
+
+    {
+      struct pbuf *tmp = mempool_ori;
+      while(tmp) {
+        tmp->flags = 0;
+        tmp = tmp->next;
+      }
+    }
+
+    /*
+     * Flag the current mempool as the one
+     * holding the last varstack instance.
+     */
+    mempool->flags = 1;
+
+    /*
+     * Since previous varstacks are overwritten we must
+     * remap the pointer to the current varstack. This
+     * also makes sure that rule sets that are called from
+     * other rulesets share the same varstack. This helps
+     * determine how big the final varstack for all rulesets
+     * together should be.
+     */
+    {
+      uint8_t x = 0;
+      for(x=0;x<*nrrules;x++) {
+        (*rules)[x]->varstack = obj->varstack;
+      }
+    }
+
+    memset(obj->varstack->buffer, 0, suggested_varstack_size);
+
+    /*
+     * The rule_run function will return -2
+     * if the varstack is too small
+     */
+    while((ret = rule_run(obj, 1)) > 0);
+    if(ret == -1) {
+      vm_cache_gc();
+      FREE((*rules)[*nrrules-1]->timestamp);
+      if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
+        OUT_OF_MEMORY
+      }
+      mempool_rule->len -= sizeof(struct rules_t);
+      (*nrrules)--;
+      return -1;
+    }
   }
 
   /*
@@ -7490,36 +9573,37 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
    * make the final varstack shared across all rules have
    * enough space for all variables.
    */
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj->varstack >= (void *)MMU_SEC_HEAP) {
     if(max_varstack_size > mmu_get_uint16(&obj->varstack->bufsize)) {
       mmu_set_uint16(&obj->varstack->bufsize, max_varstack_size);
     }
   } else {
+#endif
     if(max_varstack_size > obj->varstack->bufsize) {
       obj->varstack->bufsize = max_varstack_size;
     }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
-
+#endif
 
   /*
    * Reserve space for the actual maximum
    * varstack buffer size
    */
-#ifdef ESP8266
-  if(is_mmu == 1) {
-#ifdef ESP8266
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj->varstack >= (void *)MMU_SEC_HEAP) {
     if((mmu_get_uint16(&obj->varstack->bufsize) % 4) != 0) {
       Serial.println("Rules AST not 4 byte aligned!");
       exit(-1);
     }
-#endif
   } else {
 #endif
     if((obj->varstack->bufsize % 4) != 0) {
       printf("Rules AST not 4 byte aligned!\n");
       exit(-1);
     }
-#ifdef ESP8266
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
 
@@ -7527,13 +9611,22 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #ifdef ESP8266
   obj->timestamp->second = micros();
 
-  if(is_mmu == 1) {
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj >= (void *)MMU_SEC_HEAP) {
     logprintf_P(F("rule #%d was executed in %d microseconds"), mmu_get_uint8(&obj->nr), obj->timestamp->second - obj->timestamp->first);
+  } else {
+#endif
+    logprintf_P(F("rule #%d was executed in %d microseconds"), obj->nr, obj->timestamp->second - obj->timestamp->first);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+  if(&obj->ast >= (void *)MMU_SEC_HEAP) {
     logprintf_P(F("bytecode is %d bytes"), mmu_get_uint16(&obj->ast.nrbytes));
   } else {
-    logprintf_P(F("rule #%d was executed in %d microseconds"), obj->nr, obj->timestamp->second - obj->timestamp->first);
+#endif
     logprintf_P(F("bytecode is %d bytes"), obj->ast.nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
+#endif
 #else
   clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
 

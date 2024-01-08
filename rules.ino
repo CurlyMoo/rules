@@ -21,7 +21,7 @@
 #include "src/common/mem.h"
 #include "main.h"
 
-static int testnr = -1;
+static int testnr = -2;
 static int fail = 0;
 #ifdef MMU_SEC_HEAP
 static int heap = 0;
@@ -69,7 +69,8 @@ void loop() {
         memset(mempool, 0, MEMPOOL_SIZE);
         if(testnr == -1) {
           run_async(&testnr, mempool, MEMPOOL_SIZE);
-        } else {
+          testnr = 0;
+        } else if(testnr >= 0) {
           run_test(&testnr, mempool, MEMPOOL_SIZE);
         }
 #ifdef MMU_SEC_HEAP
@@ -78,15 +79,83 @@ void loop() {
         memset((unsigned char *)MMU_SEC_HEAP, 0, MEMPOOL_SIZE);
         if(testnr == -1) {
           run_async(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
-        } else {
+          testnr = 0;
+        } else if(testnr >= 0) {
           run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MEMPOOL_SIZE);
+          testnr += heap;
         }
       }
-      testnr += heap;
       heap ^= 1;
 #else
       testnr++;
 #endif
+
+      if(testnr == -2) {
+        uint8_t nrtests = 6;
+        struct {
+          uint16_t size[2];
+          uint16_t used[2];
+          uint8_t loc[2];
+          int8_t ret;
+        } tests[nrtests] = {
+          { { 750, 500 }, { 524, 0 }, {1, 0}, 0 },
+          { { 500, 400 }, { 332, 192 }, {0, 1}, 0 },
+          { { 500, 400 }, { 332, 192 }, {1, 0}, 0 },
+          { { 500, 400 }, { 332, 192 }, {1, 1}, 0 },
+          { { 500, 400 }, { 332, 192 }, {0, 0}, 0 },
+          { { 250, 350 }, { 44, 244 }, {1, 1}, -1 }
+        };
+
+        for(uint8_t i=0;i<nrtests;i++) {
+          struct pbuf mem;
+          struct pbuf mem1;
+          struct pbuf input;
+          memset(&mem, 0, sizeof(struct pbuf));
+          memset(&mem1, 0, sizeof(struct pbuf));
+          memset(&input, 0, sizeof(struct pbuf));
+
+#ifdef MMU_SEC_HEAP
+          memset((unsigned char *)MMU_SEC_HEAP, 0, MEMPOOL_SIZE);
+#endif
+          memset(mempool, 0, MEMPOOL_SIZE);
+
+
+#ifdef MMU_SEC_HEAP
+          if(tests[i].loc[0] == 1) {
+#endif
+            mem.payload = &mempool[0];
+#ifdef MMU_SEC_HEAP
+          } else {
+            mem.payload = &((unsigned char *)MMU_SEC_HEAP)[0];
+          }
+#endif
+
+          mem.len = 0;
+          mem.tot_len = tests[i].size[0];
+
+#ifdef MMU_SEC_HEAP
+          if(tests[i].loc[1] == 1) {
+#endif
+            mem1.payload = &mempool[1000];
+#ifdef MMU_SEC_HEAP
+          } else {
+            mem1.payload = &((unsigned char *)MMU_SEC_HEAP)[1000];
+          }
+#endif
+
+          mem1.len = 0;
+          mem1.tot_len = tests[i].size[1];
+
+          mem.next = &mem1;
+
+          int8_t ret = run_two_mempools(&mem);
+
+          if(ret != tests[i].ret || (ret == 0 && (mem.len != tests[i].used[0] || mem1.len != tests[i].used[1]))) {
+            exit(-1);
+          }
+        }
+        testnr = -1;
+      }
     }
   }
 }

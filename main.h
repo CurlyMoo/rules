@@ -13,5 +13,6 @@
 
 void run_test(int *i, unsigned char *mempool, uint16_t size);
 void run_async(int *i, unsigned char *mempool, uint16_t size);
+int8_t run_two_mempools(struct pbuf *mem);
 
 #endif
