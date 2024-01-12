@@ -36,6 +36,13 @@ int8_t rule_function_round_callback(struct rules_t *obj, uint16_t argc, uint16_t
     rule_stack_pull(obj->varstack, argv[0], nodeA);
 
     switch(nodeA[0]) {
+      case VNULL: {
+        struct vm_vnull_t out;
+        out.ret = 0;
+        out.type = VNULL;
+
+        *ret = rule_stack_push(obj->varstack, &out);
+      } break;
       case VINTEGER: {
         if(argc == 1) {
           struct vm_vinteger_t out;
