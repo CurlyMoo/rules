@@ -6725,10 +6725,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 #ifdef DEBUG
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     if(is_mmu_obj == 1) {
-      printf("rule: %d, " mmu_get_uint8(&obj->nr));
+      printf("rule: %d, ", mmu_get_uint8(&obj->nr));
     } else {
 #endif
-      printf("rule: %d, " obj->nr);
+      printf("rule: %d, ", obj->nr);
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
     }
 #endif
