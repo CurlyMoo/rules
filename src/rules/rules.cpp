@@ -9298,13 +9298,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     return -1;
   }
 
-#ifdef ESP8266
-  if((nrbytes % 4) != 0) {
-    Serial.println("Rules AST not 4 byte aligned!");
-    exit(-1);
-  }
-#endif
-
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
   obj->timestamp->second = micros();
@@ -9319,14 +9312,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-
-/*LCOV_EXCL_START*/
 #ifdef ESP8266
-  obj->timestamp->first = micros();
-#else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+  if((nrbytes % 4) != 0) {
+    Serial.println("Rules AST not 4 byte aligned!");
+    exit(-1);
+  }
 #endif
-/*LCOV_EXCL_STOP*/
 
   {
     {
@@ -9376,6 +9367,14 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     mempool->len += nrbytes;
     memset(obj->ast.buffer, 0, nrbytes);
 
+/*LCOV_EXCL_START*/
+#ifdef ESP8266
+  obj->timestamp->first = micros();
+#else
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+#endif
+/*LCOV_EXCL_STOP*/
+
     if(rule_parse((char **)&input->payload, obj) == -1) {
       vm_cache_gc();
       FREE((*rules)[*nrrules-1]->timestamp);
@@ -9386,27 +9385,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       (*nrrules)--;
       return -1;
     }
-
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-    if(is_mmu_input == 1) {
-      mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + newlen);
-      if(mmu_get_uint8(&((char *)input->payload)[newlen]) == 0) {
-        mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + 1);
-      }
-      mmu_set_uint16(&input->tot_len, mmu_get_uint16(&input->tot_len) - newlen);
-    } else {
-#endif
-      input->len += newlen;
-      if(newlen < input->tot_len) {
-        if(((unsigned char *)input->payload)[newlen] == 0) {
-          input->len += 1;
-        }
-      }
-      input->tot_len -= newlen;
-    }
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-  }
-#endif
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
@@ -9434,6 +9412,28 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+    if(is_mmu_input == 1) {
+      mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + newlen);
+      if(mmu_get_uint8(&((char *)input->payload)[newlen]) == 0) {
+        mmu_set_uint16(&input->len, mmu_get_uint16(&input->len) + 1);
+      }
+      mmu_set_uint16(&input->tot_len, mmu_get_uint16(&input->tot_len) - newlen);
+    } else {
+#endif
+      input->len += newlen;
+      if(newlen < input->tot_len) {
+        if(((unsigned char *)input->payload)[newlen] == 0) {
+          input->len += 1;
+        }
+      }
+      input->tot_len -= newlen;
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
   #ifndef ESP8266
@@ -9442,14 +9442,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     printf("\n");
     print_tree(obj);
   #endif
-#endif
-/*LCOV_EXCL_STOP*/
-
-/*LCOV_EXCL_START*/
-#ifdef ESP8266
-  obj->timestamp->first = micros();
-#else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
 #endif
 /*LCOV_EXCL_STOP*/
 
@@ -9551,6 +9543,14 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
     memset(obj->varstack->buffer, 0, suggested_varstack_size);
 
+/*LCOV_EXCL_START*/
+#ifdef ESP8266
+  obj->timestamp->first = micros();
+#else
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+#endif
+/*LCOV_EXCL_STOP*/
+
     /*
      * The rule_run function will return -2
      * if the varstack is too small
@@ -9567,6 +9567,37 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       return -1;
     }
   }
+
+/*LCOV_EXCL_START*/
+#ifdef ESP8266
+  obj->timestamp->second = micros();
+
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if(obj >= (void *)MMU_SEC_HEAP) {
+    logprintf_P(F("rule #%d was executed in %d microseconds"), mmu_get_uint8(&obj->nr), obj->timestamp->second - obj->timestamp->first);
+  } else {
+#endif
+    logprintf_P(F("rule #%d was executed in %d microseconds"), obj->nr, obj->timestamp->second - obj->timestamp->first);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+  if(&obj->ast >= (void *)MMU_SEC_HEAP) {
+    logprintf_P(F("bytecode is %d bytes"), mmu_get_uint16(&obj->ast.nrbytes));
+  } else {
+#endif
+    logprintf_P(F("bytecode is %d bytes"), obj->ast.nrbytes);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+#else
+  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
+
+  printf("rule #%d was executed in %.6f seconds\n", obj->nr,
+    ((double)obj->timestamp->second.tv_sec + 1.0e-9*obj->timestamp->second.tv_nsec) -
+    ((double)obj->timestamp->first.tv_sec + 1.0e-9*obj->timestamp->first.tv_nsec));
+
+  printf("bytecode is %d bytes\n", obj->ast.nrbytes);
+#endif
+/*LCOV_EXCL_STOP*/
 
   /*
    * If a previous varstack was bigger than the current
@@ -9607,37 +9638,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
 #endif
-
-/*LCOV_EXCL_START*/
-#ifdef ESP8266
-  obj->timestamp->second = micros();
-
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-  if(obj >= (void *)MMU_SEC_HEAP) {
-    logprintf_P(F("rule #%d was executed in %d microseconds"), mmu_get_uint8(&obj->nr), obj->timestamp->second - obj->timestamp->first);
-  } else {
-#endif
-    logprintf_P(F("rule #%d was executed in %d microseconds"), obj->nr, obj->timestamp->second - obj->timestamp->first);
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-  }
-  if(&obj->ast >= (void *)MMU_SEC_HEAP) {
-    logprintf_P(F("bytecode is %d bytes"), mmu_get_uint16(&obj->ast.nrbytes));
-  } else {
-#endif
-    logprintf_P(F("bytecode is %d bytes"), obj->ast.nrbytes);
-#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
-  }
-#endif
-#else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
-
-  printf("rule #%d was executed in %.6f seconds\n", obj->nr,
-    ((double)obj->timestamp->second.tv_sec + 1.0e-9*obj->timestamp->second.tv_nsec) -
-    ((double)obj->timestamp->first.tv_sec + 1.0e-9*obj->timestamp->first.tv_nsec));
-
-  printf("bytecode is %d bytes\n", obj->ast.nrbytes);
-#endif
-/*LCOV_EXCL_STOP*/
 
   assert(nrcache == 0);
 
