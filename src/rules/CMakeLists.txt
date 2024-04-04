@@ -7,6 +7,3 @@ set(${PROJECT_NAME}_files ${${PROJECT_NAME}_sources} ${${PROJECT_NAME}_headers} 
 
 add_subdirectory(functions)
 set(${PROJECT_NAME}_files ${${PROJECT_NAME}_files} ${${PROJECT_NAME}_functions_files} CACHE INTERNAL "")
-	
-add_subdirectory(operators)
-set(${PROJECT_NAME}_files ${${PROJECT_NAME}_files} ${${PROJECT_NAME}_operators_files} CACHE INTERNAL "")

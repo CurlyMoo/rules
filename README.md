@@ -36,20 +36,11 @@ ESP ready, high performant and low resources rules library written in C.
 	 * [Parenthesis](#parenthesis)
 * [API](#api)
 	 * [Providing rules](#providing-rules)
-	 * [Modular functions and operators](#modular-functions-and-operators)
 	 * [Events](#events)
 	 * [Variables](#variables-1)
-	 * [Functions &amp; Operators](#functions--operators)
 * [Technical reference](#technical-reference)
 	 * [Preparing](#preparing)
 	 * [Parsing](#parsing)
-			* [Nesting](#nesting)
-			* [AST structure](#ast-structure)
-			* [Node types in bytecode](#node-types-in-bytecode)
-			* [Creating and linking nodes](#creating-and-linking-nodes)
-	 * [Interpreting](#interpreting)
-			* [Jumping back and forth](#jumping-back-and-forth)
-			* [Values and variables](#values-and-variables)
 	 * [2nd heap](#2nd-heap)
 
 ---
@@ -61,9 +52,10 @@ A rule interpreter can be pretty easily built using a lexer and a parser with te
 
 The downside of all these algoritms are that they - in their common implementation - require techniques not (easily) available on a microcontroller such as the ESP8266 (e.g., recursion, memory alignment), they either require too much memory, too much stack, or are too slow to parse / execute on a microcontroller. This library solves these issues by mixing the core aspects of the theories named above in a custom implementation that does run quickly on microcontollers, but is also very fast on regular enviroments.
 
+This library uses similar techniques as Lua and similar interfaces but it less feature rich. However, it matches Lua speeds and most importantly uses a lot less memory.
+
 ## Features
 
-- No classic, but only tail recursion
 - Mempool usage; minimal memory footprint and minimal fragmentation
 - Unlimited number of if / else nesting
 - Functions
@@ -71,14 +63,15 @@ The downside of all these algoritms are that they - in their common implementati
 - Variables
 - Unlimited nesting of variables, functions, operators and parenthesis
 - Unlimited calls to other code blocks
-- Modular functions and operators
+- Modular functions
 - Modular callbacks for e.g. implementing global variables
 - Bytecode parsing
 - ESP8266 and ESP32 ready
 - ESP8266 runs in the 2nd heap (fast and safe mode)
 - Allows running rules fully async
+- Lua like API interface
 
-When properly configured the 2nd heap can give you 16KB mempool which can be fully used as dedicated memory for the rule parser. This leaves the normal memory for the core program. Because the 2nd heap is used as a mempool it also prevents memory fragmentation.
+When properly configured the 2nd heap can give you 16KB mempool which can be almost fully used as dedicated memory for the rule parser. The rules library does store string in regular memory. This leaves the normal memory for the core program. Because the 2nd heap is used as a mempool it also prevents memory fragmentation.
 
 ---
 
@@ -101,8 +94,6 @@ When properly configured the 2nd heap can give you 16KB mempool which can be ful
 ### Todo
 
 - String handling in the parser, all operators, and functions
-- Storing values platform independent
-- More optimalizations?
 
 ## Prerequisites
 
@@ -222,6 +213,26 @@ on [customizable] then
 end
 ```
 
+```
+on [customizable]([arguments], [arguments], ...) then
+   [body]
+end
+```
+
+An event block can take arguments. Passing events to an event is the same as passing arguments to a function. In case certain arguments are not set, the value will be `NULL`, e.g.:
+
+```
+on foo($a, $b, $c) then
+   [body]
+end
+```
+
+```
+on bar($a, $b, $c) then
+   foo(1, 2, 3);
+end
+```
+
 ### Functions
 
 A function is written by using the function name followed by at least one opening and closing parenthesis.
@@ -230,18 +241,7 @@ A function is written by using the function name followed by at least one openin
 [string]([arguments], [arguments], ...)
 ```
 
-When trying to call a defined `on` block a function without arguments is used. E.g.
-```ruby
-on foo then
-   [body]
-end
-
-on bar then
-   foo();
-end
-```
-
-Functions can have one or more arguments. Arguments are given inside the parenthesis and are delimited by a `comma`. E.g.
+Functions and events can have one or more arguments. Arguments are given inside the parenthesis and are delimited by a `comma`. E.g.
 ```ruby
 max(1, 2, 3);
 ```
@@ -361,7 +361,7 @@ void main() {
   struct rules_t **rules = NULL;
   int nrrules = 0;
 
-  const char *rule = "on foo then sync if 1 == 1 then $a = 1; $b = 1.25; $c = 10; $d = 100; else $a = 1; end end on bar then $e = NULL; $f = max(1, 2); $g = 1 + 1.25; foo(); end";
+  const char *rule = "on foo then if 1 == 1 then $a = 1; $b = 1.25; $c = 10; $d = 100; else $a = 1; end end on bar then $e = NULL; $f = max(1, 2); $g = 1 + 1.25; foo(); end";
 
   int len = strlen(rule);
   struct pbuf input;
@@ -433,52 +433,7 @@ void main() {
   }
 ```
 
-```c
-int8_t rules_loop(struct rules_t **rules, uint8_t nrrules, uint8_t *nr);
-```
-
-The `rule_loop` function is used to (a)sync execute rule blocks. The `nr` argument returns the rule number currently being executed. This function will return `-1` when an error occured, `-2` when there are no rules listed for execution, `0` when a rule is done executing, and `1` when there is a rule being executed.
-
-```c
-int8_t rule_call(uint8_t nr);
-```
-
-To enlist a rule for execution, this function can be called with the rule nr that should be enqueued for execution. If the execution queue is full, this function returns `-1`. When enqueuing was succesfull it will return `0`.
-
-```c
-int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out);
-```
-
-The `rule_token` function is a helper function to make it easier to interface with the rule stack and to deal with all quirks associated with the 2nd heap on the ESP8266. The first parameter should contain the rule stack. For an individual rule this is the `varstack` field of the `rules_t` struct. The second parameter `pos` should point to a position on the stack. The `pos` value is passed by the library to the different (relevant) `rule_options_t` functions described below. The function will return `-1` in case of an error. Make sure to free the `out` parameter afterwards. To store an updated value back on the stack you can call the `rule_token` function with an allocation and filled `out` parameter.
-
-
-In this case, a rule stack was placed in the rule userdata field.
-
-```c
-struct rule_stack_t *varstack = (struct rule_stack_t *)obj->userdata;
-
-unsigned char *out = NULL;
-
-// Determine the necessary memory size
-if(rule_token(&obj->ast, token, &out) < 0) {
-   return NULL;
-}
-
-if(out[0] == VINTEGER) {
-  struct vm_vinteger_t *val = (struct vm_vinteger_t *)out;
-  val->value = 10; // Change the value of the integer
-
-  // Store the updated integer back on the stack
-  if(rule_token(&obj->ast, token, &out) < 0) {
-    FREE(out);
-    return NULL;
-  }
-}
-FREE(out);
-```
-
-
-### Modular functions and operators
+### Modular functions
 
 As can be read in the syntax description, to fully use this library, a developers should implement their own logic for variables and events. Without this logic, variables and events are not supported.
 
@@ -486,25 +441,19 @@ This also allows the library to interact with the outside world.
 
 *Check the unittests in main.cpp for implementation examples or ask for help in the issues*.
 
-1. Storing the parsed rules is done outside the library. So to call one rule block from another rule block (`events`), the called event needs to looked for in that extarnal rule array.
-2. The library only support variables stored into the local scope for the lifetime of the function call. Developers can define their own variables like globals, system variables, hardware parameters.
+1. Storing the parsed rules is done outside the library. So to call one rule block from another rule block (`events`), the called event needs to looked for in that external rule array.
+2. The library only supports variables stored into the local scope for the lifetime of the function call. Developers can define their own variables like globals, system variables, hardware parameters.
 
 ```c
 typedef struct rule_options_t {
   /*
    * Identifying callbacks
    */
-  int8_t (*is_token_cb)(char *text, uint16_t size);
+  int8_t (*is_variable_cb)(char *text, uint16_t size);
   int8_t (*is_event_cb)(char *text, uint16_t size);
 
-  /*
-   * Variables
-   */
-  unsigned char *(*get_token_val_cb)(struct rules_t *obj, uint16_t token);
-  int8_t (*clr_token_val_cb)(struct rules_t *obj, uint16_t token);
-  int8_t (*set_token_val_cb)(struct rules_t *obj, uint16_t token, uint16_t val);
-  void (*prt_token_val_cb)(struct rules_t *obj, char *out, uint16_t size);
-
+  int8_t (*vm_value_set)(struct rules_t *obj);
+  int8_t (*vm_value_get)(struct rules_t *obj);
   /*
    * Events
    */
@@ -513,18 +462,18 @@ typedef struct rule_options_t {
 ```
 
 The first two functions are identification functions that help the rule parser to identify the different tokens inside the syntax.
-- `is_variable` should identify a token as a variable
-- `is_event` should identify a token as an event
+- `is_variable_cb` should identify a token as a variable
+- `is_event_cb` should identify a token as an event
 
-The `is_variable` function is called with two parameters:
+The `is_variable_cb` function is called with two parameters:
 1. `char *text` contains the name of the token encountered, possibly a variable name.
 2. `uint16_t size` the size (number of characters) of the token encountered.
 
-The `is_event` function is called with three parameters:
+The `is_event_cb` function is called with two parameters:
 1. `char *text` contains the name of the token encountered, possibly a event name.
 3. `uint16_t size` the size (number of characters) of the token encountered.
 
-Both function should return a `-1` when the token isn't a variable neither an event. The `is_variable` function should return the length of the token found. The `is_event` should return `0` when a token was indeed an event.
+Both function should return a `-1` when the token isn't a variable neither an event. The `is_variable_cb` function should return the length of the token found. The `is_event_cb` should return `0` when a token was indeed an event.
 
 ### Events
 
@@ -568,122 +517,73 @@ Return 1 if you want to continue executing the rule block, return 0 when it shou
 
 ### Variables
 
-Interaction with variables is always done through the local variable stack of a rule. So, you never interact with values on the AST itself, but with values on the variable stack. Properly implementing these functions can be quite a burden. Please refer to the unittest example for inspiration on how this is implemented.
-
-Each variable consists of the variable token itself and a value token. The value token points to the actual value on the value stack. The value token also stores the name of the value. E.g.: `$a`. This has two advantages. The actual name of the variable only has to be stored once. And there is no need to backlink to each variable that might point to the same value. So, changing the values for all `$a` tokens is done in one spot.
-
-*General*
-
-Working with a variable token is done like this: `(struct vm_tvalue_t *)&obj->ast.buffer[token]`.
-
-When the field `go` of the `vm_tvalue_t` token is set to zero then the parser knows no value is associated with that value (and therefor variable). Any value other than zero can be used to interact with the variable token. E.g.
-
-```c
-struct vm_tvalue_t *val = (struct vm_tvalue_t*)&obj->ast.buffer[token];
-val->go = 0;
-```
+Interaction with variables is done similarly as in Lua, making it relatively easy to interface with this library.
 
 *Setting*
 
-The set function is used to store a variable or for the developer to use a variable to interact with something else like a single value function call.
+This function is used to store a variable. The variable name is placed on the stack at position `-2` and the variable value at position `-1`. The rest of the stack should be remain untouched.
 
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` point to a position on the AST where the variable node can be found (`struct vm_tvalue_t`).
-3. The `uint16_t val` refers to the variable position on the variable stack (e.g., `(struct vm_vinteger_t *)&obj->varstack.buffer[val]`).
+So to retrieve the variable name:
+```c
+  const char *key = rules_tostring(rule, -2);
+```
+
+To detect the variable type of the variable value you can use the `rules_type` function, e.g.:
+```c
+  switch(rules_type(rule, -1)) {
+    case VINTEGER:
+    case VFLOAT:
+    case VNULL: {
+    } break;
+    default: {
+      return -1;
+    } break;
+  }
+```
+
+Then you can retrieve the variable value, e.g.:
+```c
+int i = rules_tointeger(rule, -1);
+float f = rules_tofloat(rule, -1);
+```
+
+The stack is automatically cleared when the library is done interacting with the outside world.
 
 *Getting*
 
-The get function is meant to retrieve a previously stored variable or to get the value of a system parameter.
-
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvalue_t`).
-
-The return value should be a `unsigned char *` pointer to the value on the stack or whatever structure used. The value returned by this function is copied to the local stack so it must be of a valid library token (`vm_vinteger_t`, `vm_vfloat_`, `vm_vnull_t`) with the same structure as these tokens.
-
-*Clearing*
-
-The clearing function can be used to remove a value association to a variable. This function is called to clear all values before a rule is parsed. When you want to enforce a local variable scope, this function allows to the remove all references of the called variables to their respective values.
-
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t token` refers to the AST node containing the variable (`struct vm_tvalue_t`).
-
-*Printing*
-
-The print function is used for debugging purposes. This function can be used to output all stored variables and associated values.
-
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `char *out` points to the output buffer.
-3. The `int size` contains the size of the output buffer.
-
-### Functions & Operators
-
-Functions are operators are modular. Both are programmed in C just as the libary itself.
-
-When creating a new function or operator it should be added to the `rule_functions` or `rule_operators` arrays. The structure of the list items are self-explanatory. Each function or operator reside in their own seperate source files.
-
-*Operator*
-
-A operator is formatted with four parameters:
-
+This function is used to retrieve a variable. The variable to be retrieved is placed on top of the stack at position `-1`, e.g.:
 ```c
-int8_t (*callback)(struct rules_t *obj, uint16_t a, uint16_t b, uint16_t *ret);
+const char *key = rules_tostring(rule, -1);
 ```
 
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t a` contains the location of the left hand value of the operator on the value stack.
-3. The `uint16_t b` contains the location of the right hand value of the operator on the value stack.
-4. The `uint16_t *ret` the location of the outcome value of the operator on the value stack.
-
-An operator module should return zero if it ran correctly, if it failed, return minus one. A failing operator will trigger an exception on the ESP so should be used carefully. It should be used only in case of fatal programmatic errors.
-
+The returned value should be placed on top of the stack. This is done with the different `rules_push*` functions. E.g.,
 ```c
-int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char val[MAX_VARSTACK_NODE_SIZE+1]);
+rules_pushinteger(rule, 1);
+rules_pushfloat(rule, 5.5);
+rules_pushnil(rule);
 ```
 
-1. The `struct rule_stack_t *stack` contains the stack to work with.
-2. The `uint16_t idx` contains the location of the variable in the stack.
-3. The `uint16_t val` contains the placeholder to copy the variable on the stack to.
+Again, the stack is automatically cleared when the library is done interacting with the outside world.
 
-Getting a value on the varstack can be done using the `rule_stack_pull` helper function. This helps you to not have to deal with the 2nd heap and such specifics. Best is to create temporary `unsigned char` variable with at least `MAX_VARSTACK_NODE_SIZE+1`. By passing the varstack to the `stack` parameter and the position on the varstack to the `idx` parameter, the `rule_stack_pull` will store the variable struct on the varstack in the `val` parameter. The return value of this function is either 0 when a value was found and a -1 when it wasn't.
+*Additionally*
 
-The variables placed in the `val` parameter will be of either `vm_vinteger_t`, `vm_vfloat_t` or `vm_vnull_t`.
+The `rules_gettop(rule)` function can be used to number of element on the stack.
 
-So, inside a operation function getting both variables for the operation is done like this:
-```c
-  unsigned char nodeA[MAX_VARSTACK_NODE_SIZE+1], nodeB[MAX_VARSTACK_NODE_SIZE+1];
-  rule_stack_pull(&obj->varstack, a, nodeA);
-  rule_stack_pull(&obj->varstack, b, nodeB);
-```
+### Functions
 
-Placing a value on the varstack is done by using the helper function `rule_stack_push`.
+Functions are modular. Both are programmed in C just as the libary itself.
+
+When creating a new function it should be added to the `rule_functions` arrays. The structure of the list items are self-explanatory. Each function or operator reside in their own seperate source files.
+
+A function is formatted with just a single parameters:
 
 ```c
-uint16_t rule_stack_push(struct rule_stack_t *stack, void *in);
+int8_t (*callback)(struct rules_t *rule);
 ```
-
-1. The `struct rule_stack_t *stack` contains the stack to work with.
-2. The `void *in` contains a `unsigned char` array containing the variable to be place on the stack.
-
-The variables placed in the `in` parameter need to be of either `vm_vinteger_t`, `vm_vfloat_t` or `vm_vnull_t`.
-
-This functions returns to position where the new variable was placed on the varstack. This position should be saved in the `*ret` parameter of the operator module.
-
-*Function*
-
-A function is formatted with four parameters:
-
-```c
-int8_t (*callback)(struct rules_t *obj, uint16_t argc, uint16_t *argv, uint16_t *ret);
-```
-
-1. The `struct rules_t *obj` contains the rule structure as used inside the library.
-2. The `uint16_t argc ` contains the number of arguments passed.
-3. The `uint16_t *argv` contains an array with the locations of the passed variables on the values stack.
-4. The `uint16_t *ret` the location of the outcome value of the function on the value stack.
 
 An function module should return `0` if it ran correctly, if it failed, return `-1`. A failing function will trigger an exception on the ESP so should be used carefully. It should be used only in case of fatal programmatic errors.
 
-Working with the value stack is the same as described in the operator modules.
+The heap will only contain values to be used by the function. Make sure to parse all variables or to return an error. You can remove variables from the heap when you're done parsing them by using the `rules_remove(rule, -1)` helper function. The second argument is the relative position on the heap.
 
 ## Technical reference
 
@@ -756,199 +656,105 @@ Parsing the rule into an `abstract syntax tree` (AST) replaces each token with a
 
 ### Parsing
 
-The next step is parsing the rule in a programmatic friendly AST.
+The next step is parsing the rule in a programmatic friendly bytecode representation. This logic is lend from Lua, but adapted to work better with a simple implementation. This library uses a registry based approach to store values and to be more efficient with memory usage.
 
 ```ruby
 if (1 == 2 || 3 >= 4) then $a = 5; else $b = 6; end
 ```
 
-![](ast1.png)
+```cmd
+Bytecode
+ 0      OP_EQ           -7      -1      -2
+ 1      OP_GE           -8      -3      -4
+ 2      OP_OR           -7      -7      -8
+ 3      OP_JMP          6
+ 4      OP_SETVAL       0       -5
+ 5      OP_JMP          7
+ 6      OP_SETVAL       1       -6
+ 7      OP_RET
 
-So we enter the `if` node. The first branch directs us to the condition. The second branch represents the true body and the last branch represents the false body. To parse the condition we first need to travel downwards to the last nodes and back up again. So we first need to parse `1 == 2`, then `3 >= 4` to be able to parse the `or` condition based on the outcome of the two bottom nodes.
+Heap
+ 1      VINTEGER        1
+ 2      VINTEGER        2
+ 3      VINTEGER        3
+ 4      VINTEGER        4
+ 5      VINTEGER        5
+ 6      VINTEGER        6
+ 7      VNULL
+ 8      VNULL
 
-The most easy way to built and execute an AST is by using recursion. The nice thing about an AST built by using recursion is that it allows you to easily process all nested blocks such as nested `if / else` blocks as shown below, nested functions (e.g., `max(random(1, 10), 4)`), parenthesis (e.g., `(1 + 2) * ((4 - 5) ^ (2 * (3 / 4)))`) or a combination of them.
-
-```ruby
-if 1 == 2 then
-  if 3 >= 4 then
-    $a = 5;
-  else
-    $b = 6;
-  end
-  $c = 7;
-end
+Varstack
+ 0      $a
+ 1      $b
 ```
 
-![](ast2.png)
+#### Bytecode structure
 
-Building recursion on a non-recursive way requires one of more stacks. Common implementation of recursion using stacks are pretty memory intensive. Using [Tail recursion](https://en.wikipedia.org/wiki/Tail_call) was an option together with [Continuation passing style](https://en.wikipedia.org/wiki/Continuation-passing_style), but you easily wind up lost in the downward and upward traversel of the tree.
+*Opcodes*
 
-#### Nesting
+The bytecode consists of opcodes. Each opcode is stored in 4 bytes:
+1. Opcode type
+2. Value A
+3. Value B
+4. Value C
 
-So we want to drop recursion and we want to avoid having to rely on stack calls too much to minic recursion, but somehow we need to deal with these nested calls, which recursion is best fit for.
+There are 22 different opcodes. The main group of opcodes consist of operators: `OP_EQ`, `OP_NE`, `OP_LT`, `OP_LE`, `OP_GT`, `OP_GE`, `OP_AND`, `OP_OR`, `OP_SUB`, `OP_ADD`, `OP_DIV`, `OP_MUL`, `OP_POW`, `OP_MOD`. For now summarized as: `OP_OP`. If the operators are used as input for specific `if`, `else`, `ifelse` flow blocks, the last opcode is always followed by an `OP_JMP`. In case the opcode is `false` if will hit the `OP_JMP`. If the outcome of the operator is `true` it will skip the `OP_JMP`, just as in Lua.
 
-We have determined that there are three types of blocks that can be nested. `Parenthesis`, `If` and `Function` blocks. To deal with these nested blocks, the parser first parses the rule from to end to the beginning.
-```ruby
-if ((3 * 2) == 2) || 6 > = 5 then
-  if 3 >= 4 then
-    $a = 5;
-  else
-    $b = 6;
-  end
-  $c = 7;
-end
-```
+The `OP_JMP` is the only opcode that allows us to jump to other (forward) locations in the bytecode. Otherwise, each opcode is just executed one by one.
 
-In case of this example, the inner `if` block is parsed first and stored in the beginning of our parsed bytecode. Secondly the inner `parenthesis` is parsed, then the outer `parenthesis` which links the already parsed inner `parenthesis` to it. And as last it will link root `if` block.
+- `OP_OP`: Executes an operator
+  - 1 Heap location to store the result / 2 Left value location on the heap / 3 Right value location on the heap.
+- `OP_TEST`: Perform a boolean test in these cases: `if 1 then`, `if max(0) then` or `if $a then`.
+- `OP_JMP`: Jumps to a specific forward location in the bytecode
+  - 1 Location to jump to.
+- `OP_SETVAL`: Requests the storage of a heap value to a variable. After executing this opcode, the stack is cleared.
+  - 1 Location on the stack / 2 Location on the heap
+- `OP_GETVAL`: Requests the retrieval of an variable value to a heap
+  - 1 Location on the heap / 2 Location on the stack
+- `OP_PUSH`: Pushes heap values on the stack to be used as function parameters
+  - 1 Location on the heap which is pushed on top of the stack
+- `OP_CALL`: Calls an internal function or external event
+  - 1 Heap location to store the result / 2 Function index / 3 A 0 if this is an internal function, 1 if this is an external event
+- `OP_CLEAR`: Fully clears the stack. When a function or event call doesn't result in setting a variable, this additional opcode is called to still clear the stack.
+- `OP_RET`: Defines the end of the bytecode
 
-```
-| inner if | inner parenthesis | outer parenthesis | root if |
-```
 
-The root `if` block will therefor always be parsed last. If the root `if` encounters the outer `parenthesis`, it links that `parenthesis` and continues where the outer `parenthesis` ended. When the outer `parenthesis` encountered the inner `parenthesis`, it links the inner `parenthesis` and continues where the inner `parenthesis` ended. If the root if encounters the inner `if`, it will link that inner `if` and continues where the inner `if` ended.
-
-The same counts for nested function calls:
-
-```ruby
-max(1 * 2, (min(5, 6) + 1) * 6)
-```
-
-The parsing order will be:
-
-```
-| min function | inner parenthesis | max function
-```
-
-Where we again start parsing from the most deepest nested token to the most outer nested token and finally from root to end, linking these already prepared inner blocks step by step.
-
-To be able to properly parse these nested blocks, some information about them is registered:
-- The type (function, parenthesis or if)
-- The absolute start position in the prepared rule
-- The absolute end position in the prepared rule
-- The absolute bytecode position where the block starts
-
-In the final AST, only the type and the absolute bytecode position of the block are relevant. So, we cache these blocks in an independent global cache. As soon as a nested block has been linked to another block, it will be removed from the cache. Leaving an empty cache as soon as all rules have been parsed.
-
-#### AST structure
-
-An AST consists of various different type of nodes. Each node has its own number of elements. The `if` node consists of three elements: condition branch, true branch, false branch. The `true` and `false` node consists of one of more branches, namely the different expressions that needs te be evaluated inside an `then` or `else` block.
-
-Within an AST one node is linked to another node based on the action associated with the specific type of node. An `if` node will jump to the `true` branch if the condition returns boolean true of the `false` branch if the condition returns boolean false.
-
-To jump back and forth between nodes, they are linked by their absolute position in the bytecode.
-
-If we look at a new nested function and operators example.
+If we look at a nested function and operators example.
 
 ```ruby
 if 1 == 1 then $a = max(1 * 2, (min(5, 6) + 1) * 6); end
 ```
 
-This translates to the following AST but now printed in a different view.
+This translates to the following bytecode:
 
-![](ast3.png)
+```cmd
+Bytecode
+ 0      OP_EQ           -5      -1      -1
+ 1      OP_JMP          12
+ 2      OP_PUSH         -2
+ 3      OP_PUSH         -3
+ 4      OP_CALL         -6      1       0
+ 5      OP_MUL          -7      -1      -4
+ 6      OP_PUSH         -7
+ 7      OP_ADD          -6      -6      -1
+ 8      OP_MUL          -6      -6      -3
+ 9      OP_PUSH         -6
+10      OP_CALL         -6      0       0
+11      OP_SETVAL       0       -6
+12      OP_RET
 
-The to squares refer to position inside the AST, which are literally positions in an bytecode array. The bottom square shows the goto posiitons and the diamonds are return to positions. In each oval you can find the type of token that is resembled.
+Heap
+ 1      VINTEGER        1
+ 2      VINTEGER        5
+ 3      VINTEGER        6
+ 4      VINTEGER        2
+ 5      VNULL
+ 6      VNULL
+ 7      VNULL
 
-Let's loop through this new AST step by step and we always start at position 0:
-
-- 0: A TSTART token of which the second branch tells us to go to position 132 for the root TIF.
-- 132: The TIF is placed at position 132, because because of the nested parsing. The TIF was the toplevel code block so it's parsed last. The first TIF branch tells us to go to 152 to find the condition.
-- 152: This represents an `==` condition with on the left hand the first TNUMBER at position 144 to compare with the TNUMBER at position 164. Both TNUMBERs tells us to go back to the operator at 152 to continue parsing the condition.
-- 152: The condition evaluates to true so it goes back to the TIF at 132 with that result.
-- 132: The TIF knows the condition evaluates to true therefor continueing to position 172 where the TTRUE block resides. In this example there is no TFALSE block.
-- 172: The TTRUE block only has one expression to parse and that is the TVAR assignment at position 184.
-- 184: The TVAR token points to the TVALUE token which contains the variable name `$a` and holds the pointer to the actual variable on the variable stack.
-- 192: The TVALUE is assigned the result of the TFUNCTION at position 68 and links directly to the TVAR token. From the TVAR token we jump a long way back because the nested TFUNCTIONS where parsed before the nested TIF blocks.
-- 68: The toplevel TFUNCTION is `max`. This function has two parameter. The first parameter can be found at position 92 where the `*` operator can be found.
-- 92: The TOPERATOR first looks for the left hand number at 84 and then the right hand number at 104. When it's done it returns the output back to the TFUNCTION at position 68.
-- 68: The next parameter of the TFUNCTION `max` is the second TOPERATOR which is found at 112. This again parses the left hand and the right hand side, but in this case the right hand side goes to the TLPAREN at 60. Parenthesis blocks are prioritized so they are evaluated first. As you can see we continue to move downwards.
-- 60: The LPAREN links to the TOPERATOR `+`. This links to the TFUNCTION `min` at 8 which in this case was the first TOKEN parsed.
-- 8: The TFUNCTION `min` looks for the first argument at 24 and the second at position 32. Both return to the TFUNCTION `min` at 8. When the TFUNCTION is done collecting its parameters it returns with its result to in this case the TOPERATOR at 40.
-- 40: The TOPERATOR `+` adds both the TFUNCTION `min` result and the TNUMBER `1` at 52. When it's done parsing it returns with its results to the LPAREN at 60.
-- 60: The LPAREN returns with the result to the TOPERATOR at 112.
-- 112: The TOPERATOR returns the result of LPAREN and which is multiplied with 6 to the TFUNCTION `max` at 68.
-- 68: The TFUNCTION returns it result based on all parameters to the TVAR assignment at 184.
-- 184: The TVAR returns to the TTRUE at 172. There is no additional expression to be parsed in this TTRUE block so it returns to the TIF at 132.
-- 132: This TIF is done so it returns to the TSTART at 0 because it was the root TIF block.
-- 0: The TSTART block has done its job so it will jump to the TEOF at 196.
-- 196: The TEOF is always the last block to parse so the parser knows we're done.
-
-The downside to this nested parsing approach is that the first parsed node isn't necessarily the root `if` node. The very first node inserted in the parsed bit of the bytecode is a `start` node. Because the `start` node is always the first node of the AST it's easily locatable. As soon as the root `if` node is parsed, it links itself to the `start` node, so the interpreter always knows where to start parsing. As soon as the full rules are parsed an `eof` node is created. The `start` will return to the `eof` node. The `eof` node goes nowhere and returns to nowhere. The `eof` node helps the interpreter determine what the last bytes are in the bytecode of the parsed rule.
-
-#### Node types in bytecode
-
-The core of the bytecode AST are one or more jumps forwards and a jump backwards.
-
-So a generic node consists of a `type` byte, which allows us to define 32 different types of tokens, and a `return` byte. This allows us to jump to a token at the absolute maximum position of around byte 16554. If we need to be able to jump further, the `uint16_t` can be increases to `uint32_t`, but it'll increase the size of the bytecode as well.
-
-```c
-#define VM_GENERIC_FIELDS \
-  uint8_t type; \
-  uint16_t ret;
- ```
- 
- The `if` node type looks like this:
- ```c
- typedef struct vm_tif_t {
-  VM_GENERIC_FIELDS
-  uint16_t go;
-  uint16_t true_;
-  uint16_t false_;
-} vm_tif_t;
+Varstack
+ 0      $a
 ```
-
-This shares the *generic* fields, but has three additional ones. A `go` of two bytes to jumps to the root operator, a `true` of two bytes to jump to the `true` node, and a `false` of two bytes to jump to the false node. In the actual code the `if` node is type 9 and takes 9 bytes.
-
-In bytecode this simply looks like this:
-```
-| 0 | 1  2 | 3  4 | 5  6 | 7  8 |
-| 9 | . 12 | . 16 | . 19 | . 25 |
-```
-
-To easily read this information we look at the first byte. This tells us the upcoming 8 bytes belong to an `if` node, so we can cast the bytecode to `vm_tif_t` and the appropriate fields will be set:
-
-```c
-struct vm_tif_t *node = (struct vm_tif_t *)&rule->bytecode[0];
-```
-
-To first store the bytes in the bytecode, we need to take the next free bytes of space from our mempool.
-
-```c
-struct vm_tif_t *node = (struct vm_tif_t *)&obj->ast.buffer[obj->ast.nrbytes];
-node->type = 9;
-node->ret = 12;
-node->go = 17;
-node->true_ = 20;
-node->false_ = 26;
-obj->ast.nrbytes += sizeof(struct vm_tif_t);
-```
-This simply adds an `if` node in our bytecode in a developer friendly way. Both are neat standard C functions to deal with bytecode.
-
-Each node has these generic bytes in common and some specific bytes that store information for the specific node type. However, they all interact similarly with the bytecode in the background. They claim bytecode storage to store their specific bytes, or specific bytes are cast to a specific node type struct to easily read the bytecode information.
-
-Working with bytecode casted to specific struct allows us to change the bytecode structure by simply changing the elements within these structs. E.g. increasing the `uint16_t` to `uint32_t` to allow for further jumps.
-
-#### Creating and linking nodes
-
-The creation and linking of the nodes is where the parses comes in. That tells us if the preprared rule is actually valid.
-
-The parser starts with parsing the nested blocks. When those are done, it will start parsing the root `if` blocks. As you can expect from a parser, it will just walk through the rule and check if the found token was also an expected token.
-
-This library currently consists of a parser for the `if`, `operator`, `variable`, `parenthesis`, and `function` tokens. Whenever a parser of one type jumps to a parser of another type, the new type knows where it came from. So, when we jump from the `if` parser to the `operator` parser, the `operator` parser knows it was called from the `if` parser. And when the `operator` parser rewinds back to the `if` parser, the `if` parser knows it came from the `operator`. Together with this forward and backward jumps the last `step` is communicated.
-
-Where a recursive parser only walks forward, this non-recursive parser first parses the nestable blocks in the rule from back to front. Then it walks backwards and forward through the AST continuously linking nodes. The only temporary memory that needs to be allocate are those for the pointers to the nested blocks in the cache. All nodes and branches are just allocated once and directly fit. Which means they don't have to move around when they're parsed. This make the current parser very memory friendly.
-
-### Interpreting
-
-The interpreter is used to interpret the parsed AST. We now know each node tells us where we need to go next or where to return to. The interpreter starts with the `start` node. The start node tells the interpreter where to find the root `if` node. When the `start` node was called from the root `if` node, it knows the interpreter was done parsing, so it can go to the `end` node.
-
-#### Jumping back and forth
-
-The `if` node knows it was called coming from the `start` node. It will go to the root operator first. The root operator is linked to the rest of the operators, factors, and/or parenthesis and/or functions making the full condition. As soon as the root operator is done evaluating, it returns to the calling `if` node. The `if` node now knows it was called from an operator. No need to go back to the operator again. Instead, based on the return value of the operator it calls the `true` node or the `false` node.
-
-The `true` or `false` nodes start going to the first node of the linked expression list. These expressions parse and go back to the calling `true` or `false` node. The `true` and `false` nodes know from which expression the nodes where called. It loops through the expression list again to look for the expression next to the one it was called from.
-
-The interpreter is nothing more than these jumps back and forth.
 
 #### Values and variables
 
@@ -958,32 +764,88 @@ Until this point everything is static, while we also have dynamic values like va
 1 == 0 || 5 >= 4
 ```
 
-To be able to parse the `||` operator it needs to know what the outcome is of the `1 == 0` and `5 >= 4` evaluations. The interpreter stores the intermediate values on a seperate value stack. These values are stored in the same way as the node types. When validating the rulesets we know exactly how many memory this temporary stack uses. This amount of memory is therefor reserved for this ruleset on the mempool.
+To be able to parse the `||` operator it needs to know what the outcome is of the `1 == 0` and `5 >= 4` evaluations. The interpreter stores the intermediate values on heap. When preparing the rulesets the exact amount of memory needed is precalculated. This amount of memory is therefor reserved for this ruleset on the mempool.
+
+It is important to realize integers are stored in 24 bits and floats in 27 bits. This still allows for big integers and high float precision, but less than in a regular 32bit enviroment. The reason for this is to allow for storing integers and floats in a 4 byte struct, where the first 5 bits of the first byte holds the variable type. The last three bytes store the actual number. For floats, the last 3 bits of the first byte are used to also store float to allow for higher precision.
 
 ```c
 typedef struct vm_vinteger_t {
-  VM_GENERIC_FIELDS
-  uint32_t value;
-} vm_vinteger_t;
+  uint8_t type;
+  uint8_t value[3];
+} __attribute__((aligned(4))) vm_vinteger_t;
+
+typedef struct vm_vfloat_t {
+  uint8_t type;
+  uint8_t value[3];
+} __attribute__((aligned(4))) vm_vfloat_t;
 ```
 
-Each value uses the generic fields `type` and `ret`, with an additional specific `value` field of the specific type (in this case `uint32_t`). In this libary, `vinteger` is of type 26. So the first byte has the value 26.
-```
-|  0 |  1  2 |  3  4 |  5  6 |  7  8 | 9  10 |
-| 26 |  .  4 |  .  . |  .  . |  .  . |  .  5 |
-```
+See the `rules_pushfloat`, the `rules_tofloat`, the `rules_pushinteger`, and `rules_tointeger` on how the conversion is done internally.
 
-The next two bytes tells us to what token the value was linked. The next four bytes store the integer value. Each value (float, integer and char) are represented in structs which again are stored in the bytecode.
+Variables are not stored on the heap and also not on the stack. Instead a special `VPTR` struct is used also stored in a 4 byte struct:
 
-In the previous condition the `1 == 0` outcome is stored in an integer on the values stack. The integer value is associated to the `==` operator and the operator to the integer value. The same counts for the `5 >= 4` operator. When the `||` is called, it pops the outcome values from the left and right operator from the value stack, and places the outcome back on the stack. When the operator was called from an `if` node, the `if` node pops the value from the stack and uses it to determine if we need to continue to the `true` node or the `false` node.
-
-```ruby
-$a = 1;
-$b = $a;
+```c
+typedef struct vm_vptr_t {
+  uint8_t type;
+  uint16_t value;
+} __attribute__((aligned(4))) vm_vptr_t;
 ```
 
-In this case, the integer value 1 is stored on the stack and associated to the `variable` token. When the value of `$a` is stored in `$b` the association of the value is just changed from `$a` to `$b` instead of popping the value from the stack, moving all subsequent values on the stack, and inserting it again.
+The second byte is now used to location a variable on a special stack. This stack is an internal but global stack stored on in regular memory. Variables are only stored once across all rules to save memory. So the `VPTR` is placed on the rule specific stack which points to a specific place on the global special variable stack. Hence, the name `VPTR` which stand for `value pointer`.
+
+Because of this special global stack a `rules_gc` function needs to be called in case of a restart of the library, or else the allocated memory for this stack will remain in use.
 
 ### 2nd heap
 
 The rule library will automatically detect if the memory is located in the 1st or 2nd heap and if the library runs in 2nd heap fast mode or safe mode.
+
+### Efficiency
+
+#### Rules, stacks and heaps
+
+The rules, heap, and stack are all placed on the mempool. The heaps are rule specific whereas the regular stack is shared across all rules. The rule struct and the special global variable stack is placed in regular memory. Just as the timestamp used for benchmarking the rule parsing and execution.
+
+The slots in global variable stack on it's own point to regularly allocated string. So, if a string changes in size, the stack doesn't need reallocation, but only memory wherein the string resides. This is done to mimimize the memory allocations and therefor fragmentation.
+
+### Free registry slots
+
+Another way to minimize memory usage is to try to minimize the amount of free registry slots need to store temporary values on the heap. E.g. `if 1 / 2 + 3 * 4 == 5 then $a = 6; end`:
+
+```cmd
+Bytecode
+ 0      OP_DIV          -7      -1      -2
+ 1      OP_MUL          -8      -3      -4
+ 2      OP_ADD          -7      -7      -8
+ 3      OP_EQ           -7      -7      -5
+ 4      OP_JMP          6       0       0
+ 5      OP_SETVAL       0       -6      0
+ 6      OP_RET          0       0       0
+
+Heap
+ 1      VINTEGER        1
+ 2      VINTEGER        2
+ 3      VINTEGER        3
+ 4      VINTEGER        4
+ 5      VINTEGER        5
+ 6      VINTEGER        6
+ 7      VNULL
+ 8      VNULL
+```
+
+First we need to store the result of the `OP_DIV` somewhere. In this case in slot 7. Then we need to store the result of `OP_MUL`. In this case in slot 8. Both the outcome of slot 7 and 8 are used in the `OP_ADD`. After that, slot 7 and 8 are available again. The outcome of `OP_ADD` can therefor be placed in slot 7. Also, `OP_EQ` used the outcome of slot 7 and the constant number 5. Therefor, slot 7 can be used to store the outcome op `OP_EQ`.
+
+This can also be seen in the debug output of the rule execution:
+```cmd
+rule #1, pos: 0, op_id: 11, op: OP_DIV
+        1 / 2 = 0.5 -> -7
+rule #1, pos: 1, op_id: 12, op: OP_MUL
+        3 * 4 = 12 -> -8
+rule #1, pos: 2, op_id: 10, op: OP_ADD
+        0.5 + 12 = 12.5 -> -7
+rule #1, pos: 3, op_id: 1, op: OP_EQ
+        12.5 == 5 = 0 -> -7
+rule #1, pos: 4, op_id: 16, op: OP_JMP
+rule #1, pos: 6, op_id: 22, op: OP_RET
+```
+
+To conclude. The minimal amount of temporary slots needed to store temporary values is 2. The rules library tries to calculate this minimal amount or at least the amount as close as it can get to minimize the heap size.
