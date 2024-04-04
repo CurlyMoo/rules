@@ -17,7 +17,4 @@ typedef struct rule_stack_t {
   unsigned char *buffer;
 } __attribute__((aligned(4))) rule_stack_t;
 
-uint16_t rule_stack_push(struct rule_stack_t *stack, void *in);
-int8_t rule_stack_pull(struct rule_stack_t *stack, uint16_t idx, unsigned char *val);
-
 #endif
