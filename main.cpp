@@ -164,6 +164,9 @@ bar", 28 } } }, // Newline
   { "if 1 == 1 then $a = \"f\\\"oo\"; end", { { "[1]$a = f\"oo", 28 } }, { { "[1]$a = f\"oo", 28 } } },
   { "if 1 == 1 then $a = 'foo'; end", { { "[1]$a = foo", 28 } }, { { "[1]$a = foo", 28 } } },
   { "if 1 == 1 then $a = \"foo\"; end", { { "[1]$a = foo", 28 } }, { { "[1]$a = foo", 28 } } },
+  { "if 3 == 3 then $a = 'foo'; $a = 1; end", { { "[1]$a = 1", 36 } }, { { "[1]$a = 1", 36 } }, 0 },
+  { "if 3 == 3 then $a = 'foo'; $a = 1.2; end", { { "[1]$a = 1.2", 36 } }, { { "[1]$a = 1.2", 36 } }, 0 },
+  { "if 3 == 3 then $a = 'foo'; $a = NULL; end", { { "[1]$a = NULL", 36 } }, { { "[1]$a = NULL", 36 } }, 0 },
   { "if 3 == 3 then $a = -1; $b = $a; end", { { "[1]$a = -1[1]$b = -1", 40 } }, { { "[1]$a = -1[1]$b = -1", 40 } }, 0 },
   { "if NULL == 3 then $a = 6; end", { { "[1]$a = 6", 36 } }, { { "", 36 } }, 0 },
   { "if NULL == 3 then $a = NULL; end", { { "[1]$a = NULL", 32 } }, { { "", 32 } }, 0 },
@@ -907,14 +910,15 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       char str[OUTPUT_SIZE];
       memset(&str, 0, OUTPUT_SIZE);
       snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rule_nr-1].output, out);
-      Serial.println(str);
+      Serial.println(str); 
+      exit(-1);
 #else
       /*LCOV_EXCL_START*/
       printf("Expected: %s\n", unittests[(*i)].validate[rule_nr-1].output);
       printf("Was: %s\n", out);
+      exit(-1);
       /*LCOV_EXCL_STOP*/
 #endif
-      exit(-1);
     }
 
 #ifndef ESP8266
@@ -933,7 +937,9 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->first);
 #endif
       if(rule_run(rules[nrrules-1], 0) == -1) {
+        /*LCOV_EXCL_START*/
         exit(-1);
+        /*LCOV_EXCL_STOP*/
       }
 #if defined(DEBUG) && !defined(ESP8266)
       clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->second);
@@ -989,16 +995,17 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       if(unittests[(*i)].dofail == 0 && strcmp(out, unittests[(*i)].run[rule_nr-1].output) != 0) {
 #ifdef ESP8266
         char str[OUTPUT_SIZE];
-        /*LCOV_EXCL_START*/
         memset(&str, 0, OUTPUT_SIZE);
         snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].run[rule_nr-1].output, out);
         Serial.println(str);
-        /*LCOV_EXCL_STOP*/
+        exit(-1);
 #else
+        /*LCOV_EXCL_START*/
         printf("Expected: %s\n", unittests[(*i)].run[rule_nr-1].output);
         printf("Was: %s\n", out);
-#endif
         exit(-1);
+        /*LCOV_EXCL_STOP*/
+#endif
       }
       fflush(stdout);
 
@@ -1095,9 +1102,11 @@ void check_rule_name(int *i, unsigned char *mempool, uint16_t size) {
   uint16_t txtoffset = alignedbuffer(size-len-5);
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    /*LCOV_EXCL_START*/
     for(y=0;y<len;y++) {
       mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)rule[y]);
     }
+    /*LCOV_EXCL_STOP*/
   } else {
 #endif
     for(y=0;y<len;y++) {
@@ -1118,9 +1127,11 @@ void check_rule_name(int *i, unsigned char *mempool, uint16_t size) {
   memset(cpytxt, 0, len+1);
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    /*LCOV_EXCL_START*/
     for(y=0;y<len;y++) {
       cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
     }
+    /*LCOV_EXCL_STOP*/
   } else {
 #endif
     memcpy(cpytxt, input.payload, len);
@@ -1133,7 +1144,9 @@ void check_rule_name(int *i, unsigned char *mempool, uint16_t size) {
 
   const char *cpy = rule_by_nr(rules, nrrules, 0);
   if(strcmp(cpy, "foo") != 0) {
+    /*LCOV_EXCL_START*/
     exit(-1);
+    /*LCOV_EXCL_STOP*/
   }
 
   for(y=0;y<nrrules;y++) {
@@ -1264,7 +1277,9 @@ int8_t run_two_mempools(struct pbuf *mem) {
   if(ret == 1 && nrrules == 2) {
     const char *cpy = rule_by_nr(rules, nrrules, 0);
     if(strcmp(cpy, "foo") != 0) {
+      /*LCOV_EXCL_START*/
       exit(-1);
+      /*LCOV_EXCL_STOP*/
     }
   }
 
@@ -1332,8 +1347,10 @@ int main(int argc, char **argv) {
 
   unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
   if(mempool == NULL) {
+    /*LCOV_EXCL_START*/
     fprintf(stderr, "OUT_OF_MEMORY\n");
     exit(-1);
+    /*LCOV_EXCL_STOP*/
   }
   MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
 
@@ -1345,8 +1362,10 @@ int main(int argc, char **argv) {
 
   mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
   if(mempool == NULL) {
+    /*LCOV_EXCL_START*/
     fprintf(stderr, "OUT_OF_MEMORY\n");
     exit(-1);
+    /*LCOV_EXCL_STOP*/
   }
   MMU_SEC_HEAP = &mempool[MEMPOOL_SIZE];
 
@@ -1384,8 +1403,10 @@ int main(int argc, char **argv) {
 
       unsigned char *mempool = (unsigned char *)MALLOC(1000*5);
       if(mempool == NULL) {
+        /*LCOV_EXCL_START*/
         fprintf(stderr, "OUT_OF_MEMORY\n");
         exit(-1);
+        /*LCOV_EXCL_STOP*/
       }
       memset(mempool, 0, 1000*5);
 
@@ -1414,7 +1435,10 @@ int main(int argc, char **argv) {
       int8_t ret = run_two_mempools(&mem);
 
       if(ret != tests[i].ret || (ret == 0 && (mem.len != tests[i].used[0] || mem1.len != tests[i].used[1]))) {
+        /*LCOV_EXCL_START*/
+        fprintf(stderr, "OUT_OF_MEMORY\n");
         exit(-1);
+        /*LCOV_EXCL_STOP*/
       }
       FREE(mempool);
     }
