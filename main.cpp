@@ -68,6 +68,7 @@ typedef struct array_t {
     int i;
     float f;
     void *n;
+    const char *s;
   } val;
   uint8_t type;
 } array_t;
@@ -138,6 +139,31 @@ struct unittest_t {
   { "if -10000 == -10000 then $a = -10000; end", { { "[1]$a = -10000", 28 } }, { { "[1]$a = -10000", 28 } }, 0 },
   { "if -100000 == -100000 then $a = -100000; end", { { "[1]$a = -100000", 28 } }, { { "[1]$a = -100000", 28 } }, 0 },
   { "if -999999 == -999999 then $a = -999999; end", { { "[1]$a = -999999", 28 } }, { { "[1]$a = -999999", 28 } }, 0 },
+  { "if 3 == 3 then $a = 'foo'; end", { { "[1]$a = foo", 28 } }, { { "[1]$a = foo", 28 } }, 0 },
+  { "if 3 == 3 then $a = 'foo bar'; end", { { "[1]$a = foo bar", 28 } }, { { "[1]$a = foo bar", 28 } }, 0 },
+  { "if 3 == 3 then $a = 'foo\tbar'; end", { { "[1]$a = foo\tbar", 28 } }, { { "[1]$a = foo\tbar", 28 } }, 0 },
+  { "if 3 == 3 then $a = 'foo\nbar'; end", { { "[1]$a = foo\nbar", 28 } }, { { "[1]$a = foo\nbar", 28 } }, 0 },
+  { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); end", { { "[1]$a = foo bar[1]$b = foo bar foo", 56 } }, { { "[1]$a = foo bar[1]$b = foo bar foo", 56 } }, 0 },
+  { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 132 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 132 } }, 0 },
+  { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 28 } }, { { "[1]$a = foo	bar", 28 } } }, // TAB
+  { "if 1 == 1 then $a = \"foo	bar\"; end", { { "[1]$a = foo	bar", 28 } }, { { "[1]$a = foo	bar", 28 } } }, // TAB
+  { "if 1 == 1 then $a = \"foo\\tbar\"; end", { { "[1]$a = foo	bar", 28 } }, { { "[1]$a = foo	bar", 28 } } }, // TAB
+  { "if 1 == 1 then $a = \"foo\\\tbar\"; end", { { "[1]$a = foo\\\tbar", 28 } }, { { "[1]$a = foo\\\tbar", 28 } } },
+  { "if 1 == 1 then $a = \"foo\n\
+bar\"; end", { { "[1]$a = foo\n\
+bar", 28 } }, { { "[1]$a = foo\n\
+bar", 28 } } }, // Newline
+  // Just the character sequence '\n'
+  { "if 1 == 1 then $a = \"foo\\\\nbar\"; end", { { "[1]$a = foo\\nbar", 28 } }, { { "[1]$a = foo\\nbar", 28 } } },
+  // Just the character sequence '\t'
+  { "if 1 == 1 then $a = \"foo\\\\tbar\"; end", { { "[1]$a = foo\\tbar", 28 } }, { { "[1]$a = foo\\tbar", 28 } } },
+  { "if 1 == 1 then $a = 'foo bar'; end", { { "[1]$a = foo bar", 28 } }, { { "[1]$a = foo bar", 28 } } },
+  { "if 1 == 1 then $a = 'f\\\\'oo'; end", { { "[1]$a = f\\'oo", 28 } }, { { "[1]$a = f\\'oo", 28 } } },
+  { "if 1 == 1 then $a = \"f\\\\\"oo\"; end", { { "[1]$a = f\\\"oo", 28 } }, { { "[1]$a = f\\\"oo", 28 } } },
+  { "if 1 == 1 then $a = 'f\\'oo'; end", { { "[1]$a = f'oo", 28 } }, { { "[1]$a = f'oo", 28 } } },
+  { "if 1 == 1 then $a = \"f\\\"oo\"; end", { { "[1]$a = f\"oo", 28 } }, { { "[1]$a = f\"oo", 28 } } },
+  { "if 1 == 1 then $a = 'foo'; end", { { "[1]$a = foo", 28 } }, { { "[1]$a = foo", 28 } } },
+  { "if 1 == 1 then $a = \"foo\"; end", { { "[1]$a = foo", 28 } }, { { "[1]$a = foo", 28 } } },
   { "if 3 == 3 then $a = -1; $b = $a; end", { { "[1]$a = -1[1]$b = -1", 40 } }, { { "[1]$a = -1[1]$b = -1", 40 } }, 0 },
   { "if NULL == 3 then $a = 6; end", { { "[1]$a = 6", 36 } }, { { "", 36 } }, 0 },
   { "if NULL == 3 then $a = NULL; end", { { "[1]$a = NULL", 32 } }, { { "", 32 } }, 0 },
@@ -295,6 +321,7 @@ struct unittest_t {
   { "if 1 == 1 then $a = max(5) * max(NULL, $b * 2) + max(1) * max(0, 1 + 2 * 3 / 2 ^ 2 ^ 2 * 1 ^ 2); end", { "[1]$a = 21.375", 152 }, { "[1]$a = 21.375", 152 }, 0 },
   { "if 1 == 1 then $a = coalesce(NULL, 1) + 1; end", { "[1]$a = 2", 48 }, { "[1]$a = 2", 48 }, 0 },
   { "if 1 == 1 then $a = coalesce(NULL, 1.2) + 1; end", { "[1]$a = 2.2", 52 }, { "[1]$a = 2.2", 52 }, 0 },
+  { "if 1 == 1 then $a = coalesce(NULL, 'a'); end", { "[1]$a = a", 44 }, { "[1]$a = a", 44 }, 0 },
   { "if 1 == 1 then $a = coalesce(1, 0) + 1; end", { "[1]$a = 2", 52 }, { "[1]$a = 2", 52 }, 0 },
   { "if 1 == 1 then $a = coalesce($a, 0) + 1; end", { "[1]$a = 2", 56 }, { "[1]$a = 2", 56 }, 0 },
   { "if 1 == 1 then $a = coalesce($a, 1.1) + 1; end", { "[1]$a = 2", 56 }, { "[1]$a = 2", 56 }, 0 },
@@ -407,6 +434,7 @@ struct unittest_t {
   { "on foo then $a = 6; end", { "[1]$a = 6", 16 }, { "[1]$a = 6", 16 }, 0 },
   { "if 3 == 3 then foo(1, 2); $b = 3; end  ", { "[1]$b = 3", 52 }, { "[1]$b = 3", 52 }, 0 },
   { "on foo($a, $b) then $a = $b; end if 3 == 3 then foo(1, 5); $b = 3; end  ", { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 52 } }, { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 28 } }, 0 },
+  { "on foo($a, $b) then $a = $b; end if 3 == 3 then foo(1, 'foo'); $b = 3; end  ", { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = foo[1]$b = foo[2]$b = 3", 48 } }, { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = foo[1]$b = foo[2]$b = 3", 28 } }, 0 },
   { "on foo($a, $b) then $a = $b; end if 3 == 3 then foo(1, 5, 6); $b = max(1, 3); end  ", { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 76 } }, { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 28 } }, 0 },
   { "on foo($a, $b) then $a = $b; end if 3 == 3 then foo(1); $b = 3; end  ", { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = NULL[1]$b = NULL[2]$b = 3", 44 } }, { { "[1]$a = NULL[1]$b = NULL", 28 }, { "[1]$a = NULL[1]$b = NULL[2]$b = 3", 28 } }, 0 },
   { "on foo($a, $c) then $a = $c; end if 3 == 3 then foo(NULL, 1); $b = 3; end  ", { { "[1]$a = NULL[1]$c = NULL", 28 }, { "[1]$a = 1[1]$c = 1[2]$b = 3", 52 } }, { { "[1]$a = NULL[1]$c = NULL", 28 }, { "[1]$a = 1[1]$c = 1[2]$b = 3", 28 } }, 0 },
@@ -442,6 +470,7 @@ struct unittest_t {
   { "on foo then $a = 1; end if 3 == 3 then foo(); if 1 == 1 then $a = 1; end end", { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$a = 1", 52 } }, { { "[1]$a = 1", 52 }, { "[1]$a = 1[2]$a = 1", 52 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then foo(); else $a = 1; end", { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$a = 1", 44 } }, { { "[1]$a = 1", 44 }, { "[1]$a = 1", 44 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then foo(); elseif 1 == 1 then $a = 1; end", { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$a = 1", 52 } }, { { "[1]$a = 1", 52 }, { "[1]$a = 1", 52 } }, 0 },
+  { "on foo then $a = 1; end if 3 == 3 then $a = 'foo'; end", { { "[1]$a = 1", 16 }, { "[2]$a = foo", 28 } }, { { "[1]$a = 1", 16 }, { "[2]$a = foo", 28 } }, 0 },
 
   /*
    * Invalid rules
@@ -466,8 +495,24 @@ struct unittest_t {
   { "if 1 + + 2 then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo then max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then max(1, 'a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then min(1, 'a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then round('a', 0); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then round(1.2, 'a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then floor('a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then ceil('a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then $a = coalesce(NULL, 'a') + 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then $a = 1 + coalesce(NULL, 'a'); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if coalesce('a') == coalesce('a') then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if coalesce('a') == 1 then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if 1 == coalesce('a') then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then $a = 'foo; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if 1 == 1 then $a = \"foo'; end", { { NULL, 0 } },  { { NULL, 0 } }, -1 },
+  { "if 1 == 1 then $a = 'foo\"; end", { { NULL, 0 } },  { { NULL, 0 } }, -1 },
+  { "if 1 == 1 then $a = 'á'; end", { { NULL, 0 } },  { { NULL, 0 } }, -1 },
   // { "on foo then bar(); end  ", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if 3 == 3 then concat(1, 2); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   // { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then $a = 1; max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
@@ -547,7 +592,8 @@ static int8_t vm_value_set(struct rules_t *obj) {
   }
   type = rules_type(obj, -1);
 
-  if(rules_type(obj, -2) != VCHAR || (type != VINTEGER && type != VFLOAT && type != VNULL)) {
+  if(rules_type(obj, -2) != VCHAR ||
+    (type != VINTEGER && type != VFLOAT && type != VNULL && type != VCHAR)) {
     return -1;
   }
 
@@ -574,13 +620,18 @@ static int8_t vm_value_set(struct rules_t *obj) {
       OUT_OF_MEMORY
     }
     array = &table->array[table->nr];
+    memset(array, 0, sizeof(struct array_t));
     table->nr++;
+    rules_ref(key);
   }
 
   array->key = key;
 
   switch(type) {
     case VINTEGER: {
+      if(array->type == VCHAR && array->val.s != NULL) {
+        rules_unref(array->val.s);
+      }
       array->val.i = rules_tointeger(obj, -1);
       array->type = VINTEGER;
 
@@ -589,6 +640,9 @@ static int8_t vm_value_set(struct rules_t *obj) {
 #endif
     } break;
     case VFLOAT: {
+      if(array->type == VCHAR && array->val.s != NULL) {
+        rules_unref(array->val.s);
+      }
       array->val.f = rules_tofloat(obj, -1);
       array->type = VFLOAT;
 
@@ -596,7 +650,23 @@ static int8_t vm_value_set(struct rules_t *obj) {
       printf("%s %s = %g\n", __FUNCTION__, array->key, array->val.f);
 #endif
     } break;
+    case VCHAR: {
+      if(array->type == VCHAR && array->val.s != NULL) {
+        rules_unref(array->val.s);
+      }
+
+      array->val.s = rules_tostring(obj, -1);
+      array->type = VCHAR;
+      rules_ref(array->val.s);
+
+#ifdef DEBUG
+      printf("%s %s = %s\n", __FUNCTION__, array->key, array->val.s);
+#endif
+    } break;
     case VNULL: {
+      if(array->type == VCHAR && array->val.s != NULL) {
+        rules_unref(array->val.s);
+      }
       array->val.n = NULL;
       array->type = VNULL;
 
@@ -663,6 +733,13 @@ static int8_t vm_value_get(struct rules_t *obj) {
 
 #ifdef DEBUG
           printf("%s %s = %g\n", __FUNCTION__, array->key, array->val.f);
+#endif
+        } break;
+        case VCHAR: {
+          rules_pushstring(obj, (char *)array->val.s);
+
+#ifdef DEBUG
+          printf("%s %s = %s\n", __FUNCTION__, array->key, array->val.s);
 #endif
         } break;
         case VNULL: {
@@ -811,6 +888,9 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
             case VFLOAT: {
               x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, array->val.f);
             } break;
+            case VCHAR: {
+              x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
+            } break;
             case VNULL: {
                x += snprintf(&out[x], 255-x, "[%d]%s = NULL", y+1, array->key);
             } break;
@@ -891,6 +971,9 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
               } break;
               case VFLOAT: {
                 x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, array->val.f);
+              } break;
+              case VCHAR: {
+                x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
               } break;
               case VNULL: {
                  x += snprintf(&out[x], 255-x, "[%d]%s = NULL", y+1, array->key);

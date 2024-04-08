@@ -16,6 +16,7 @@
 #include <math.h>
 
 #include "../../common/uint32float.h"
+#include "../../common/log.h"
 #include "../function.h"
 #include "../rules.h"
 
@@ -30,6 +31,14 @@ int8_t rule_function_round_callback(struct rules_t *obj) {
     switch(rules_type(obj, nr)) {
       case VINTEGER: {
         dec = rules_tointeger(obj, nr);
+      } break;
+      default: {
+        logprintf_P(F("ERROR: round 2nd argument can only be an integer"));
+        while(nr > 0) {
+          rules_remove(obj, nr--);
+        }
+        rules_pushnil(obj);
+        return -1;
       } break;
     }
     rules_remove(obj, nr--);
@@ -46,6 +55,14 @@ int8_t rule_function_round_callback(struct rules_t *obj) {
     } break;
     case VFLOAT: {
       x = rules_tofloat(obj, nr);
+    } break;
+    default: {
+      logprintf_P(F("ERROR: round 1st argument can only be a number"));
+      while(nr > 0) {
+        rules_remove(obj, nr--);
+      }
+      rules_pushnil(obj);
+      return -1;
     } break;
   }
   rules_remove(obj, nr--);

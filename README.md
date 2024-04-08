@@ -93,7 +93,6 @@ When properly configured the 2nd heap can give you 16KB mempool which can be alm
 
 ### Todo
 
-- String handling in the parser, all operators, and functions
 
 ## Prerequisites
 
@@ -525,12 +524,13 @@ This function is used to store a variable. The variable name is placed on the st
 
 So to retrieve the variable name:
 ```c
-  const char *key = rules_tostring(rule, -2);
+  const char *key = rules_tostring([rule], -2);
 ```
 
 To detect the variable type of the variable value you can use the `rules_type` function, e.g.:
 ```c
-  switch(rules_type(rule, -1)) {
+  switch(rules_type([rule], -1)) {
+    case VCHAR:
     case VINTEGER:
     case VFLOAT:
     case VNULL: {
@@ -543,8 +543,8 @@ To detect the variable type of the variable value you can use the `rules_type` f
 
 Then you can retrieve the variable value, e.g.:
 ```c
-int i = rules_tointeger(rule, -1);
-float f = rules_tofloat(rule, -1);
+int i = rules_tointeger([rule], -1);
+float f = rules_tofloat([rule], -1);
 ```
 
 The stack is automatically cleared when the library is done interacting with the outside world.
@@ -553,21 +553,24 @@ The stack is automatically cleared when the library is done interacting with the
 
 This function is used to retrieve a variable. The variable to be retrieved is placed on top of the stack at position `-1`, e.g.:
 ```c
-const char *key = rules_tostring(rule, -1);
+const char *key = rules_tostring([rule], -1);
 ```
 
 The returned value should be placed on top of the stack. This is done with the different `rules_push*` functions. E.g.,
 ```c
-rules_pushinteger(rule, 1);
-rules_pushfloat(rule, 5.5);
-rules_pushnil(rule);
+rules_pushinteger([rule], 1);
+rules_pushfloat([rule], 5.5);
+rules_pushstring([rule], "foo");
+rules_pushnil([rule]);
 ```
 
 Again, the stack is automatically cleared when the library is done interacting with the outside world.
 
 *Additionally*
 
-The `rules_gettop(rule)` function can be used to number of element on the stack.
+The `rules_gettop([rule])` function can be used to number of element on the stack.
+
+The `rules_ref([string])` and `rules_unref([string])` functions are used to increase the reference for this string. As long as the reference for a given string is above zero, the garbage collector will ignore it. Without properly using the referencing of strings, the system memory will eventually will be exhausted. The library will automatically ignore referencing for constants.
 
 ### Functions
 
@@ -708,16 +711,17 @@ The `OP_JMP` is the only opcode that allows us to jump to other (forward) locati
 - `OP_JMP`: Jumps to a specific forward location in the bytecode
   - 1 Location to jump to.
 - `OP_SETVAL`: Requests the storage of a heap value to a variable. After executing this opcode, the stack is cleared.
-  - 1 Location on the stack / 2 Location on the heap
+  - 1 Location on the stack if (value < 0) | Location on the varstack (value > 0)[^1] / 2 Location on the heap
 - `OP_GETVAL`: Requests the retrieval of an variable value to a heap
   - 1 Location on the heap / 2 Location on the stack
 - `OP_PUSH`: Pushes heap values on the stack to be used as function parameters
-  - 1 Location on the heap which is pushed on top of the stack
+  - 1 Location on the heap which is pushed on top of the stack (value < 0) | Location on the varstack which is pushed on top of the stack (value > 0)[^1]
 - `OP_CALL`: Calls an internal function or external event
   - 1 Heap location to store the result / 2 Function index / 3 A 0 if this is an internal function, 1 if this is an external event
 - `OP_CLEAR`: Fully clears the stack. When a function or event call doesn't result in setting a variable, this additional opcode is called to still clear the stack.
 - `OP_RET`: Defines the end of the bytecode
 
+[^1]: The actual location on the varstack is: `(value - 1) * sizeof(struct vm_vchar_t)`
 
 If we look at a nested function and operators example.
 

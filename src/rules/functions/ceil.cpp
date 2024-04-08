@@ -16,6 +16,7 @@
 #include <math.h>
 
 #include "../../common/uint32float.h"
+#include "../../common/log.h"
 #include "../function.h"
 #include "../rules.h"
 
@@ -28,6 +29,14 @@ int8_t rule_function_ceil_callback(struct rules_t *obj) {
   }
 
   switch(rules_type(obj, nr)) {
+    case VCHAR: {
+      logprintf_P(F("ERROR: ceil only takes numbers"));
+      while(nr > 0) {
+        rules_remove(obj, nr--);
+      }
+      rules_pushnil(obj);
+      return -1;
+    } break;
     case VNULL: {
       rules_remove(obj, nr--);
       rules_pushnil(obj);

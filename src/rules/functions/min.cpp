@@ -16,6 +16,7 @@
 #include <math.h>
 
 #include "../../common/uint32float.h"
+#include "../../common/log.h"
 #include "../function.h"
 #include "../rules.h"
 
@@ -25,6 +26,14 @@ int8_t rule_function_min_callback(struct rules_t *obj) {
 
   while(nr > 0) {
     switch(rules_type(obj, nr)) {
+       case VCHAR: {
+        logprintf_P(F("ERROR: max only takes numbers"));
+        while(nr > 0) {
+          rules_remove(obj, nr--);
+        }
+        rules_pushnil(obj);
+        return -1;
+      } break;
       case VINTEGER: {
         y = (float)rules_tointeger(obj, nr);
       } break;

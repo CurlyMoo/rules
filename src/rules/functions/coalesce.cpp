@@ -16,11 +16,13 @@
 #include <math.h>
 
 #include "../../common/uint32float.h"
+#include "../../common/log.h"
 #include "../function.h"
 #include "../rules.h"
 
 int8_t rule_function_coalesce_callback(struct rules_t *obj) {
   float x = 0, z = 0;
+  const char *a = NULL;
   uint8_t nr = rules_gettop(obj), loop = 1, y = 0;
 
   for(y=1;y<=nr && loop == 1;y++) {
@@ -35,22 +37,33 @@ int8_t rule_function_coalesce_callback(struct rules_t *obj) {
         x = rules_tofloat(obj, y);
         loop = 0;
       } break;
+      case VCHAR: {
+        a = rules_tostring(obj, y);
+        loop = 0;
+      } break;
     }
   }
   while(nr > 0) {
     rules_remove(obj, nr--);
   }
 
-  if(modff(x, &z) == 0) {
+  if(a != NULL) {
 #ifdef DEBUG
-    printf("\tcoalesce = %d\n", (int)x);
+      printf("\tcoalesce = %s\n", a);
 #endif
-    rules_pushinteger(obj, x);
+      rules_pushstring(obj, (char *)a);
   } else {
+    if(modff(x, &z) == 0) {
 #ifdef DEBUG
-    printf("\tcoalesce = %f\n", x);
+      printf("\tcoalesce = %d\n", (int)x);
 #endif
-    rules_pushfloat(obj, x);
+      rules_pushinteger(obj, x);
+    } else {
+#ifdef DEBUG
+      printf("\tcoalesce = %f\n", x);
+#endif
+      rules_pushfloat(obj, x);
+    }
   }
 
   return 0;
