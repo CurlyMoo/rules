@@ -1047,6 +1047,7 @@ static int8_t rule_prepare(char **text,
         printf("[BC] OP_CLEAR: %lu\n", sizeof(struct vm_top_t));
 #endif
       }
+      ctx = TSEMICOLON;
       do_clear = 1;
     } else {
       uint16_t a = 0, b = *len-(pos)-1;
@@ -1070,6 +1071,10 @@ static int8_t rule_prepare(char **text,
         *heapsize += sizeof(struct vm_vnull_t);
         *bcsize += sizeof(struct vm_top_t);
         *bcsize += sizeof(struct vm_top_t);
+
+        if(ctx != TASSIGN) {
+          ctx = TFUNCTION;
+        }
 
 #ifdef DEBUG
         printf("[BC] OP_PUSH: %lu\n", sizeof(struct vm_top_t));
@@ -1140,6 +1145,9 @@ static int8_t rule_prepare(char **text,
               do_clear = 0;
               *bcsize += sizeof(struct vm_top_t);
             }
+            if(ctx == TSEMICOLON) {
+              *bcsize += sizeof(struct vm_top_t);
+            }
             if(ctx == TEVENT) {
               do_clear = 0;
             }
@@ -1150,7 +1158,7 @@ static int8_t rule_prepare(char **text,
 #ifdef DEBUG
             printf("[STACK] VCHAR: %d\n", align(sizeof(struct vm_vchar_t)+1, 4));
             printf("[HEAP] VNULL: %lu\n", sizeof(struct vm_vnull_t));
-            if(ctx == TIF || ctx == TASSIGN) {
+            if(ctx == TIF || ctx == TASSIGN || ctx == TSEMICOLON) {
               printf("[BC] OP_SETVAL: %lu\n", sizeof(struct vm_top_t));
             }
             if(ctx == TTHEN || ctx == TEVENT) {
@@ -1167,7 +1175,7 @@ static int8_t rule_prepare(char **text,
               printf("[BC] OP_GETVAL: %lu\n", sizeof(struct vm_top_t));
 #endif
 
-            } else if(ctx == TASSIGN) {
+            } else if(ctx == TASSIGN || ctx == TSEMICOLON) {
               do_clear = 0;
               *bcsize += sizeof(struct vm_top_t);
 
@@ -1184,6 +1192,13 @@ static int8_t rule_prepare(char **text,
 #endif
 
             }
+          }
+          if(ctx == TFUNCTION) {
+            *bcsize += sizeof(struct vm_top_t);
+
+#ifdef DEBUG
+            printf("[BC] OP_GETVAL: %lu\n", sizeof(struct vm_top_t));
+#endif
           }
         }
 
