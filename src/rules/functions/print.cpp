@@ -61,7 +61,7 @@ int8_t rule_function_print_callback(struct rules_t *obj) {
         } break;
       }
     }
-    logprintf_P(out);
+    logprintf(out);
   }
 
   while(nr > 0) {
