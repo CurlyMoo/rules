@@ -33,6 +33,7 @@
 #include "functions/ceil.h"
 #include "functions/floor.h"
 #include "functions/concat.h"
+#include "functions/print.h"
 
 struct rule_function_t rule_functions[] = {
   { "max", rule_function_max_callback },
@@ -41,7 +42,8 @@ struct rule_function_t rule_functions[] = {
   { "round", rule_function_round_callback },
   { "floor", rule_function_floor_callback },
   { "ceil", rule_function_ceil_callback },
-  { "concat", rule_function_concat_callback }
+  { "concat", rule_function_concat_callback },
+  { "print", rule_function_print_callback }
 };
 
 uint16_t nr_rule_functions = sizeof(rule_functions)/sizeof(rule_functions[0]);

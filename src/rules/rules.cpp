@@ -4503,58 +4503,59 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         return -1;
         /* LCOV_EXCL_STOP*/
       }
+      if(rules_gettop(obj) == 1) {
+        switch(rules_type(obj, -1)) {
+          case VNULL: {
+            struct vm_vnull_t *upd = (struct vm_vnull_t *)&obj->heap->buffer[a];
+            setval(upd->type, VNULL);
+          } break;
+          case VINTEGER: {
+            int32_t x = rules_tointeger(obj, -1);
+            struct vm_vinteger_t *upd = (struct vm_vinteger_t *)&obj->heap->buffer[a];
+            setval(upd->type, VINTEGER);
+            setval(upd->value[0], ((uint32_t)x >> 16) & 0xFF);
+            setval(upd->value[1], ((uint32_t)x >> 8) & 0xFF);
+            setval(upd->value[2], ((uint32_t)x) & 0xFF);
+          } break;
+          case VCHAR: {
+            int16_t offset = vm_val_pos(-1);
+            offset = getval(obj->stack->nrbytes)-offset;
 
-      switch(rules_type(obj, -1)) {
-        case VNULL: {
-          struct vm_vnull_t *upd = (struct vm_vnull_t *)&obj->heap->buffer[a];
-          setval(upd->type, VNULL);
-        } break;
-        case VINTEGER: {
-          int32_t x = rules_tointeger(obj, -1);
-          struct vm_vinteger_t *upd = (struct vm_vinteger_t *)&obj->heap->buffer[a];
-          setval(upd->type, VINTEGER);
-          setval(upd->value[0], ((uint32_t)x >> 16) & 0xFF);
-          setval(upd->value[1], ((uint32_t)x >> 8) & 0xFF);
-          setval(upd->value[2], ((uint32_t)x) & 0xFF);
-        } break;
-        case VCHAR: {
-          int16_t offset = vm_val_pos(-1);
-          offset = getval(obj->stack->nrbytes)-offset;
-
-          if(offset >= 4) {
-            if(getval(obj->stack->buffer[offset]) == VPTR) {
-              struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[offset];
-              struct vm_vptr_t *upd = (struct vm_vptr_t *)&obj->heap->buffer[a];
-              setval(upd->type, VPTR);
-              setval(upd->value, getval(node->value));
+            if(offset >= 4) {
+              if(getval(obj->stack->buffer[offset]) == VPTR) {
+                struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[offset];
+                struct vm_vptr_t *upd = (struct vm_vptr_t *)&obj->heap->buffer[a];
+                setval(upd->type, VPTR);
+                setval(upd->value, getval(node->value));
+              } else {
+                return -1;
+              }
             } else {
               return -1;
             }
-          } else {
+          } break;
+          case VFLOAT: {
+            float f = rules_tofloat(obj, -1);
+            uint32_t x = 0;
+            float2uint32(f, &x);
+
+            struct vm_vfloat_t *upd = (struct vm_vfloat_t *)&obj->heap->buffer[a];
+
+            setval(upd->type, VFLOAT | ((((uint32_t)x >> 29) & 0x7) << 5));
+            setval(upd->value[0], ((uint32_t)x >> 21) & 0xFF);
+            setval(upd->value[1], ((uint32_t)x >> 13) & 0xFF);
+            setval(upd->value[2], ((uint32_t)x >> 5) & 0xFF);
+          } break;
+          /* LCOV_EXCL_START*/
+          default: {
+            logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
             return -1;
-          }
-        } break;
-        case VFLOAT: {
-          float f = rules_tofloat(obj, -1);
-          uint32_t x = 0;
-          float2uint32(f, &x);
+          } break;
+          /* LCOV_EXCL_STOP*/
+        }
 
-          struct vm_vfloat_t *upd = (struct vm_vfloat_t *)&obj->heap->buffer[a];
-
-          setval(upd->type, VFLOAT | ((((uint32_t)x >> 29) & 0x7) << 5));
-          setval(upd->value[0], ((uint32_t)x >> 21) & 0xFF);
-          setval(upd->value[1], ((uint32_t)x >> 13) & 0xFF);
-          setval(upd->value[2], ((uint32_t)x >> 5) & 0xFF);
-        } break;
-        /* LCOV_EXCL_START*/
-        default: {
-          logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
-          return -1;
-        } break;
-        /* LCOV_EXCL_STOP*/
+        rules_remove(obj, -1);
       }
-
-      rules_remove(obj, -1);
     } else {
       struct vm_vchar_t *var = (struct vm_vchar_t *)&varstack->buffer[b*sizeof(struct vm_vchar_t)];
 
