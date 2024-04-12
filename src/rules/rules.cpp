@@ -78,7 +78,11 @@ typedef struct vm_vchar_t {
   uint8_t len;
   uint8_t ref;
   char *value;
+#ifdef ESP8266
+} __attribute__((packed, aligned(4))) vm_vchar_t;
+#else
 } __attribute__((aligned(4))) vm_vchar_t;
+#endif
 
 typedef struct vm_vptr_t {
   uint8_t type;
@@ -200,9 +204,9 @@ static struct rule_timer_t timestamp;
 
 static uint8_t group = 1;
 
-static uint32_t align(uint32_t p, uint8_t b) {
-  return (p + b) - ((p + b) % b);
-}
+// static uint32_t align(uint32_t p, uint8_t b) {
+  // return (p + b) - ((p + b) % b);
+// }
 
 // Veltkamp-Dekker algorithm
 static float float32to27(float f) {
@@ -591,12 +595,12 @@ static int8_t rule_prepare(char **text,
         nrtokens++;
 
         if(varstack_find(text, s+1, len) == -1) {
-          *stacksize += align(sizeof(struct vm_vchar_t), 4);
+          *stacksize += sizeof(struct vm_vchar_t);
           *memsize += len+1;
         }
 
 #ifdef DEBUG
-        printf("[STACK] VCHAR: %d\n", align(sizeof(struct vm_vchar_t)+1, 4));
+        printf("[STACK] VCHAR: %lu\n", sizeof(struct vm_vchar_t));
 #endif
         /*
          * Skip the start quote
@@ -934,14 +938,14 @@ static int8_t rule_prepare(char **text,
           setval((*text)[tpos+x], getval((*text)[s+x]));
         }
         if(varstack_find(text, tpos, len) == -1) {
-          *stacksize += align(sizeof(struct vm_vchar_t), 4);
+          *stacksize += sizeof(struct vm_vchar_t);
           *memsize += len+1;
         }
         tpos += len;
       }
 
 #ifdef DEBUG
-      printf("[STACK] VCHAR1: %d\n", align(sizeof(struct vm_vchar_t)+1, 4));
+      printf("[STACK] VCHAR: %lu\n", sizeof(struct vm_vchar_t));
 #endif
       nrblocks++;
     } else if(tolower(current) == 'e' && tolower(next) == 'l' &&
@@ -1150,7 +1154,7 @@ static int8_t rule_prepare(char **text,
 
           if(match == 0) {
             if(varstack_find(text, pos, len1) == -1) {
-              *stacksize += align(sizeof(struct vm_vchar_t), 4);
+              *stacksize += sizeof(struct vm_vchar_t);
               *memsize += len1+1;
             }
             if(ctx == TIF || ctx == TASSIGN) {
@@ -1168,7 +1172,7 @@ static int8_t rule_prepare(char **text,
             }
             *heapsize += sizeof(struct vm_vnull_t);
 #ifdef DEBUG
-            printf("[STACK] VCHAR: %d\n", align(sizeof(struct vm_vchar_t)+1, 4));
+            printf("[STACK] VCHAR: %lu\n", sizeof(struct vm_vchar_t));
             printf("[HEAP] VNULL: %lu\n", sizeof(struct vm_vnull_t));
             if(ctx == TIF || ctx == TASSIGN || ctx == TSEMICOLON) {
               printf("[BC] OP_SETVAL: %lu\n", sizeof(struct vm_top_t));
@@ -1246,7 +1250,7 @@ static int8_t rule_prepare(char **text,
             setval((*text)[tpos+a], getval((*text)[s+a]));
           }
           if(varstack_find(text, tpos, len) == -1) {
-            *stacksize += align(sizeof(struct vm_vchar_t), 4);
+            *stacksize += sizeof(struct vm_vchar_t);
             *memsize += len+1;
           }
           l_func_pos = pos;
