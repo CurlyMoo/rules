@@ -521,6 +521,25 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
       value = (struct vm_vchar_t *)&varstack->buffer[a];
     }
   }
+  if(i == -1) {
+    if(a+sizeof(struct vm_vchar_t) > varstack->bufsize) {
+      void *oldptr = (void *)varstack->buffer;
+
+      if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, varstack->bufsize+sizeof(struct vm_vchar_t))) == NULL) {
+        OUT_OF_MEMORY
+      }
+      memset(&varstack->buffer[varstack->bufsize], 0, sizeof(struct vm_vchar_t));
+      varstack->bufsize += sizeof(struct vm_vchar_t);
+
+#ifdef DEBUG
+      memused += sizeof(struct vm_vchar_t);
+#endif
+
+      if(varstack->buffer != oldptr) {
+        value = (struct vm_vchar_t *)&varstack->buffer[a];
+      }
+    }
+  }
 
   if((value->value = (char *)MALLOC(len+1)) == NULL) {
     OUT_OF_MEMORY;
