@@ -1070,6 +1070,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
   if(unittests[(*i)].dofail != ret) {
     /*LCOV_EXCL_START*/
+    printf("error %d\n", __LINE__);
     exit(-1);
     /*LCOV_EXCL_STOP*/
   }
@@ -1388,6 +1389,7 @@ int main(int argc, char **argv) {
   if(mempool == NULL) {
     /*LCOV_EXCL_START*/
     fprintf(stderr, "OUT_OF_MEMORY\n");
+    assert(1 == 0);
     exit(-1);
     /*LCOV_EXCL_STOP*/
   }
@@ -1403,6 +1405,7 @@ int main(int argc, char **argv) {
   if(mempool == NULL) {
     /*LCOV_EXCL_START*/
     fprintf(stderr, "OUT_OF_MEMORY\n");
+    assert(1 == 0);
     exit(-1);
     /*LCOV_EXCL_STOP*/
   }
@@ -1444,6 +1447,7 @@ int main(int argc, char **argv) {
       if(mempool == NULL) {
         /*LCOV_EXCL_START*/
         fprintf(stderr, "OUT_OF_MEMORY\n");
+        assert(1 == 0);
         exit(-1);
         /*LCOV_EXCL_STOP*/
       }
@@ -1475,7 +1479,8 @@ int main(int argc, char **argv) {
 
       if(ret != tests[i].ret || (ret == 0 && (mem.len != tests[i].used[0] || mem1.len != tests[i].used[1]))) {
         /*LCOV_EXCL_START*/
-        fprintf(stderr, "OUT_OF_MEMORY\n");
+        fprintf(stderr, "error\n");
+        assert(1 == 0);
         exit(-1);
         /*LCOV_EXCL_STOP*/
       }
