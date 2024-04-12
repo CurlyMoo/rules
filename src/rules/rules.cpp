@@ -184,7 +184,18 @@ uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
 /*LCOV_EXCL_STOP*/
 #endif
 
+typedef struct rule_timer_t {
+#ifdef ESP8266
+  uint32_t first;
+  uint32_t second;
+#else
+  struct timespec first;
+  struct timespec second;
+#endif
+} __attribute__((aligned(4))) rule_timer_t;
+
 static struct rule_stack_t *varstack = NULL;
+static struct rule_timer_t timestamp;
 
 static uint8_t group = 1;
 
@@ -4776,9 +4787,6 @@ static void print_bytecode(struct rules_t *obj) {
 void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
   uint16_t i = 0;
 
-  for(i=0;i<*nrrules;i++) {
-    FREE((*rules)[i]->timestamp);
-  }
   FREE(*rules);
   *rules = NULL;
   *nrrules = 0;
@@ -4881,9 +4889,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
   mempool->len += sizeof(struct rules_t);
 
-  if(((*rules)[*nrrules]->timestamp = (struct rule_timer_t *)MALLOC(sizeof(struct rule_timer_t))) == NULL) {
-    OUT_OF_MEMORY
-  }
+
   (*rules)[*nrrules]->userdata = userdata;
   struct rules_t *obj = (*rules)[*nrrules];
 
@@ -4897,14 +4903,13 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
-  obj->timestamp->first = micros();
+  timestamp.first = micros();
 #else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+  clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
 #endif
 /*LCOV_EXCL_STOP*/
 
   if(rule_prepare((char **)&input->payload, &bcsize, &heapsize, &varsize, &memsize, &newlen) == -1) {
-    FREE((*rules)[*nrrules-1]->timestamp);
     if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
       OUT_OF_MEMORY
     }
@@ -4915,15 +4920,15 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
-  obj->timestamp->second = micros();
+  timestamp.second = micros();
 
-  logprintf_P(F("rule #%d was prepared in %d microseconds"), mmu_get_uint8(&obj->nr), obj->timestamp->second - obj->timestamp->first);
+  logprintf_P(F("rule #%d was prepared in %d microseconds"), mmu_get_uint8(&obj->nr), timestamp.second - timestamp.first);
 #else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
+  clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
 
   printf("rule #%d was prepared in %.6f seconds\n", obj->nr,
-    ((double)obj->timestamp->second.tv_sec + 1.0e-9*obj->timestamp->second.tv_nsec) -
-    ((double)obj->timestamp->first.tv_sec + 1.0e-9*obj->timestamp->first.tv_nsec));
+    ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
+    ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 #endif
 /*LCOV_EXCL_STOP*/
 
@@ -4965,7 +4970,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       }
       if(mempool == NULL) {
         logprintf_P(F("FATAL #%d: ruleset too large, out of memory"), __LINE__);
-        FREE((*rules)[*nrrules-1]->timestamp);
         if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
           OUT_OF_MEMORY
         }
@@ -5004,13 +5008,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
     /*LCOV_EXCL_START*/
 #ifdef ESP8266
-    obj->timestamp->first = micros();
+    timestamp.first = micros();
 #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+    clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
 #endif
     /*LCOV_EXCL_STOP*/
     if(rule_create((char **)&input->payload, obj) == -1) {
-      FREE((*rules)[*nrrules-1]->timestamp);
       if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
         OUT_OF_MEMORY
       }
@@ -5021,9 +5024,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
-    obj->timestamp->second = micros();
+    timestamp.second = micros();
 
-    logprintf_P(F("rule #%d bytecode was created in %d microseconds"), getval(obj->nr), obj->timestamp->second - obj->timestamp->first);
+    logprintf_P(F("rule #%d bytecode was created in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
     logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
       getval(obj->bc.nrbytes),
       getval(obj->bc.bufsize),
@@ -5035,11 +5038,11 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       (varstack->bufsize)
     );
 #else
-    clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
+    clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
 
     printf("rule #%d bytecode was created in %.6f seconds\n", obj->nr,
-      ((double)obj->timestamp->second.tv_sec + 1.0e-9*obj->timestamp->second.tv_nsec) -
-      ((double)obj->timestamp->first.tv_sec + 1.0e-9*obj->timestamp->first.tv_nsec));
+      ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
+      ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
     printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes\n",
       getval(obj->bc.nrbytes),
@@ -5116,9 +5119,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
-  obj->timestamp->first = micros();
+  timestamp.first = micros();
 #else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->first);
+  clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
 #endif
 /*LCOV_EXCL_STOP*/
 
@@ -5128,9 +5131,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
-  obj->timestamp->second = micros();
+  timestamp.second = micros();
 
-  logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), obj->timestamp->second - obj->timestamp->first);
+  logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
   logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d, varstack %d/%d bytes"),
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
@@ -5142,11 +5145,11 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     (varstack->bufsize)
   );
 #else
-  clock_gettime(CLOCK_MONOTONIC, &obj->timestamp->second);
+  clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
 
   printf("rule #%d was executed in %.6f seconds\n", obj->nr,
-    ((double)obj->timestamp->second.tv_sec + 1.0e-9*obj->timestamp->second.tv_nsec) -
-    ((double)obj->timestamp->first.tv_sec + 1.0e-9*obj->timestamp->first.tv_nsec));
+    ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
+    ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
   printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack %d/%d bytes\n",
     getval(obj->bc.nrbytes),

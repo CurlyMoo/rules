@@ -62,6 +62,20 @@ void *MMU_SEC_HEAP = NULL;
 
 struct rule_options_t rule_options;
 
+typedef struct rule_timer_t {
+#ifdef ESP8266
+  uint32_t first;
+  uint32_t second;
+#else
+  struct timespec first;
+  struct timespec second;
+#endif
+} __attribute__((aligned(4))) rule_timer_t;
+
+#ifdef DEBUG
+static struct rule_timer_t timestamp;
+#endif
+
 typedef struct array_t {
   const char *key;
   union {
@@ -937,7 +951,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
     for(x=0;x<5;x++) {
 #if defined(DEBUG) && !defined(ESP8266)
-      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->first);
+      clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
 #endif
       if(rule_run(rules[nrrules-1], 0) == -1) {
         /*LCOV_EXCL_START*/
@@ -945,11 +959,11 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
         /*LCOV_EXCL_STOP*/
       }
 #if defined(DEBUG) && !defined(ESP8266)
-      clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->second);
+      clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
 
       printf("rule #%d was executed in %.6f seconds\n", rules[nrrules-1]->nr,
-        ((double)rules[nrrules-1]->timestamp->second.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp->second.tv_nsec) -
-        ((double)rules[nrrules-1]->timestamp->first.tv_sec + 1.0e-9*rules[nrrules-1]->timestamp->first.tv_nsec));
+        ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
+        ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
       printf("bytecode is %d bytes\n", rules[nrrules-1]->bc.nrbytes + rules[nrrules-1]->heap->nrbytes);
 #endif
@@ -983,6 +997,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
               } break;
               case VCHAR: {
                 x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
+                free((void *)array->val.s);
               } break;
               case VNULL: {
                  x += snprintf(&out[x], 255-x, "[%d]%s = NULL", y+1, array->key);
@@ -994,6 +1009,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
           rules[y]->userdata = NULL;
         }
       }
+
 
       if(unittests[(*i)].dofail == 0 && strcmp(out, unittests[(*i)].run[rule_nr-1].output) != 0) {
 #ifdef ESP8266
@@ -1314,17 +1330,17 @@ int8_t run_two_mempools(struct pbuf *mem) {
 
   if(ret == 1) {
 #if defined(DEBUG) && !defined(ESP8266)
-    clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->first);
+    clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
 #endif
 
     ret = rule_run(rules[nrrules-1], 0);
 
 #if defined(DEBUG) && !defined(ESP8266)
-  clock_gettime(CLOCK_MONOTONIC, &rules[nrrules-1]->timestamp->second);
+  clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
 
   printf("rule #%d was executed in %.6f seconds\n", 0,
-    ((double)rules[0]->timestamp->second.tv_sec + 1.0e-9*rules[0]->timestamp->second.tv_nsec) -
-    ((double)rules[0]->timestamp->first.tv_sec + 1.0e-9*rules[0]->timestamp->first.tv_nsec));
+    ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
+    ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 #endif
   }
 

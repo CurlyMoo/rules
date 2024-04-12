@@ -114,17 +114,6 @@ typedef enum {
   OP_RET = 22
 } opcodes;
 
-
-typedef struct rule_timer_t {
-#ifdef ESP8266
-  uint32_t first;
-  uint32_t second;
-#else
-  struct timespec first;
-  struct timespec second;
-#endif
-} __attribute__((aligned(4))) rule_timer_t;
-
 typedef struct rules_t {
   /* --- PUBLIC MEMBERS --- */
 
@@ -155,7 +144,6 @@ typedef struct rules_t {
   struct rule_stack_t bc;
   struct rule_stack_t *heap;
   struct rule_stack_t *stack;
-  struct rule_timer_t *timestamp;
 
 } __attribute__((aligned(4))) rules_t;
 
