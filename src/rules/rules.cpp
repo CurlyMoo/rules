@@ -105,6 +105,10 @@ typedef struct vm_vfloat_t {
 
 static void *jmptbl[JMPSIZE] = { NULL };
 
+#if defined(DEBUG) || defined(COVERALLS)
+uint16_t memused = 0;
+#endif
+
 #ifdef DEBUG
 struct {
   const char *name;
@@ -562,6 +566,10 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
   if(i == -1) {
     setval(varstack->nrbytes, a+sizeof(struct vm_vchar_t));
   }
+
+#ifdef DEBUG
+  memused += len+1;
+#endif
 
   return a;
 }
@@ -1503,6 +1511,9 @@ void rules_unref(const char *str) {
     setval(node->ref, getval(node->ref)-1);
     if(getval(node->ref) == 0) {
       FREE(node->value);
+#ifdef DEBUG
+      memused -= node->len+1;
+#endif
       node->value = NULL;
       setval(node->len, 0);
     }
@@ -4812,6 +4823,10 @@ static void print_bytecode(struct rules_t *obj) {
 #endif
 
 #if defined(DEBUG) || defined(COVERALLS)
+uint16_t rules_memused(void) {
+  return memused;
+}
+
 struct rule_stack_t *rules_getstack(void) {
   return stack;
 }
@@ -4846,6 +4861,10 @@ void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
   stack->nrbytes = 0;
 
   varstack = NULL;
+
+#ifdef DEBUG
+  memused = 0;
+#endif
 }
 
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
@@ -4910,6 +4929,11 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   (*rules)[*nrrules]->userdata = userdata;
   struct rules_t *obj = (*rules)[*nrrules];
 
+#ifdef DEBUG
+  memused += sizeof(struct rules_t **);
+  memused += sizeof(struct rule_timer_t);
+#endif
+
   setval(obj->nr, (*nrrules)+1);
 
   (*nrrules)++;
@@ -4932,6 +4956,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     }
     mempool_rule->len -= sizeof(struct rules_t);
     (*nrrules)--;
+#ifdef DEBUG
+    memused = 0;
+#endif
     return -1;
   }
 
@@ -4992,6 +5019,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
         }
         mempool_rule->len -= sizeof(struct rules_t);
         (*nrrules)--;
+#ifdef DEBUG
+        memused = 0;
+#endif
         return -1;
       }
     }
@@ -5020,6 +5050,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       }
       memset(&varstack->buffer[varstack->bufsize], 0, varsize);
       varstack->bufsize += varsize;
+#ifdef DEBUG
+      memused += varsize;
+#endif
     }
 
     /*LCOV_EXCL_START*/
@@ -5035,6 +5068,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       }
       mempool_rule->len -= sizeof(struct rules_t);
       (*nrrules)--;
+#ifdef DEBUG
+      memused = 0;
+#endif
       return -1;
     }
 
