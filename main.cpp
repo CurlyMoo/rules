@@ -949,7 +949,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       char str[OUTPUT_SIZE];
       memset(&str, 0, OUTPUT_SIZE);
       snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rule_nr-1].output, out);
-      Serial.println(str); 
+      Serial.println(str);
       exit(-1);
 #else
       /*LCOV_EXCL_START*/
