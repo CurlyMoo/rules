@@ -788,6 +788,29 @@ static int8_t event_cb(struct rules_t *obj, char *name) {
   return 1;
 }
 
+static void rule_done_cb(struct rules_t *obj) {
+  struct varstack_t *table = (struct varstack_t *)obj->userdata;
+  int16_t x = 0;
+
+  struct array_t *array = NULL;
+
+  if(table != NULL) {
+    for(x=0;x<table->nr;x++) {
+      array = &table->array[x];
+      switch(array->type) {
+        case VCHAR: {
+          char *tmp = strdup(array->val.s);
+          if(array->type == VCHAR && array->val.s != NULL) {
+            rules_unref(array->val.s);
+          }
+          array->val.s = tmp;
+        } break;
+      }
+    }
+  }
+  return;
+}
+
 void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
   if(*i == 0) {
@@ -805,6 +828,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_variable_cb = is_variable;
   rule_options.is_event_cb = is_event;
+  rule_options.done_cb = rule_done_cb;
   rule_options.vm_value_set = vm_value_set;
   rule_options.vm_value_get = vm_value_get;
   rule_options.event_cb = event_cb;
@@ -892,15 +916,12 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     }
 
     uint8_t x = 0, y = 0, z = 0;
-    memset((void *)&out, 0, 255);
-    struct array_t *array = NULL;
-
+    memset(&out, 0, 255);
     for(y=0;y<nrrules;y++) {
       struct varstack_t *table = (struct varstack_t *)rules[y]->userdata;
       if(table != NULL) {
         for(z=0;z<table->nr;z++) {
-          array = &table->array[z];
-
+          struct array_t *array = &table->array[z];
           switch(array->type) {
             case VINTEGER: {
               x += snprintf(&out[x], 255-x, "[%d]%s = %d", y+1, array->key, array->val.i);
@@ -910,6 +931,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
             } break;
             case VCHAR: {
               x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
+              free((void *)array->val.s);
             } break;
             case VNULL: {
                x += snprintf(&out[x], 255-x, "[%d]%s = NULL", y+1, array->key);
@@ -980,14 +1002,12 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 #endif
 
       uint8_t x = 0, y = 0, z = 0;
-      memset((void *)&out, 0, 255);
-      struct array_t *array = NULL;
+      memset(&out, 0, 255);
       for(y=0;y<nrrules;y++) {
         struct varstack_t *table = (struct varstack_t *)rules[y]->userdata;
         if(table != NULL) {
           for(z=0;z<table->nr;z++) {
-            array = &table->array[z];
-
+            struct array_t *array = &table->array[z];
             switch(array->type) {
               case VINTEGER: {
                 x += snprintf(&out[x], 255-x, "[%d]%s = %d", y+1, array->key, array->val.i);

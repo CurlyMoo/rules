@@ -155,10 +155,12 @@ typedef struct rule_options_t {
 
   int8_t (*vm_value_set)(struct rules_t *obj);
   int8_t (*vm_value_get)(struct rules_t *obj);
+
   /*
    * Events
    */
   int8_t (*event_cb)(struct rules_t *obj, char *name);
+  void (*done_cb)(struct rules_t *obj);
 } rule_options_t;
 
 extern struct rule_options_t rule_options;

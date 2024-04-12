@@ -4604,10 +4604,14 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   }
 
   STEP_RET: {
+    if(rule_options.done_cb != NULL) {
+      rule_options.done_cb(obj);
+    }
     if(obj->ctx.ret != NULL) {
       struct rules_t *newctx = obj->ctx.ret;
       obj->ctx.ret = NULL;
       obj->ctx.go = NULL;
+
       obj = newctx;
       pos = getval(obj->cont);
 
