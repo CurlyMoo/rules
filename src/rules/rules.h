@@ -143,7 +143,6 @@ typedef struct rules_t {
 
   struct rule_stack_t bc;
   struct rule_stack_t *heap;
-  struct rule_stack_t *stack;
 
 } __attribute__((aligned(4))) rules_t;
 
@@ -187,5 +186,9 @@ const char *rules_tostring(struct rules_t *obj, int8_t pos);
 void rules_remove(struct rules_t *rule, int8_t pos);
 uint8_t rules_gettop(struct rules_t *rule);
 uint8_t rules_type(struct rules_t *rule, int8_t pos);
+
+#if defined(DEBUG) || defined(COVERALLS)
+struct rule_stack_t *rules_getstack(void);
+#endif
 
 #endif

@@ -878,10 +878,10 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     assert(getval(rules[nrrules-1]->bc.nrbytes) >= 0);
     assert(getval(rules[nrrules-1]->bc.bufsize) >= 0);
     assert(getval(rules[nrrules-1]->bc.nrbytes) <= getval(rules[nrrules-1]->bc.bufsize));
-    assert(getval(rules[nrrules-1]->stack->nrbytes) >= 0);
-    assert(getval(rules[nrrules-1]->stack->bufsize) >= 0);
-    assert(getval(rules[nrrules-1]->stack->nrbytes) >= 0);
-    assert(getval(rules[nrrules-1]->stack->bufsize) >= 0);
+    assert(rules_getstack()->nrbytes >= 0);
+    assert(rules_getstack()->bufsize >= 0);
+    assert(rules_getstack()->nrbytes >= 0);
+    assert(rules_getstack()->bufsize >= 0);
 
     if(size > 49) {
       size = MIN(size, 45);

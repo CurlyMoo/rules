@@ -195,6 +195,7 @@ typedef struct rule_timer_t {
 } __attribute__((aligned(4))) rule_timer_t;
 
 static struct rule_stack_t *varstack = NULL;
+static struct rule_stack_t *stack = NULL;
 static struct rule_timer_t timestamp;
 
 static uint8_t group = 1;
@@ -1333,7 +1334,7 @@ static uint32_t vm_stack_push(struct rules_t *obj, uint16_t pos, unsigned char *
   uint8_t type = 0, i = 0;
   uint16_t size = 0, ret = 0;
 
-  ret = getval(obj->stack->nrbytes);
+  ret = getval(stack->nrbytes);
 
   type = gettype(in[0]);
 
@@ -1342,16 +1343,16 @@ static uint32_t vm_stack_push(struct rules_t *obj, uint16_t pos, unsigned char *
 #endif
 
   size = ret+rule_max_var_bytes();
-  setval(obj->stack->nrbytes, size);
-  setval(obj->stack->bufsize, MAX(getval(obj->stack->bufsize), size));
+  setval(stack->nrbytes, size);
+  setval(stack->bufsize, MAX(getval(stack->bufsize), size));
 
   if(type == VCHAR) {
-    struct vm_vptr_t *value = (struct vm_vptr_t *)&obj->stack->buffer[ret];
+    struct vm_vptr_t *value = (struct vm_vptr_t *)&stack->buffer[ret];
     setval(value->type, VPTR);
     setval(value->value, pos/sizeof(struct vm_top_t));
   } else {
     for(i=0;i<4;i++) {
-      setval(obj->stack->buffer[ret+i], getval(in[i]));
+      setval(stack->buffer[ret+i], getval(in[i]));
     }
   }
 
@@ -1365,15 +1366,15 @@ static uint16_t vm_stack_del(struct rules_t *obj, uint16_t idx) {
 #endif
 
   uint16_t ret = rule_max_var_bytes(), i = 0;
-  uint16_t nrbytes = getval(obj->stack->nrbytes);
+  uint16_t nrbytes = getval(stack->nrbytes);
   for(i=0;i<nrbytes-idx-ret;i++) {
-    setval(obj->stack->buffer[idx+i], getval(obj->stack->buffer[idx+ret+i]));
+    setval(stack->buffer[idx+i], getval(stack->buffer[idx+ret+i]));
   }
 
   nrbytes -= ret;
 
-  setval(obj->stack->nrbytes, nrbytes);
-  setval(obj->stack->bufsize, MAX(getval(obj->stack->bufsize), nrbytes));
+  setval(stack->nrbytes, nrbytes);
+  setval(stack->bufsize, MAX(getval(stack->bufsize), nrbytes));
 
   return ret;
 }
@@ -1395,13 +1396,13 @@ static int16_t vm_val_posr(int8_t pos) {
 uint8_t rules_type(struct rules_t *obj, int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
-    offset = getval(obj->stack->nrbytes)-offset;
+    offset = getval(stack->nrbytes)-offset;
   }
   if(offset >= 4) {
-    if(getval(obj->stack->buffer[offset]) == VPTR) {
+    if(getval(stack->buffer[offset]) == VPTR) {
       return VCHAR;
     } else {
-      return getval(obj->stack->buffer[offset]) & 0x1F;
+      return getval(stack->buffer[offset]) & 0x1F;
     }
   } else {
     return 0;
@@ -1488,11 +1489,11 @@ void rules_unref(const char *str) {
 const char *rules_tostring(struct rules_t *obj, int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
-    offset = getval(obj->stack->nrbytes)-offset;
+    offset = getval(stack->nrbytes)-offset;
   }
   if(offset >= 4) {
-    if(getval(obj->stack->buffer[offset]) == VPTR) {
-      struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[offset];
+    if(getval(stack->buffer[offset]) == VPTR) {
+      struct vm_vptr_t *node = (struct vm_vptr_t *)&stack->buffer[offset];
       uint16_t pos = getval(node->value)*sizeof(struct vm_top_t);
       struct vm_vchar_t *var = (struct vm_vchar_t *)&varstack->buffer[pos];
 
@@ -1505,11 +1506,11 @@ const char *rules_tostring(struct rules_t *obj, int8_t pos) {
 int rules_tointeger(struct rules_t *obj, int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
-    offset = getval(obj->stack->nrbytes)-offset;
+    offset = getval(stack->nrbytes)-offset;
   }
   if(offset >= 4) {
-    if(getval(obj->stack->buffer[offset]) == VINTEGER) {
-      struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->stack->buffer[offset];
+    if(getval(stack->buffer[offset]) == VINTEGER) {
+      struct vm_vinteger_t *node = (struct vm_vinteger_t *)&stack->buffer[offset];
       int val = 0;
       val |= getval(node->value[0]) << 16;
       val |= getval(node->value[1]) << 8;
@@ -1531,11 +1532,11 @@ int rules_tointeger(struct rules_t *obj, int8_t pos) {
 float rules_tofloat(struct rules_t *obj, int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
-    offset = getval(obj->stack->nrbytes)-offset;
+    offset = getval(stack->nrbytes)-offset;
   }
   if(offset >= 4) {
-    if((getval(obj->stack->buffer[offset]) & 0x1F) == VFLOAT) {
-      struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->stack->buffer[offset];
+    if((getval(stack->buffer[offset]) & 0x1F) == VFLOAT) {
+      struct vm_vfloat_t *node = (struct vm_vfloat_t *)&stack->buffer[offset];
       uint32_t val = 0;
 
       val |= (getval(node->type) >> 5) << 29;
@@ -1553,13 +1554,13 @@ float rules_tofloat(struct rules_t *obj, int8_t pos) {
 }
 
 uint8_t rules_gettop(struct rules_t *obj) {
-  return (getval(obj->stack->nrbytes)-4) / rule_max_var_bytes();
+  return (getval(stack->nrbytes)-4) / rule_max_var_bytes();
 }
 
 void rules_remove(struct rules_t *obj, int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
-    offset = getval(obj->stack->nrbytes)-offset;
+    offset = getval(stack->nrbytes)-offset;
   }
   vm_stack_del(obj, offset);
 }
@@ -3856,12 +3857,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     memcpy(&jmptbl, &tmp, sizeof(tmp));
   }
 
-  memset(obj->stack->buffer, 0, getval(obj->stack->bufsize));
-  setval(obj->stack->nrbytes, 4);
+  memset(stack->buffer, 0, getval(stack->bufsize));
+  setval(stack->nrbytes, 4);
 
 /*****************/
   BEGIN:
-
     uint8_t type = gettype(obj->bc.buffer[pos]);
 #ifdef DEBUG
     printf("rule #%d, pos: %lu, op_id: %d, op: %s\n", obj->nr, pos/sizeof(struct vm_top_t), type, op_names[type].name);
@@ -4302,11 +4302,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       } break;
       case VCHAR: {
         int16_t offset = vm_val_pos(-1);
-        offset = getval(obj->stack->nrbytes)-offset;
+        offset = getval(stack->nrbytes)-offset;
 
         if(offset >= 4) {
-          if(getval(obj->stack->buffer[offset]) == VPTR) {
-            struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[offset];
+          if(getval(stack->buffer[offset]) == VPTR) {
+            struct vm_vptr_t *node = (struct vm_vptr_t *)&stack->buffer[offset];
 
             struct vm_vptr_t *upd = (struct vm_vptr_t *)&obj->heap->buffer[a];
             setval(upd->type, VPTR);
@@ -4403,8 +4403,8 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       rules_remove(obj, -1);
       rules_remove(obj, -1);
 
-      memset(obj->stack->buffer, 0, getval(obj->stack->bufsize));
-      setval(obj->stack->nrbytes, 4);
+      memset(stack->buffer, 0, getval(stack->bufsize));
+      setval(stack->nrbytes, 4);
     } else if((int8_t)getval(node->b) > 0) {
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
       uint16_t b = (int8_t)(getval(node->b)-1)*sizeof(struct vm_vchar_t);
@@ -4424,15 +4424,15 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       rules_remove(obj, -1);
       rules_remove(obj, -1);
 
-      memset(obj->stack->buffer, 0, getval(obj->stack->bufsize));
-      setval(obj->stack->nrbytes, 4);
+      memset(stack->buffer, 0, getval(stack->bufsize));
+      setval(stack->nrbytes, 4);
     } else { // node->b == 0
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
       uint16_t b = ((int8_t)getval(node->b)+1)*rule_max_var_bytes();
 
       if(rules_gettop(obj) >= 1) {
         vm_stack_push(obj, a, &varstack->buffer[a]);
-        vm_stack_push(obj, b, &obj->stack->buffer[b]);
+        vm_stack_push(obj, b, &stack->buffer[b]);
         rules_remove(obj, (int8_t)getval(node->b)+1);
       } else {
         vm_stack_push(obj, a, &varstack->buffer[a]);
@@ -4530,11 +4530,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           } break;
           case VCHAR: {
             int16_t offset = vm_val_pos(-1);
-            offset = getval(obj->stack->nrbytes)-offset;
+            offset = getval(stack->nrbytes)-offset;
 
             if(offset >= 4) {
-              if(getval(obj->stack->buffer[offset]) == VPTR) {
-                struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[offset];
+              if(getval(stack->buffer[offset]) == VPTR) {
+                struct vm_vptr_t *node = (struct vm_vptr_t *)&stack->buffer[offset];
                 struct vm_vptr_t *upd = (struct vm_vptr_t *)&obj->heap->buffer[a];
                 setval(upd->type, VPTR);
                 setval(upd->value, getval(node->value));
@@ -4596,8 +4596,8 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
 /*****************/
   STEP_CLEAR: {
-    memset(obj->stack->buffer, 0, getval(obj->stack->bufsize));
-    setval(obj->stack->nrbytes, 4);
+    memset(stack->buffer, 0, getval(stack->bufsize));
+    setval(stack->nrbytes, 4);
     pos += sizeof(struct vm_top_t);
 
     goto BEGIN;
@@ -4700,14 +4700,14 @@ static void print_varstack(void) {
 }
 
 static void print_stack(struct rules_t *obj) {
-  uint16_t size = getval(obj->stack->nrbytes), i = 0;
+  uint16_t size = getval(stack->nrbytes), i = 0;
 
   for(i=4;i<size;i+=rule_max_var_bytes()) {
-    uint8_t type = getval(obj->stack->buffer[i]);
+    uint8_t type = getval(stack->buffer[i]);
     printf("%2d\t", vm_val_posr(i*-1));
     switch(type) {
       case VINTEGER: {
-        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&obj->stack->buffer[i];
+        struct vm_vinteger_t *node = (struct vm_vinteger_t *)&stack->buffer[i];
         uint32_t val = 0;
         val |= getval(node->value[0]) << 16;
         val |= getval(node->value[1]) << 8;
@@ -4723,7 +4723,7 @@ static void print_stack(struct rules_t *obj) {
         printf("VINTEGER\t%d\n", val);
       } break;
       case VFLOAT: {
-        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&obj->stack->buffer[i];
+        struct vm_vfloat_t *node = (struct vm_vfloat_t *)&stack->buffer[i];
         uint32_t val = 0;
 
         val |= (getval(node->type) >> 5) << 29;
@@ -4740,7 +4740,7 @@ static void print_stack(struct rules_t *obj) {
         printf("VNULL\n");
       } break;
       case VPTR: {
-        struct vm_vptr_t *node = (struct vm_vptr_t *)&obj->stack->buffer[i];
+        struct vm_vptr_t *node = (struct vm_vptr_t *)&stack->buffer[i];
         uint16_t pos = getval(node->value)*sizeof(struct vm_top_t);
         struct vm_vchar_t *val = (struct vm_vchar_t *)&varstack->buffer[pos];
         printf("VCHAR\t%s\n", val->value);
@@ -4784,6 +4784,12 @@ static void print_bytecode(struct rules_t *obj) {
 /*LCOV_EXCL_STOP*/
 #endif
 
+#if defined(DEBUG) || defined(COVERALLS)
+struct rule_stack_t *rules_getstack(void) {
+  return stack;
+}
+#endif
+
 void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
   uint16_t i = 0;
 
@@ -4808,6 +4814,10 @@ void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
   }
   FREE(varstack->buffer);
   FREE(varstack);
+
+  stack->bufsize = 0;
+  stack->nrbytes = 0;
+
   varstack = NULL;
 }
 
@@ -4815,37 +4825,17 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   struct pbuf *mempool_ori = mempool;
   struct pbuf *mempool_rule = NULL;
   uint16_t newlen = getval(input->tot_len);
-  uint16_t heapsize = 4, max_varstack_size = 4;
-  uint16_t bcsize = 0, varsize = 0, memsize = 0;
+  uint16_t heapsize = 4, bcsize = 0, varsize = 0, memsize = 0;
 
   if(varstack == NULL) {
     if((varstack = (struct rule_stack_t *)MALLOC(sizeof(struct rule_stack_t))) == NULL) {
       OUT_OF_MEMORY
     }
     memset(varstack, 0, sizeof(struct rule_stack_t));
+#ifdef DEBUG
+    memused += sizeof(struct rule_stack_t);
+#endif
   }
-
-  while(mempool) {
-    if(mempool->flags == 1) {
-      break;
-    }
-    mempool = mempool->next;
-  }
-  if(mempool == NULL) {
-    mempool = mempool_ori;
-  }
-
-  /*
-   * Check the size of the varstack of the previous
-   * ruleset. If it was bigger than the current one
-   * use that value for the current varstack size.
-   */
-  struct rule_stack_t *stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-  if(getval(stack->bufsize) > max_varstack_size) {
-    max_varstack_size = getval(stack->bufsize);
-  }
-
-  mempool = mempool_ori;
 
   if(newlen == 0) {
     return 1;
@@ -4993,10 +4983,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
     mempool->len += heapsize+sizeof(struct rule_stack_t);
 
-    obj->stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
-    setval(obj->stack->nrbytes, 4);
-    setval(obj->stack->bufsize, max_varstack_size);
-    obj->stack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
+    stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+    setval(stack->nrbytes, 4);
+    stack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
 
     if(varsize > 0) {
       if((varstack->buffer = (unsigned char *)REALLOC(varstack->buffer, varstack->bufsize+varsize)) == NULL) {
@@ -5032,9 +5021,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
       getval(obj->heap->bufsize),
-      getval(obj->stack->nrbytes),
-      getval(obj->stack->bufsize),
-      ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes+4),
+      getval(stack->nrbytes),
+      getval(stack->bufsize),
+      ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
       (varstack->bufsize)
     );
 #else
@@ -5049,9 +5038,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
       getval(obj->heap->bufsize),
-      getval(obj->stack->nrbytes),
-      getval(obj->stack->bufsize),
-      ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes+4),
+      getval(stack->nrbytes),
+      getval(stack->bufsize),
+      ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
       (varstack->bufsize)
     );
 #endif
@@ -5100,21 +5089,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
      * holding the last varstack instance.
      */
     mempool->flags = 1;
-
-    /*
-     * Since previous varstacks are overwritten we must
-     * remap the pointer to the current varstack. This
-     * also makes sure that rule sets that are called from
-     * other rulesets share the same varstack. This helps
-     * determine how big the final varstack for all rulesets
-     * together should be.
-     */
-    {
-      uint8_t x = 0;
-      for(x=0;x<*nrrules;x++) {
-        (*rules)[x]->stack = obj->stack;
-      }
-    }
   }
 
 /*LCOV_EXCL_START*/
@@ -5139,9 +5113,9 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
     getval(obj->heap->bufsize),
-    getval(obj->stack->nrbytes),
-    getval(obj->stack->bufsize),
-    ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes+4),
+    getval(stack->nrbytes),
+    getval(stack->bufsize),
+    ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
     (varstack->bufsize)
   );
 #else
@@ -5156,25 +5130,15 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
     getval(obj->heap->bufsize),
-    getval(obj->stack->nrbytes),
-    getval(obj->stack->bufsize),
-    ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes+4),
+    getval(stack->nrbytes),
+    getval(stack->bufsize),
+    ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
     (varstack->bufsize)
   );
 #endif
 /*LCOV_EXCL_STOP*/
 
-  /*
-   * If a previous varstack was bigger than the current
-   * varstack, use the previous varstack size. This will
-   * make the final varstack shared across all rules have
-   * enough space for all variables.
-   */
-  if(max_varstack_size > getval(obj->stack->bufsize)) {
-    setval(obj->stack->bufsize, max_varstack_size);
-  }
-
-  if((getval(obj->stack->bufsize) % 4) != 0) {
+  if((getval(stack->bufsize) % 4) != 0) {
     printf("Rules AST not 4 byte aligned!\n");
     exit(-1);
   }

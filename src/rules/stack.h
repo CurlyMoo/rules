@@ -12,7 +12,6 @@
 typedef struct rule_stack_t {
   uint16_t nrbytes;
   uint16_t bufsize;
-  uint16_t maxsize;
 
   unsigned char *buffer;
 } __attribute__((aligned(4))) rule_stack_t;
