@@ -177,7 +177,6 @@ int8_t rules_pushfloat(struct rules_t *obj, float nr);
 int8_t rules_pushinteger(struct rules_t *obj, int nr);
 int8_t rules_pushstring(struct rules_t *obj, char *str);
 
-
 void rules_ref(const char *str);
 void rules_unref(const char *str);
 
@@ -191,7 +190,6 @@ uint8_t rules_type(struct rules_t *rule, int8_t pos);
 
 #if defined(DEBUG) || defined(COVERALLS)
 uint16_t rules_memused(void);
-struct rule_stack_t *rules_getstack(void);
 #endif
 
 #endif

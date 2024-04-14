@@ -535,7 +535,7 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
       memset(&varstack->buffer[varstack->bufsize], 0, sizeof(struct vm_vchar_t));
       varstack->bufsize += sizeof(struct vm_vchar_t);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       memused += sizeof(struct vm_vchar_t);
 #endif
 
@@ -567,7 +567,7 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
     setval(varstack->nrbytes, a+sizeof(struct vm_vchar_t));
   }
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
   memused += len+1;
 #endif
 
@@ -1511,7 +1511,7 @@ void rules_unref(const char *str) {
     setval(node->ref, getval(node->ref)-1);
     if(getval(node->ref) == 0) {
       FREE(node->value);
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       memused -= node->len+1;
 #endif
       node->value = NULL;
@@ -4826,10 +4826,6 @@ static void print_bytecode(struct rules_t *obj) {
 uint16_t rules_memused(void) {
   return memused;
 }
-
-struct rule_stack_t *rules_getstack(void) {
-  return stack;
-}
 #endif
 
 void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
@@ -4839,46 +4835,51 @@ void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
   *rules = NULL;
   *nrrules = 0;
 
-  for(i=0;i<varstack->nrbytes;i++) {
-    switch(varstack->buffer[i]) {
-      case VCHAR: {
-        struct vm_vchar_t *node = (struct vm_vchar_t *)&varstack->buffer[i];
-        FREE(node->value);
-      } break;
-      /* LCOV_EXCL_START*/
-      default: {
-        logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
-        return;
-      } break;
-      /* LCOV_EXCL_STOP*/
+  if(varstack != NULL) {
+    for(i=0;i<varstack->nrbytes;i++) {
+      switch(varstack->buffer[i]) {
+        case VCHAR: {
+          struct vm_vchar_t *node = (struct vm_vchar_t *)&varstack->buffer[i];
+          FREE(node->value);
+        } break;
+        /* LCOV_EXCL_START*/
+        default: {
+          logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+          return;
+        } break;
+        /* LCOV_EXCL_STOP*/
+      }
+      i += sizeof(struct vm_vchar_t)-1;
     }
-    i += sizeof(struct vm_vchar_t)-1;
+    if(varstack->nrbytes > 0 && varstack->buffer != NULL) {
+      FREE(varstack->buffer);
+    }
+    FREE(varstack);
   }
-  FREE(varstack->buffer);
-  FREE(varstack);
 
-  stack->bufsize = 0;
-  stack->nrbytes = 0;
+  if(stack != NULL) {
+    stack->bufsize = 0;
+    stack->nrbytes = 0;
+    stack = NULL;
+  }
 
   varstack = NULL;
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
   memused = 0;
 #endif
 }
 
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
-  struct pbuf *mempool_ori = mempool;
   struct pbuf *mempool_rule = NULL;
   uint16_t newlen = getval(input->tot_len);
   uint16_t heapsize = 4, bcsize = 0, varsize = 0, memsize = 0;
-
   if(varstack == NULL) {
     if((varstack = (struct rule_stack_t *)MALLOC(sizeof(struct rule_stack_t))) == NULL) {
       OUT_OF_MEMORY
     }
     memset(varstack, 0, sizeof(struct rule_stack_t));
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     memused += sizeof(struct rule_stack_t);
 #endif
   }
@@ -4928,8 +4929,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
   (*rules)[*nrrules]->userdata = userdata;
   struct rules_t *obj = (*rules)[*nrrules];
-
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
   memused += sizeof(struct rules_t **);
   memused += sizeof(struct rule_timer_t);
 #endif
@@ -4956,7 +4956,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     }
     mempool_rule->len -= sizeof(struct rules_t);
     (*nrrules)--;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     memused = 0;
 #endif
     return -1;
@@ -5019,7 +5019,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
         }
         mempool_rule->len -= sizeof(struct rules_t);
         (*nrrules)--;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
         memused = 0;
 #endif
         return -1;
@@ -5050,7 +5050,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       }
       memset(&varstack->buffer[varstack->bufsize], 0, varsize);
       varstack->bufsize += varsize;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       memused += varsize;
 #endif
     }
@@ -5068,7 +5068,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       }
       mempool_rule->len -= sizeof(struct rules_t);
       (*nrrules)--;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       memused = 0;
 #endif
       return -1;
@@ -5084,8 +5084,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
       getval(obj->heap->bufsize),
-      getval(stack->nrbytes),
-      getval(stack->bufsize),
+      ((stack == NULL) ? 0 : getval(stack->nrbytes)),
+      ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
       (varstack->bufsize)
     );
@@ -5101,8 +5101,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
       getval(obj->heap->bufsize),
-      getval(stack->nrbytes),
-      getval(stack->bufsize),
+      ((stack == NULL) ? 0 : getval(stack->nrbytes)),
+      ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
       (varstack->bufsize)
     );
@@ -5138,22 +5138,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-  {
-    {
-      struct pbuf *tmp = mempool_ori;
-      while(tmp) {
-        tmp->flags = 0;
-        tmp = tmp->next;
-      }
-    }
-
-    /*
-     * Flag the current mempool as the one
-     * holding the last varstack instance.
-     */
-    mempool->flags = 1;
-  }
-
 /*LCOV_EXCL_START*/
 #ifdef ESP8266
   timestamp.first = micros();
@@ -5171,13 +5155,13 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   timestamp.second = micros();
 
   logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
-  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d, varstack %d/%d bytes"),
+  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
     getval(obj->heap->bufsize),
-    getval(stack->nrbytes),
-    getval(stack->bufsize),
+    ((stack == NULL) ? 0 : getval(stack->nrbytes)),
+    ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
     (varstack->bufsize)
   );
@@ -5193,17 +5177,23 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
     getval(obj->heap->bufsize),
-    getval(stack->nrbytes),
-    getval(stack->bufsize),
+    ((stack == NULL) ? 0 : getval(stack->nrbytes)),
+    ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
     (varstack->bufsize)
   );
 #endif
 /*LCOV_EXCL_STOP*/
 
-  if((getval(stack->bufsize) % 4) != 0) {
-    printf("Rules AST not 4 byte aligned!\n");
-    exit(-1);
+  if(stack != NULL) {
+    if((getval(stack->bufsize) % 4) != 0) {
+#ifdef ESP8266
+      Serial.printf("Rules AST not 4 byte aligned!\n");
+#else
+      printf("Rules AST not 4 byte aligned!\n");
+#endif
+      exit(-1);
+    }
   }
 
   return 0;
