@@ -76,6 +76,10 @@ typedef struct rule_timer_t {
 static struct rule_timer_t timestamp;
 #endif
 
+#ifdef __linux__
+#define PROGMEM
+#endif
+
 typedef struct array_t {
   const char *key;
   union {
@@ -103,7 +107,7 @@ struct unittest_t {
     uint16_t bytes;
   } run[3];
   int8_t dofail;
-} unittests[] = {
+} unittests[] PROGMEM = {
   /*
    * Valid rules
    * Run the first rule twice to get
@@ -834,9 +838,11 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   rule_options.vm_value_get = vm_value_get;
   rule_options.event_cb = event_cb;
 
-  int nrtests = sizeof(unittests)/sizeof(unittests[0]);
-#ifdef ESP8266
+  struct unittest_t unittest;
+  memset(&unittest, 0, sizeof(struct unittest_t));
 
+  int nrtests = sizeof(unittests)/sizeof(struct unittest_t);
+#ifdef ESP8266
   /*LCOV_EXCL_START*/
   if(*i >= nrtests) {
     delay(3);
@@ -845,7 +851,13 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   /*LCOV_EXCL_STOP*/
 #endif
 
-  int len = strlen(unittests[(*i)].rule), oldoffset = 0;
+#ifdef ESP8266
+  memcpy_P(&unittest, &unittests[(*i)], sizeof(struct unittest_t));
+#else
+  memcpy(&unittest, &unittests[(*i)], sizeof(struct unittest_t));
+#endif
+
+  int len = strlen(unittest.rule), oldoffset = 0;
   int ret = 0;
 
   struct pbuf mem;
@@ -862,12 +874,12 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
     for(y=0;y<len;y++) {
-      mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)unittests[(*i)].rule[y]);
+      mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)unittest.rule[y]);
     }
   } else {
 #endif
     for(y=0;y<len;y++) {
-      mempool[txtoffset+y] = (uint8_t)unittests[(*i)].rule[y];
+      mempool[txtoffset+y] = (uint8_t)unittest.rule[y];
     }
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   }
@@ -935,16 +947,16 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       }
     }
 
-    if(unittests[(*i)].dofail == 0 && strcmp(out, unittests[(*i)].validate[rule_nr-1].output) != 0) {
+    if(unittest.dofail == 0 && strcmp(out, unittest.validate[rule_nr-1].output) != 0) {
 #ifdef ESP8266
       char str[OUTPUT_SIZE];
       memset(&str, 0, OUTPUT_SIZE);
-      snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].validate[rule_nr-1].output, out);
+      snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittest.validate[rule_nr-1].output, out);
       Serial.println(str);
       exit(-1);
 #else
       /*LCOV_EXCL_START*/
-      printf("Expected: %s\n", unittests[(*i)].validate[rule_nr-1].output);
+      printf("Expected: %s\n", unittest.validate[rule_nr-1].output);
       printf("Was: %s\n", out);
       exit(-1);
       /*LCOV_EXCL_STOP*/
@@ -953,8 +965,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
 #ifndef ESP8266
     /*LCOV_EXCL_START*/
-    if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes) {
-      printf("Expected: %d\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes);
+    if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittest.validate[rules[nrrules-1]->nr-1].bytes) {
+      printf("Expected: %d\n", unittest.validate[rules[nrrules-1]->nr-1].bytes);
       printf("Was: %d\n", rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused());
 
       exit(-1);
@@ -983,8 +995,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 
 #ifndef ESP8266
       /*LCOV_EXCL_START*/
-      if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes) {
-        printf("Expected: %d\n", unittests[(*i)].validate[rules[nrrules-1]->nr-1].bytes);
+      if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittest.validate[rules[nrrules-1]->nr-1].bytes) {
+        printf("Expected: %d\n", unittest.validate[rules[nrrules-1]->nr-1].bytes);
         printf("Was: %d\n", rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused());
 
         exit(-1);
@@ -1022,16 +1034,16 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       }
 
 
-      if(unittests[(*i)].dofail == 0 && strcmp(out, unittests[(*i)].run[rule_nr-1].output) != 0) {
+      if(unittest.dofail == 0 && strcmp(out, unittest.run[rule_nr-1].output) != 0) {
 #ifdef ESP8266
         char str[OUTPUT_SIZE];
         memset(&str, 0, OUTPUT_SIZE);
-        snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittests[(*i)].run[rule_nr-1].output, out);
+        snprintf((char *)&str, OUTPUT_SIZE, "Expected: %s\nWas: %s", unittest.run[rule_nr-1].output, out);
         Serial.println(str);
         exit(-1);
 #else
         /*LCOV_EXCL_START*/
-        printf("Expected: %s\n", unittests[(*i)].run[rule_nr-1].output);
+        printf("Expected: %s\n", unittest.run[rule_nr-1].output);
         printf("Was: %s\n", out);
         exit(-1);
         /*LCOV_EXCL_STOP*/
@@ -1059,7 +1071,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
     }
   }
 
-  if(unittests[(*i)].dofail != ret) {
+  if(unittest.dofail != ret) {
     /*LCOV_EXCL_START*/
     printf("error %d\n", __LINE__);
     exit(-1);
@@ -1067,8 +1079,8 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   }
 
   if(ret == -1) {
-    const char *rule = unittests[(*i)].rule;
-    int size = strlen(unittests[(*i)].rule);
+    const char *rule = unittest.rule;
+    int size = strlen(unittest.rule);
 #ifdef ESP8266
     char str[OUTPUT_SIZE];
     /*LCOV_EXCL_START*/

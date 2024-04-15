@@ -338,7 +338,7 @@ static int8_t lexer_parse_quoted_string(char *text, uint16_t len, uint16_t *pos)
   while(*pos < len) {
     if((current < 9 || current > 10) && (current < 32 || current > 127)) {
       return -2;
-    } else if(current == '\\' && text[(*pos+1)] == start) {
+    } else if(current == '\\' && getval(text[(*pos+1)]) == start) {
       (*pos)+=2;
     } else if(start == current) {
       (*pos)--;
@@ -4630,6 +4630,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
 /*****************/
   STEP_CLEAR: {
+
     memset(stack->buffer, 0, getval(stack->bufsize));
     setval(stack->nrbytes, 4);
     pos += sizeof(struct vm_top_t);
@@ -4872,7 +4873,7 @@ void rules_gc(struct rules_t ***rules, uint8_t *nrrules) {
 
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata) {
   struct pbuf *mempool_rule = NULL;
-  uint16_t newlen = getval(input->tot_len);
+  uint16_t newlen = getval(input->tot_len), max_varstack_size = 4;
   uint16_t heapsize = 4, bcsize = 0, varsize = 0, memsize = 0;
   if(varstack == NULL) {
     if((varstack = (struct rule_stack_t *)MALLOC(sizeof(struct rule_stack_t))) == NULL) {
@@ -4882,6 +4883,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #if defined(DEBUG) || defined(COVERALLS)
     memused += sizeof(struct rule_stack_t);
 #endif
+  }
+
+  if(stack != NULL) {
+    if(getval(stack->bufsize) > max_varstack_size) {
+      max_varstack_size = getval(stack->bufsize);
+    }
   }
 
   if(newlen == 0) {
@@ -4925,7 +4932,6 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   (*rules)[*nrrules] = (struct rules_t *)&((unsigned char *)mempool->payload)[mempool->len];
   memset((*rules)[*nrrules], 0, sizeof(struct rules_t));
   mempool->len += sizeof(struct rules_t);
-
 
   (*rules)[*nrrules]->userdata = userdata;
   struct rules_t *obj = (*rules)[*nrrules];
@@ -5041,6 +5047,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     mempool->len += heapsize+sizeof(struct rule_stack_t);
 
     stack = (struct rule_stack_t *)&((unsigned char *)mempool->payload)[mempool->len];
+    setval(stack->bufsize, max_varstack_size);
     setval(stack->nrbytes, 4);
     stack->buffer = &((unsigned char *)mempool->payload)[mempool->len+sizeof(struct rule_stack_t)];
 

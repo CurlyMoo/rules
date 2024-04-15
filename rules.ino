@@ -66,23 +66,27 @@ void loop() {
       ESP.wdtFeed();
 
 #ifdef MMU_SEC_HEAP
-      if(heap == 0) {
+      if(testnr >= 0) {
+        if(heap == 0) {
 #endif
-        Serial.println(F("Running from 1st heap"));
-        memset(mempool, 0, MEMPOOL_SIZE);
-        if(testnr >= 0) {
-          run_test(&testnr, mempool, MEMPOOL_SIZE);
-        }
+          Serial.println(F("Running from 1st heap"));
+          memset(mempool, 0, MEMPOOL_SIZE);
+          if(testnr >= 0) {
+            run_test(&testnr, mempool, MEMPOOL_SIZE);
+          }
 #ifdef MMU_SEC_HEAP
-      } else {
-        Serial.println(F("Running from 2nd heap"));
-        memset((unsigned char *)MMU_SEC_HEAP, 0, MMU_SEC_HEAP_SIZE);
-        if(testnr >= 0) {
-          run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MMU_SEC_HEAP_SIZE);
-          testnr += heap;
+        } else {
+          Serial.println(F("Running from 2nd heap"));
+          memset((unsigned char *)MMU_SEC_HEAP, 0, MMU_SEC_HEAP_SIZE);
+          if(testnr >= 0) {
+            run_test(&testnr, (unsigned char *)MMU_SEC_HEAP, MMU_SEC_HEAP_SIZE);
+            testnr += heap;
+          }
         }
+        heap ^= 1;
+      } else {
+        testnr++;
       }
-      heap ^= 1;
 #else
       testnr++;
 #endif
@@ -95,21 +99,19 @@ void loop() {
           uint8_t loc[2];
           int8_t ret;
         } tests[nrtests] = {
-          { { 750, 500 }, { 284, 0 }, {1, 0}, 0 },
-          { { 300, 300 }, { 196, 88 }, {0, 1}, 0 },
-          { { 300, 300 }, { 196, 88 }, {1, 0}, 0 },
-          { { 300, 300 }, { 196, 88 }, {1, 1}, 0 },
-          { { 300, 300 }, { 196, 88 }, {0, 0}, 0 },
-          { { 175, 175 }, { 0, 180 }, {0, 0}, -1 }
+          { { 750, 500 }, { 252, 0 }, {1, 0}, 0 },
+          { { 300, 300 }, { 168, 84 }, {0, 1}, 0 },
+          { { 300, 300 }, { 168, 84 }, {1, 0}, 0 },
+          { { 300, 300 }, { 168, 84 }, {1, 1}, 0 },
+          { { 300, 300 }, { 168, 84 }, {0, 0}, 0 },
+          { { 175, 175 }, { 0, 120 }, {0, 0}, -1 }
         };
 
         for(uint8_t i=0;i<nrtests;i++) {
           struct pbuf mem;
           struct pbuf mem1;
-          struct pbuf input;
           memset(&mem, 0, sizeof(struct pbuf));
           memset(&mem1, 0, sizeof(struct pbuf));
-          memset(&input, 0, sizeof(struct pbuf));
 
 #ifdef MMU_SEC_HEAP
           memset((unsigned char *)MMU_SEC_HEAP, 0, MMU_SEC_HEAP_SIZE);
