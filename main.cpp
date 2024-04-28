@@ -161,6 +161,8 @@ struct unittest_t {
   { "if 3 == 3 then $a = 'foo bar'; end", { { "[1]$a = foo bar", 127 } }, { { "[1]$a = foo bar", 127 } }, 0 },
   { "if 3 == 3 then $a = 'foo\tbar'; end", { { "[1]$a = foo\tbar", 127 } }, { { "[1]$a = foo\tbar", 127 } }, 0 },
   { "if 3 == 3 then $a = 'foo\nbar'; end", { { "[1]$a = foo\nbar", 127 } }, { { "[1]$a = foo\nbar", 127 } }, 0 },
+  { "if 3 == 3 then $a = concat(1, 2, 3); end", { { "[1]$a = 123", 147 } }, { { "[1]$a = 123", 147 } }, 0 },
+  { "if 3 == 3 then $a = concat(1.2, NULL, 3); end", { { "[1]$a = 1.2NULL3", 143 } }, { { "[1]$a = 1.2NULL3", 143 } }, 0 },
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); end", { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, 0 },
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, 0 },
   { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
@@ -537,7 +539,6 @@ bar", 127 } } }, // Newline
   { "if 1 == 1 then $a = 'á'; end", { { NULL, 0 } },  { { NULL, 0 } }, -1 },
   // { "on foo then bar(); end  ", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if max(1, 2); max(1, 2); then $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
-  { "if 3 == 3 then concat(1, 2); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   // { "if 1 == 1 then max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo then $a = 1; max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then $a = 1; max(1, 2) end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
