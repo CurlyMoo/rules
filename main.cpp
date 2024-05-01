@@ -165,6 +165,7 @@ struct unittest_t {
   { "if 3 == 3 then $a = concat(1.2, NULL, 3); end", { { "[1]$a = 1.2NULL3", 143 } }, { { "[1]$a = 1.2NULL3", 143 } }, 0 },
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); end", { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, 0 },
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, 0 },
+  { "if 3 == 3 then $a = 1; $b = concat('{zone1:{heat:{target:{high:', $a + 1, ',low:', $a + 1, '}}}}'); end", { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, 0 },
   { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
   { "if 1 == 1 then $a = \"foo	bar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
   { "if 1 == 1 then $a = \"foo\\tbar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
@@ -342,6 +343,7 @@ bar", 127 } } }, // Newline
   { "if 1 == 1 then $a = 5 * max(NULL, $b * 2); end", { "[1]$a = 20", 158 }, { "[1]$a = 20", 150 }, 0 },
   { "if 1 == 1 then $a = 5 + max(NULL, $b * 2) * 2; end", { "[1]$a = 13", 162 }, { "[1]$a = 13", 162 }, 0 },
   { "if 1 == 1 then $a = 5 * max(1 * 2, $b * 2); end", { "[1]$a = 20", 162 }, { "[1]$a = 20", 162 }, 0 },
+  { "if 3 == 3 then $a = max(1, 2 + 1, 2); end", { { "[1]$a = 3", 135 } }, { { "[1]$a = 3", 135 } }, 0 },
   { "if 1 == 1 then $a = max(5) * max(NULL, $b * 2); end", { "[1]$a = 20", 170 }, { "[1]$a = 20", 170 }, 0 },
   { "if 1 == 1 then $a = (5) * ($b * 2) + (1) * (1 + 2 * 3 / 2 ^ 2 ^ 2 * 1 ^ 2); end", { "[1]$a = 21.375", 190 }, { "[1]$a = 21.375", 190 }, 0 },
   { "if 1 == 1 then $a = max(5) * max(NULL, $b * 2) + max(1) * max(0, 1 + 2 * 3 / 2 ^ 2 ^ 2 * 1 ^ 2); end", { "[1]$a = 21.375", 246 }, { "[1]$a = 21.375", 256 }, 0 },
