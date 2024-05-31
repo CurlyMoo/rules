@@ -1112,7 +1112,107 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   rules_gc(&rules, &nrrules);
 }
 
-void check_rule_name(int *i, unsigned char *mempool, uint16_t size) {
+void check_rule_by_name(int *i, unsigned char *mempool, uint16_t size) {
+#ifdef ESP8266
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  Serial.printf("[ %-*s Retrieving rule id %-*s ]\n", 23, " ", 26, " ");
+  Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#else
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+  printf("[ %-*s Retrieving rule id %-*s ]\n", 23, " ", 26, " ");
+  printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
+#endif
+
+  memset(&rule_options, 0, sizeof(struct rule_options_t));
+  rule_options.is_variable_cb = is_variable;
+  rule_options.is_event_cb = is_event;
+  rule_options.done_cb = rule_done_cb;
+  rule_options.vm_value_set = vm_value_set;
+  rule_options.vm_value_get = vm_value_get;
+  rule_options.event_cb = event_cb;
+
+  const char *rule = "on timer=1 then $a = 1; end on timer=11 then $a = 2; end";
+
+  int len = strlen(rule);
+  int ret = 0;
+
+  struct pbuf mem;
+  struct pbuf input;
+  memset(&mem, 0, sizeof(struct pbuf));
+  memset(&input, 0, sizeof(struct pbuf));
+
+  mem.payload = mempool;
+  mem.len = 0;
+  mem.tot_len = size;
+
+  uint8_t y = 0;
+  uint16_t txtoffset = alignedbuffer(size-len-5);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      mmu_set_uint8((void *)&(mempool[txtoffset+y]), (uint8_t)rule[y]);
+    }
+  } else {
+#endif
+    for(y=0;y<len;y++) {
+      mempool[txtoffset+y] = (uint8_t)rule[y];
+    }
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  input.payload = &mempool[txtoffset];
+  input.len = txtoffset;
+  input.tot_len = len;
+
+  unsigned char *cpytxt = (unsigned char *)MALLOC(len+1);
+  if(cpytxt == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(cpytxt, 0, len+1);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  if((void *)mempool >= (void *)MMU_SEC_HEAP) {
+    for(y=0;y<len;y++) {
+      cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
+    }
+  } else {
+#endif
+    memcpy(cpytxt, input.payload, len);
+#if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
+  }
+#endif
+
+  while((ret = rule_initialize(&input, &rules, &nrrules, &mem, NULL)) == 0) {
+    FREE(cpytxt);
+    input.payload = &mempool[getval(input.len)];
+    len = getval(input.tot_len);
+
+    if(len == 0) {
+      break;
+    }
+    cpytxt = (unsigned char *)MALLOC(len+1);
+    if(cpytxt == NULL) {
+      OUT_OF_MEMORY
+    }
+    memset(cpytxt, 0, len+1);
+    for(y=0;y<len;y++) {
+      cpytxt[y] = mmu_get_uint8(&((unsigned char *)input.payload)[y]);
+    }
+  }
+
+  uint8_t a = rule_by_name(rules, nrrules, (char *)"timer=1");
+  uint8_t b = rule_by_name(rules, nrrules, (char *)"timer=11");
+  if(a != 0 || b != 1) {
+    /*LCOV_EXCL_START*/
+    exit(-1);
+    /*LCOV_EXCL_STOP*/
+  }
+
+  FREE(cpytxt);
+  rules_gc(&rules, &nrrules);
+}
+
+void check_rule_by_id(int *i, unsigned char *mempool, uint16_t size) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_variable_cb = is_variable;
   rule_options.is_event_cb = is_event;
@@ -1425,7 +1525,10 @@ int main(int argc, char **argv) {
   }
 
   memset(mempool, 0, MEMPOOL_SIZE*2);
-  check_rule_name(&i, &mempool[0], MEMPOOL_SIZE);
+  check_rule_by_id(&i, &mempool[0], MEMPOOL_SIZE);
+
+  memset(mempool, 0, MEMPOOL_SIZE*2);
+  check_rule_by_name(&i, &mempool[0], MEMPOOL_SIZE);
 
   FREE(mempool);
 
