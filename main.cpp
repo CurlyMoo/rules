@@ -127,7 +127,7 @@ struct unittest_t {
   { "if $z == $z then $z = $z; end", { { "[1]$z = NULL", 115 } }, { { "", 115 } }, 0 },
   { "if $z == $y then $z = $y; end", { { "[1]$z = NULL", 134 } }, { { "", 134 } }, 0 },
   { "if $z == $y then $z = $x; end", { { "[1]$z = NULL", 153 } }, { { "", 153 } }, 0 },
-  { "if $z == $y then $z = $x; $z = $z; $y = $x; end", { { "[1]$z = NULL[1]$y = NULL", 173 } }, { { "", 173 } }, 0 },
+  { "if $z == $y then $z = $x; $z = $z; $y = $x; end", { { "[1]$z = NULL[1]$y = NULL", 177 } }, { { "", 177 } }, 0 },
   { "if $a == $b then $a = $c + $a / $b; end", { { "[1]$a = 3.5", 173 } }, { { "", 173 } }, 0 },
   { "if $a == $b then $a = $c + 1 / $b; end", { { "[1]$a = 3.5", 169 } }, { { "", 169 } }, 0 },
   { "if $a == $b then $a = $c + $a / 2; end", { { "[1]$a = 3.5", 169 } }, { { "", 169 } }, 0 },
@@ -164,8 +164,9 @@ struct unittest_t {
   { "if 3 == 3 then $a = concat(1, 2, 3); end", { { "[1]$a = 123", 147 } }, { { "[1]$a = 123", 147 } }, 0 },
   { "if 3 == 3 then $a = concat(1.2, NULL, 3); end", { { "[1]$a = 1.2NULL3", 143 } }, { { "[1]$a = 1.2NULL3", 143 } }, 0 },
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); end", { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, { { "[1]$a = foo bar[1]$b = foo bar foo", 228 } }, 0 },
-  { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 360 } }, 0 },
+  { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 348 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 348 } }, 0 },
   { "if 3 == 3 then $a = 1; $b = concat('{zone1:{heat:{target:{high:', $a + 1, ',low:', $a + 1, '}}}}'); end", { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, 0 },
+  { "if 3 == 3 then $a = 27; $b = 1; $c = concat('{zone1:{heat:{target:{high:', $a + $b, ',low:', $a + $b, '}}}}'); end", { { "[1]$a = 27[1]$b = 1[1]$c = {zone1:{heat:{target:{high:28,low:28}}}}", 324 } }, { { "[1]$a = 27[1]$b = 1[1]$c = {zone1:{heat:{target:{high:28,low:28}}}}", 324 } }, 0 },
   { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
   { "if 1 == 1 then $a = \"foo	bar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
   { "if 1 == 1 then $a = \"foo\\tbar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
@@ -480,7 +481,7 @@ bar", 127 } } }, // Newline
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "[1]$a = 2[1]$b = 3", 174 }, { "[1]$a = 2", 174 }, 0 },
   { "if 1 == 1 then $a = 1; else $a = min(1, 2, 3); end", { "[1]$a = 1", 139 }, { "[1]$a = 1", 139 }, 0 },
   { "if 1 == 1 then $a = 1; else $a = min(max(1, 2), 2, 3); end", { "[1]$a = 2", 155 }, { "[1]$a = 1", 155 }, 0 },
-  { "on bar then $a = 1; end on foo then $b = max(1, 2); bar(); end if 3 == 3 then foo(); $a = min(1, 2); end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$b = 2", 226 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 274 } }, { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$b = 2", 16 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 16 } }, 0 },
+  { "on bar then $a = 1; end on foo then $b = max(1, 2); bar(); end if 3 == 3 then foo(); $a = min(1, 2); end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$b = 2", 222 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 274 } }, { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$b = 2", 16 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 16 } }, 0 },
   { "on foo then if max(1) == max(1) then $a = 1; end end", { "[1]$a = 1", 143 }, { "[1]$a = 1", 143 }, 0 },
   { "on foo then if max($c) == 3 && max($a) then $a = 1; end end", { "[1]$a = 1", 178 }, { "[1]$a = 1", 178 }, 0 },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "[1]$a = 6", 111 }, { "[2]$b = 3", 182 } }, { { "[1]$a = 6", 111 }, { "[2]$b = 3", 111 } }, 0 },
@@ -500,6 +501,7 @@ bar", 127 } } }, // Newline
   { "on foo then $a = 1; end if 3 == 3 then foo(); else $a = 1; end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 179 } }, { { "[1]$a = 1", 119 }, { "[1]$a = 1", 119 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then foo(); elseif 1 == 1 then $a = 1; end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 187 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 147 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then $a = 'foo'; end", { { "[1]$a = 1", 111 }, { "[2]$a = foo", 163 } }, { { "[1]$a = 1", 111 }, { "[2]$a = foo", 202 } }, 0 },
+  { "if 1 == 1 then $a = 1; $b = 2; $aa = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.1; $bb = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.2; $cc = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.3; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.4; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.5; $ee = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.6; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.7; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.8; $gg = round($a / (($b * 230) + 50) * 10) / 10; end", { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, 0 },
 
   /*
    * Invalid rules
@@ -872,7 +874,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   mem.len = 0;
   mem.tot_len = size;
 
-  uint8_t y = 0;
+  uint16_t y = 0;
   uint16_t txtoffset = alignedbuffer(size-len-5);
 #if (!defined(NON32XFER_HANDLER) && defined(MMU_SEC_HEAP)) || defined(COVERALLS)
   if((void *)mempool >= (void *)MMU_SEC_HEAP) {
