@@ -1985,8 +1985,8 @@ static void bc_assign_slots(struct rules_t *obj) {
            gettype(obj->bc.buffer[a]) == OP_RET)) {
           end = bc_before(obj, a);
           break;
-        } else if(bc_next(obj, a) >= 0 &&
-          gettype(obj->bc.buffer[a]) == OP_SETVAL && gettype(obj->bc.buffer[a+4]) == OP_SETVAL) {
+        } else if((c = bc_next(obj, a)) >= 0 &&
+          gettype(obj->bc.buffer[a]) == OP_SETVAL && gettype(obj->bc.buffer[c]) == OP_SETVAL) {
           end = a;
           break;
         }
