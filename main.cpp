@@ -587,6 +587,7 @@ bar", 127 } } }, // Newline
   { "on foo(max(1), $a) then $a = $b; end if 3 == 3 then foo(1, 5, 6); $b = 3; end  ", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then if 1 < 2 then elseif 1 == 1 then $a = 1; end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then if 1 < 2 then end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "on foo then $a = \"1\"; if $a == \"1\" then $b = \"2\"; end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
 
 };
 
