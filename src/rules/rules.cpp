@@ -108,7 +108,7 @@ static void *jmptbl[JMPSIZE] = { NULL };
 /*
  * This additional category is needed to seperate
  * the event that is used to define a new function
- * block and when calling  an event.
+ * block and when calling an event.
  */
 #define TCEVENT 30
 
@@ -2626,6 +2626,10 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
     }
 
     step = bc_parent(obj, rule_operators[idx].opcode, ++(*cnt), heap_in, d);
+    if(*cnt > 63) {
+      logprintf_P(F("ERROR: Too many stacked conditions"));
+      return -1;
+    }
 
     uint16_t nrbytes = getval(obj->bc.nrbytes);
     while(nrbytes > 0) {

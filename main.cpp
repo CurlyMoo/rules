@@ -634,6 +634,7 @@ bar", 127 } } }, // Newline
   { "if 1 == 2 then $a = 1; else $a = 3; elseif $a = 2; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo then elseif $a = 2; else $a = 1; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then $a = if 3 == 3 then max($a, 4, 2); $b = max(1, 3); max(foo#bar); end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
+  { "if $a >= 6 && $b <= -2 || $a == 5 && $b <= -2 || $a == 4 && $b <= -2 || $a == 3 && $b <= -3 || $a == 2 && $b <= -4 || $a == 1 && $b <= -5 || $a == 0 && $b <= -5 || $a == -1 && $b <= -6 || $a == -2 && $b <= -7 || $a == -3 && $b <= -8 || $a == -4 && $b <= -9 || $a == -5 && $b <= -9 || $a == -6 && $b <= -10 || $a == -7 && $b <= -11 || $a == -8 && $b <= -12 || $a == -9 && $b <= -13 || $a <= -10 && $b <= -14 then $c = 0; else $c = 3; end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   /*
    * FIXME: not sure what's wrong with this
    */
