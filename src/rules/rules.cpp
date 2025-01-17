@@ -4193,11 +4193,11 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
-    if(b > obj->heap->nrbytes) {
+    if(b > getval(obj->heap->nrbytes)) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
-    if(c > obj->heap->nrbytes) {
+    if(c > getval(obj->heap->nrbytes)) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
@@ -4572,7 +4572,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
-    if(a > obj->heap->nrbytes) {
+    if(a > getval(obj->heap->nrbytes)) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
@@ -4672,7 +4672,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       uint16_t b = vm_val_pos((int8_t)getval(node->b));
 
 #if defined(DEBUG) || defined(COVERALLS)
-      if(b > obj->heap->nrbytes) {
+      if(b > getval(obj->heap->nrbytes)) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
       }
@@ -4761,7 +4761,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       uint16_t a = vm_val_pos((int8_t)getval(node->a));
 
 #if defined(DEBUG) || defined(COVERALLS)
-      if(a > obj->heap->nrbytes) {
+      if(a > getval(obj->heap->nrbytes)) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
       }
@@ -4807,7 +4807,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
-    if(a > obj->heap->nrbytes) {
+    if(a > getval(obj->heap->nrbytes)) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
     }
