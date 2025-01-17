@@ -6,11 +6,11 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   #pragma GCC diagnostic warning "-fpermissive"
 #endif
 
-#ifndef ESP8266
+#if !defined(ESP8266) && !defined(ESP32)
   #include <stdio.h>
   #include <stdlib.h>
   #include <stdarg.h>
@@ -78,7 +78,7 @@ typedef struct vm_vchar_t {
   uint8_t len;
   uint8_t ref;
   char *value;
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
 } __attribute__((packed, aligned(4))) vm_vchar_t;
 #else
 } __attribute__((aligned(4))) vm_vchar_t;
@@ -191,7 +191,7 @@ static void print_bytecode(struct rules_t *obj);
 #endif
 /*LCOV_EXCL_STOP*/
 
-#ifndef ESP8266
+#if !defined(ESP8266)
 /*LCOV_EXCL_START*/
 uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
 uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
@@ -201,7 +201,7 @@ uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
 #endif
 
 typedef struct rule_timer_t {
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   uint32_t first;
   uint32_t second;
 #else
@@ -4180,7 +4180,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     uint8_t b = vm_val_pos((int8_t)getval(node->b));
     uint8_t c = vm_val_pos((int8_t)getval(node->c));
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->a) >= 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
@@ -4480,7 +4480,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*****************/
   STEP_JMP: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     /* LCOV_EXCL_START*/
     if((uint8_t)getval(node->a) <= 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
@@ -4563,7 +4563,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     uint16_t b = (int8_t)getval(node->b)*sizeof(struct vm_vchar_t);
     uint16_t a = vm_val_pos(getval(node->a));
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->b) < 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
@@ -4582,7 +4582,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
     rule_options.vm_value_get(obj);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     /* LCOV_EXCL_START*/
     if(rules_gettop(obj) < 2) {
       logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
@@ -4656,7 +4656,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   STEP_SETVAL: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->a) < 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
@@ -4671,12 +4671,14 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
       uint16_t b = vm_val_pos((int8_t)getval(node->b));
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       if(b > obj->heap->nrbytes) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
       }
+#endif
 
+#ifdef DEBUG
       struct vm_vchar_t *var = (struct vm_vchar_t *)&varstack->buffer[a];
       switch(gettype(obj->heap->buffer[b])) {
         case VINTEGER: {
@@ -4713,7 +4715,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
       uint16_t b = (int8_t)(getval(node->b)-1)*sizeof(struct vm_vchar_t);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       if(b > varstack->nrbytes) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
@@ -4758,7 +4760,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     if((int8_t)getval(node->a) < 0) {
       uint16_t a = vm_val_pos((int8_t)getval(node->a));
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       if(a > obj->heap->nrbytes) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
@@ -4769,7 +4771,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     } else {
       uint16_t a = (uint8_t)(getval(node->a)-1)*sizeof(struct vm_vchar_t);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
       if(a > varstack->nrbytes) {
         logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
         return -1;
@@ -4792,7 +4794,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     uint16_t b = (int8_t)getval(node->b);
     uint16_t c = (int8_t)getval(node->c);
 
-#ifdef DEBUG
+#if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->a) >= 0) {
       logprintf_P(F("FATAL: Internal error in %s #%d pos (%d)"), __FUNCTION__, __LINE__, pos/4);
       return -1;
@@ -5219,7 +5221,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   obj->name = NULL;
 
 /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   timestamp.first = micros();
 #else
   clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
@@ -5239,7 +5241,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   }
 
 /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   timestamp.second = micros();
 
   logprintf_P(F("rule #%d was prepared in %d microseconds"), mmu_get_uint8(&obj->nr), timestamp.second - timestamp.first);
@@ -5252,7 +5254,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 #endif
 /*LCOV_EXCL_STOP*/
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   if((heapsize % 4) != 0) {
     Serial.println("Rules bytecode not 4 byte aligned!");
     exit(-1);
@@ -5333,7 +5335,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     }
 
     /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
     timestamp.first = micros();
 #else
     clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
@@ -5352,7 +5354,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     }
 
 /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
     timestamp.second = micros();
 
     logprintf_P(F("rule #%d bytecode was created in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
@@ -5395,7 +5397,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 
 /*LCOV_EXCL_START*/
 #ifdef DEBUG
-  #ifndef ESP8266
+  #if !defined(ESP8266) && !defined(ESP32)
     print_bytecode(obj);
     printf("\n");
     print_heap(obj);
@@ -5416,7 +5418,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 /*LCOV_EXCL_STOP*/
 
 /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   timestamp.first = micros();
 #else
   clock_gettime(CLOCK_MONOTONIC, &timestamp.first);
@@ -5428,7 +5430,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   }
 
 /*LCOV_EXCL_START*/
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   timestamp.second = micros();
 
   logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
@@ -5465,7 +5467,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   if(stack != NULL) {
 /*LCOV_EXCL_START*/
     if((getval(stack->bufsize) % 4) != 0) {
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
       Serial.printf("Rules AST not 4 byte aligned!\n");
 #else
       printf("Rules AST not 4 byte aligned!\n");
