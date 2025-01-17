@@ -4946,6 +4946,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 }
 
 #ifdef DEBUG
+/*LCOV_EXCL_START*/
 static void print_heap(struct rules_t *obj) {
   uint16_t size = getval(obj->heap->nrbytes), i = 0;
 
