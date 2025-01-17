@@ -2231,6 +2231,9 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
         tmp1B = tmp1;
         while((tmp1B = bc_before(obj, tmp1B)) != -1 && tmp1B >= limit) {
           struct vm_top_t *xB = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
+          if(gettype(xB->type) == OP_GETVAL) {
+            continue;
+          }
           if(getval(x->a) == getval(xB->c) && gettype(xB->type) != OP_GETVAL) {
             break;
           }
@@ -2268,7 +2271,8 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
           while(tmp1C != -1) {
             struct vm_top_t *z = (struct vm_top_t *)&obj->bc.buffer[tmp1C];
 
-            if(gettype(z->type) != OP_GETVAL) {
+            if(gettype(z->type) != OP_GETVAL &&
+               gettype(z->type) != OP_CALL) {
               if(getval(z->c) == xA) {
                 setval(z->c, yA);
               } else if(getval(z->c) == yA) {
@@ -2285,7 +2289,6 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
         }
       }
     }
-
     x = (struct vm_top_t *)&obj->bc.buffer[nrbytes];
     if(gettype(x->type) == OP_GETVAL) {
       tmp1 = nrbytes;
@@ -2295,6 +2298,9 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
         tmp1B = tmp1;
         while((tmp1B = bc_before(obj, tmp1B)) != -1 && tmp1B >= limit) {
           struct vm_top_t *xB = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
+          if(gettype(xB->type) == OP_GETVAL) {
+            continue;
+          }
           if(getval(x->a) == getval(xB->b)) {
             break;
           }
@@ -2332,7 +2338,8 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
           while(tmp1C != -1) {
             struct vm_top_t *z = (struct vm_top_t *)&obj->bc.buffer[tmp1C];
 
-            if(gettype(z->type) != OP_GETVAL) {
+            if(gettype(z->type) != OP_GETVAL &&
+               gettype(z->type) != OP_CALL) {
               if(getval(z->c) == xA) {
                 setval(z->c, yA);
               } else if(getval(z->c) == yA) {
@@ -2349,6 +2356,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
         }
       }
     }
+
     x = (struct vm_top_t *)&obj->bc.buffer[nrbytes];
     if(is_op_and_math(gettype(x->type))) {
       tmp1 = nrbytes;
@@ -2406,7 +2414,8 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
             while(tmp1B != -1) {
               struct vm_top_t *z = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
 
-              if(gettype(z->type) != OP_GETVAL) {
+              if(gettype(z->type) != OP_GETVAL &&
+                 gettype(z->type) != OP_CALL) {
                 if(getval(z->c) == xA) {
                   setval(z->c, yA);
                 } else if(getval(z->c) == yA) {
@@ -2482,7 +2491,8 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
             while(tmp1C != -1) {
               struct vm_top_t *z = (struct vm_top_t *)&obj->bc.buffer[tmp1C];
 
-              if(gettype(z->type) != OP_GETVAL) {
+              if(gettype(z->type) != OP_GETVAL &&
+                 gettype(z->type) != OP_CALL) {
                 if(getval(z->c) == xA) {
                   setval(z->c, yA);
                 } else if(getval(z->c) == yA) {
@@ -3001,7 +3011,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
 
   while(loop) {
 #ifdef ESP8266
-    delay(0);
+    ESP.wdtFeed();;
 #endif
 #ifdef DEBUG
     printf("%s %d %d %d %d %s\n", __FUNCTION__, __LINE__, depth, pos, getval(obj->bc.nrbytes), token_names[go].name);
