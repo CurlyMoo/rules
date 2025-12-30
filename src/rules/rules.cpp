@@ -1881,7 +1881,7 @@ static int32_t vm_heap_next(struct rules_t *obj, uint8_t type, uint8_t skip) {
   return -1;
 }
 
-static uint16_t bc_whatfirst(struct rules_t *obj, char **text, uint16_t pos, uint8_t token) {
+static int32_t bc_whatfirst(struct rules_t *obj, char **text, uint16_t pos, uint8_t token) {
   uint16_t start = 0, len = 0, has_paren = 0, last_paren = -1;
   uint8_t type = 0;
   int8_t nrhooks = 0;
@@ -2203,14 +2203,11 @@ static void bc_assign_slots(struct rules_t *obj) {
 
 static int16_t bc_find_math_dep(struct rules_t *obj, uint16_t start, uint16_t a) {
   struct vm_top_t *tmp = NULL;
-  int32_t pos = -1;
-  if(a >= 0) {
-    pos = start;
-    while((pos = bc_before(obj, pos)) != -1) {
-      tmp = (struct vm_top_t *)&obj->bc.buffer[pos];
-      if(a == getval(tmp->a)) {
-        break;
-      }
+  int32_t pos = start;
+  while((pos = bc_before(obj, pos)) != -1) {
+    tmp = (struct vm_top_t *)&obj->bc.buffer[pos];
+    if(a == getval(tmp->a)) {
+      break;
     }
   }
   return pos;
@@ -3023,8 +3020,14 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
       case TELSEIF: {
         uint8_t a = 0;
         if(go == TTHEN) {
+          if(pos == 0) {
+            /* LCOV_EXCL_START*/
+            logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
+            return -1;
+            /* LCOV_EXCL_STOP*/
+          }
           uint16_t tmp = pos-1;
-          while(tmp >= 0 && lexer_peek(text, tmp, &a, &start, &len) > 0 && a != TIF && a != TELSEIF && tmp > 0) {
+          while(tmp > 0 && lexer_peek(text, tmp, &a, &start, &len) > 0 && a != TIF && a != TELSEIF) {
             tmp--;
           }
         }
@@ -3192,7 +3195,12 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
         uint16_t tmp = pos;
         if(type != TSEMICOLON) {
           paren[0] = getval(obj->bc.nrbytes);
-          pos = bc_whatfirst(obj, text, pos, TTHEN);
+          int32_t pos1 = bc_whatfirst(obj, text, pos, TTHEN);
+          if(pos1 == -1) {
+            return -1;
+          } else {
+            pos = pos1;
+          }
         }
         if(type != TSEMICOLON && pos > 0) {
           in_child = pos;
@@ -3495,7 +3503,12 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
       case TASSIGN: {
         uint16_t tmp = pos;
         paren[0] = getval(obj->bc.nrbytes);
-        pos = bc_whatfirst(obj, text, pos, TSEMICOLON);
+        int32_t pos1 = bc_whatfirst(obj, text, pos, TSEMICOLON);
+        if(pos1 == -1) {
+          return -1;
+        } else {
+          pos = pos1;
+        }
         if(pos > 0) {
           in_child = pos;
           if(lexer_peek(text, pos, &type, &start, &len) < 0) {
@@ -3641,7 +3654,12 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
             }
             in_child = pos;
             paren[0] = getval(obj->bc.nrbytes);
-            pos = bc_whatfirst(obj, text, pos, TSEMICOLON);
+            int32_t pos1 = bc_whatfirst(obj, text, pos, TSEMICOLON);
+            if(pos1 == -1) {
+              return -1;
+            } else {
+              pos = pos1;
+            }
             if(pos > 0) {
               in_child = pos;
               if(lexer_peek(text, pos, &type, &start, &len) < 0) {
