@@ -3184,6 +3184,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           case TIF:
           case TSEMICOLON:
           case TTHEN:
+          case TFUNCTION:
           case TVAR: {
           } break;
           default: {
@@ -3851,9 +3852,15 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
         }
 
         if(type == VPTR && in_child == -1) {
-          go = TIF;
-          ret = LPAREN;
-          pos+=2;
+          if(pos == 0) {
+            go = TIF;
+            ret = LPAREN;
+            pos+=2;
+          } else {
+            go = TIF;
+            ret = LPAREN;
+            pos++;
+          }
         } else if(type == TFUNCTION || type == TEVENT) {
           ret = LPAREN;
           go = type;

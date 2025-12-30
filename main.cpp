@@ -566,6 +566,10 @@ bar", 127 } } }, // Newline
   { "if 1 == 1 then $a = 1; $b = 2; $aa = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.1; $bb = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.2; $cc = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.3; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.4; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.5; $ee = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.6; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.7; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.8; $gg = round($a / (($b * 230) + 50) * 10) / 10; end", { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, 0 },
   { "on foo then coalesce(10, 5); $a = 1; $b = 2; if $c == 12 && $d == 0 then $e = 1; end", { "[1]$a = 1[1]$b = 2[1]$e = 1", 263 }, { "[1]$a = 1[1]$b = 2", 263 }, 0 },
 
+  { "on foo($a, $b) then print($a); $b = 1; end", { "[1]$a = NULL[1]$b = 1", 158 }, { "[1]$a = NULL[1]$b = 1", 158 }, 0 },
+  { "on foo then print($a); $b = 1; end", { "[1]$b = 1", 150 }, { "[1]$b = 1", 150 }, 0 },
+  { "on sub2($a) then print($a); $b = $a; end if 1 == 1 then print($a); sub2(2); end", { { "[1]$a = NULL[1]$b = NULL", 159 }, { "[1]$a = 2[1]$b = 2", 215 } }, { { "[1]$a = NULL[1]$b = NULL", 128 },{ "[1]$a = 2[1]$b = 2", 215 } }, 0 },
+  { "on sub2($a) then print($a); $c = $a + 1; end on sub1($a) then print($a); sub2($a + 1); $b = $a - 1; end if 1 == 1 then sub1(1); end", { { "[1]$a = NULL[1]$c = NULL", 167 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 271 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 271 } }, { { "[1]$a = NULL[1]$c = NULL", 128 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 196 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 196 } }, 0 },
   /*
    * Invalid rules
    */
@@ -672,6 +676,9 @@ static int8_t is_variable(char *text, uint16_t size) {
 static int8_t is_event(char *text, uint16_t size) {
   if(size == 3 &&
     (strnicmp(text, "foo", 3) == 0 || strnicmp(text, "bar", 3) == 0)) {
+    return 0;
+  } else if(size == 4 &&
+    (strnicmp(text, "sub1", 4) == 0 || strnicmp(text, "sub2", 4) == 0)) {
     return 0;
   }
   return -1;
