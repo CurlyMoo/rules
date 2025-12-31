@@ -688,17 +688,17 @@ static int8_t vm_value_set(struct rules_t *obj) {
   uint16_t x = 0;
   uint8_t type = 0;
 
-  if(rules_gettop(obj) < 2) {
+  if(rules_gettop() < 2) {
     return -1;
   }
-  type = rules_type(obj, -1);
+  type = rules_type(-1);
 
-  if(rules_type(obj, -2) != VCHAR ||
+  if(rules_type(-2) != VCHAR ||
     (type != VINTEGER && type != VFLOAT && type != VNULL && type != VCHAR)) {
     return -1;
   }
 
-  const char *key = rules_tostring(obj, -2);
+  const char *key = rules_tostring(-2);
 
   if(table == NULL) {
     if((table = (struct varstack_t *)MALLOC(sizeof(struct varstack_t))) == NULL) {
@@ -733,7 +733,7 @@ static int8_t vm_value_set(struct rules_t *obj) {
       if(array->type == VCHAR && array->val.s != NULL) {
         rules_unref(array->val.s);
       }
-      array->val.i = rules_tointeger(obj, -1);
+      array->val.i = rules_tointeger(-1);
       array->type = VINTEGER;
 
 #ifdef DEBUG
@@ -744,7 +744,7 @@ static int8_t vm_value_set(struct rules_t *obj) {
       if(array->type == VCHAR && array->val.s != NULL) {
         rules_unref(array->val.s);
       }
-      array->val.f = rules_tofloat(obj, -1);
+      array->val.f = rules_tofloat(-1);
       array->type = VFLOAT;
 
 #ifdef DEBUG
@@ -756,7 +756,7 @@ static int8_t vm_value_set(struct rules_t *obj) {
         rules_unref(array->val.s);
       }
 
-      array->val.s = rules_tostring(obj, -1);
+      array->val.s = rules_tostring(-1);
       array->type = VCHAR;
       rules_ref(array->val.s);
 
@@ -785,28 +785,28 @@ static int8_t vm_value_get(struct rules_t *obj) {
   struct varstack_t *table = (struct varstack_t *)obj->userdata;
   int16_t x = 0;
 
-  if(rules_gettop(obj) < 1) {
+  if(rules_gettop() < 1) {
     return -1;
   }
-  if(rules_type(obj, -1) != VCHAR) {
+  if(rules_type(-1) != VCHAR) {
     return -1;
   }
 
-  const char *key = rules_tostring(obj, -1);
+  const char *key = rules_tostring(-1);
 
   if(table == NULL) {
     if(strcmp(key, "$a") == 0) {
-      rules_pushinteger(obj, 1);
+      rules_pushinteger(1);
     } else if(strcmp(key, "$b") == 0) {
-      rules_pushinteger(obj, 2);
+      rules_pushinteger(2);
     } else if(strcmp(key, "$c") == 0) {
-      rules_pushinteger(obj, 3);
+      rules_pushinteger(3);
     } else if(strcmp(key, "foo#bar") == 0) {
-      rules_pushinteger(obj, 3);
+      rules_pushinteger(3);
     } else if(strcmp(key, "$d") == 0) {
-      rules_pushinteger(obj, 0);
+      rules_pushinteger(0);
     } else {
-      rules_pushnil(obj);
+      rules_pushnil();
 
 #ifdef DEBUG
       printf("%s %s = NULL\n", __FUNCTION__, key);
@@ -821,32 +821,32 @@ static int8_t vm_value_get(struct rules_t *obj) {
       }
     }
     if(array == NULL) {
-      rules_pushnil(obj);
+      rules_pushnil();
     } else {
       switch(array->type) {
         case VINTEGER: {
-          rules_pushinteger(obj, array->val.i);
+          rules_pushinteger(array->val.i);
 
 #ifdef DEBUG
           printf("%s %s = %d\n", __FUNCTION__, array->key, array->val.i);
 #endif
         } break;
         case VFLOAT: {
-          rules_pushfloat(obj, array->val.f);
+          rules_pushfloat(array->val.f);
 
 #ifdef DEBUG
           printf("%s %s = %g\n", __FUNCTION__, array->key, array->val.f);
 #endif
         } break;
         case VCHAR: {
-          rules_pushstring(obj, (char *)array->val.s);
+          rules_pushstring((char *)array->val.s);
 
 #ifdef DEBUG
           printf("%s %s = %s\n", __FUNCTION__, array->key, array->val.s);
 #endif
         } break;
         case VNULL: {
-          rules_pushnil(obj);
+          rules_pushnil();
 
 #ifdef DEBUG
           printf("%s %s = NULL\n", __FUNCTION__, array->key);
@@ -1187,7 +1187,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
   rules_gc(&rules, &nrrules);
 }
 
-void check_rule_by_name(int *i, unsigned char *mempool, uint16_t size) {
+void check_rule_by_name(unsigned char *mempool, uint16_t size) {
 #ifdef ESP8266
   Serial.printf("[ %-*s                    %-*s ]\n", 24, " ", 25, " ");
   Serial.printf("[ %-*s Retrieving rule id %-*s ]\n", 23, " ", 26, " ");
@@ -1287,7 +1287,7 @@ void check_rule_by_name(int *i, unsigned char *mempool, uint16_t size) {
   rules_gc(&rules, &nrrules);
 }
 
-void check_rule_by_id(int *i, unsigned char *mempool, uint16_t size) {
+void check_rule_by_id(unsigned char *mempool, uint16_t size) {
   memset(&rule_options, 0, sizeof(struct rule_options_t));
   rule_options.is_variable_cb = is_variable;
   rule_options.is_event_cb = is_event;
@@ -1565,7 +1565,7 @@ int8_t run_two_mempools(struct pbuf *mem) {
 
 
 #ifndef ESP8266
-int main(int argc, char **argv) {
+int main(void) {
   int nrtests = sizeof(unittests)/sizeof(unittests[0]), i = 0;
 
   unsigned char *mempool = (unsigned char *)MALLOC(MEMPOOL_SIZE*2);
@@ -1600,10 +1600,10 @@ int main(int argc, char **argv) {
   }
 
   memset(mempool, 0, MEMPOOL_SIZE*2);
-  check_rule_by_id(&i, &mempool[0], MEMPOOL_SIZE);
+  check_rule_by_id(&mempool[0], MEMPOOL_SIZE);
 
   memset(mempool, 0, MEMPOOL_SIZE*2);
-  check_rule_by_name(&i, &mempool[0], MEMPOOL_SIZE);
+  check_rule_by_name(&mempool[0], MEMPOOL_SIZE);
 
   FREE(mempool);
 

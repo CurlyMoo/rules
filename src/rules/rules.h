@@ -124,11 +124,7 @@ typedef struct rules_t {
     struct rules_t *go;
     struct rules_t *ret;
   } __attribute__((aligned(4))) ctx;
-#ifndef NON32XFER_HANDLER
-  uint32_t nr;
-#else
   uint8_t nr;
-#endif
 
   const char *name;
 
@@ -165,28 +161,27 @@ typedef struct rule_options_t {
 
 extern struct rule_options_t rule_options;
 
-int8_t rule_token(struct rule_stack_t *obj, uint16_t pos, unsigned char **out);
 const char *rule_by_nr(struct rules_t **rule, uint8_t nrrules, uint8_t nr);
 int8_t rule_by_name(struct rules_t **rule, uint8_t nrrules, char *name);
 int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrrules, struct pbuf *mempool, void *userdata);
 int8_t rule_run(struct rules_t *rule, uint8_t validate);
 void rules_gc(struct rules_t ***rules, uint8_t *nrrules);
 
-int8_t rules_pushnil(struct rules_t *obj);
-int8_t rules_pushfloat(struct rules_t *obj, float nr);
-int8_t rules_pushinteger(struct rules_t *obj, int nr);
-int8_t rules_pushstring(struct rules_t *obj, char *str);
+void rules_pushnil(void);
+void rules_pushfloat(float nr);
+void rules_pushinteger(int nr);
+void rules_pushstring(char *str);
 
 void rules_ref(const char *str);
 void rules_unref(const char *str);
 
-int rules_tointeger(struct rules_t *obj, int8_t pos);
-float rules_tofloat(struct rules_t *obj, int8_t pos);
-const char *rules_tostring(struct rules_t *obj, int8_t pos);
+int rules_tointeger(int8_t pos);
+float rules_tofloat(int8_t pos);
+const char *rules_tostring(int8_t pos);
 
-void rules_remove(struct rules_t *rule, int8_t pos);
-uint8_t rules_gettop(struct rules_t *rule);
-uint8_t rules_type(struct rules_t *rule, int8_t pos);
+void rules_remove(int8_t pos);
+uint8_t rules_gettop(void);
+uint8_t rules_type(int8_t pos);
 
 #if defined(DEBUG) || defined(COVERALLS)
 uint16_t rules_memused(void);

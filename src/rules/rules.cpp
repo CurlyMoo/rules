@@ -342,7 +342,7 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
 
 static int8_t lexer_parse_quoted_string(char *text, uint16_t len, uint16_t *pos) {
   uint8_t start = 0;
-  char current = 0;
+  unsigned char current = 0;
   current = getval(text[*pos]);
 
   while(*pos < len) {
@@ -1377,7 +1377,7 @@ static int8_t rule_prepare(char **text,
   return 0;
 }
 
-static uint32_t vm_stack_push(struct rules_t *obj, uint16_t pos, unsigned char *in) {
+static uint32_t vm_stack_push(uint16_t pos, unsigned char *in) {
   uint8_t type = 0, i = 0;
   uint16_t size = 0, ret = 0;
 
@@ -1407,7 +1407,7 @@ static uint32_t vm_stack_push(struct rules_t *obj, uint16_t pos, unsigned char *
 }
 
 
-static uint16_t vm_stack_del(struct rules_t *obj, uint16_t idx) {
+static uint16_t vm_stack_del(uint16_t idx) {
 #ifdef DEBUG
   printf("%s %d %d\n", __FUNCTION__, __LINE__, idx);
 #endif
@@ -1436,11 +1436,11 @@ static int16_t vm_val_pos(int8_t pos) {
   }
 }
 
-static int16_t vm_val_posr(int8_t pos) {
+static int32_t vm_val_posr(int8_t pos) {
   return ((pos-4)/rule_max_var_bytes()*-1)-1;
 }
 
-uint8_t rules_type(struct rules_t *obj, int8_t pos) {
+uint8_t rules_type(int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
     offset = getval(stack->nrbytes)-offset;
@@ -1456,15 +1456,15 @@ uint8_t rules_type(struct rules_t *obj, int8_t pos) {
   }
 }
 
-int8_t rules_pushnil(struct rules_t *obj) {
+void rules_pushnil(void) {
   unsigned char val[rule_max_var_bytes()] = { '\0' };
   struct vm_vnull_t *node = (struct vm_vnull_t *)val;
   node->type = VNULL;
 
-  return vm_stack_push(obj, 0, val) >= 0;
+  vm_stack_push(0, val);
 }
 
-int8_t rules_pushinteger(struct rules_t *obj, int nr) {
+void rules_pushinteger(int nr) {
   unsigned char val[rule_max_var_bytes()] = { '\0' };
   struct vm_vinteger_t *node = (struct vm_vinteger_t *)val;
   node->type = VINTEGER;
@@ -1472,10 +1472,10 @@ int8_t rules_pushinteger(struct rules_t *obj, int nr) {
   setval(node->value[1], ((uint32_t)nr >> 8) & 0xFF);
   setval(node->value[2], ((uint32_t)nr) & 0xFF);
 
-  return vm_stack_push(obj, 0, val) >= 0;
+  vm_stack_push(0, val);
 }
 
-int8_t rules_pushfloat(struct rules_t *obj, float nr) {
+void rules_pushfloat(float nr) {
   float f = float32to27(nr);
   uint32_t x = 0;
   float2uint32(f, &x);
@@ -1488,10 +1488,10 @@ int8_t rules_pushfloat(struct rules_t *obj, float nr) {
   setval(node->value[1], ((uint32_t)x >> 13) & 0xFF);
   setval(node->value[2], ((uint32_t)x >> 5) & 0xFF);
 
-  return vm_stack_push(obj, 0, val) >= 0;
+  vm_stack_push(0, val);
 }
 
-int8_t rules_pushstring(struct rules_t *obj, char *str) {
+void rules_pushstring(char *str) {
   uint16_t c = varstack_add(&str, 0, strlen(str), 0);
   assert(c >= 0);
 
@@ -1501,7 +1501,7 @@ int8_t rules_pushstring(struct rules_t *obj, char *str) {
   setval(node->type, VPTR);
   setval(node->value, c/sizeof(struct vm_top_t));
 
-  return vm_stack_push(obj, 0, val) >= 0;
+  vm_stack_push(0, val);
 }
 
 void rules_ref(const char *str) {
@@ -1536,7 +1536,7 @@ void rules_unref(const char *str) {
   }
 }
 
-const char *rules_tostring(struct rules_t *obj, int8_t pos) {
+const char *rules_tostring(int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
     offset = getval(stack->nrbytes)-offset;
@@ -1553,7 +1553,7 @@ const char *rules_tostring(struct rules_t *obj, int8_t pos) {
   return NULL;
 }
 
-int rules_tointeger(struct rules_t *obj, int8_t pos) {
+int rules_tointeger(int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
     offset = getval(stack->nrbytes)-offset;
@@ -1579,7 +1579,7 @@ int rules_tointeger(struct rules_t *obj, int8_t pos) {
   return 0;
 }
 
-float rules_tofloat(struct rules_t *obj, int8_t pos) {
+float rules_tofloat(int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
     offset = getval(stack->nrbytes)-offset;
@@ -1603,16 +1603,16 @@ float rules_tofloat(struct rules_t *obj, int8_t pos) {
   return 0;
 }
 
-uint8_t rules_gettop(struct rules_t *obj) {
+uint8_t rules_gettop(void) {
   return (getval(stack->nrbytes)-4) / rule_max_var_bytes();
 }
 
-void rules_remove(struct rules_t *obj, int8_t pos) {
+void rules_remove(int8_t pos) {
   int16_t offset = vm_val_pos(pos);
   if(pos < 0) {
     offset = getval(stack->nrbytes)-offset;
   }
-  vm_stack_del(obj, offset);
+  vm_stack_del(offset);
 }
 
 static uint16_t bc_parent(struct rules_t *obj, uint8_t type, int16_t a, int16_t b, int16_t c) {
@@ -1632,7 +1632,7 @@ static uint16_t bc_parent(struct rules_t *obj, uint8_t type, int16_t a, int16_t 
   return ret;
 }
 
-int32_t bc_before(struct rules_t *obj, uint16_t step) {
+int32_t bc_before(uint16_t step) {
   int32_t i = step;
 
   i -= sizeof(struct vm_top_t);
@@ -1668,7 +1668,7 @@ void bc_group(struct rules_t *obj, uint16_t start, uint16_t end) {
   }
 }
 
-static uint32_t vm_heap_push(struct rules_t *obj, uint8_t type, char **text, uint16_t start, uint16_t len, uint8_t forced) {
+static int32_t vm_heap_push(struct rules_t *obj, uint8_t type, char **text, uint16_t start, uint16_t len, uint8_t forced) {
   uint16_t size = 0, ret = 0;
   uint16_t i = 0;
 
@@ -1881,7 +1881,7 @@ static int32_t vm_heap_next(struct rules_t *obj, uint8_t type, uint8_t skip) {
   return -1;
 }
 
-static int32_t bc_whatfirst(struct rules_t *obj, char **text, uint16_t pos, uint8_t token) {
+static int32_t bc_whatfirst(char **text, uint16_t pos, uint8_t token) {
   uint16_t start = 0, len = 0, has_paren = 0, last_paren = -1;
   uint8_t type = 0;
   int8_t nrhooks = 0;
@@ -1988,11 +1988,11 @@ static void bc_assign_slots(struct rules_t *obj) {
           max = MAX(max, (int8_t)getval(node->a));
         }
         if(tmp > 0 && gettype(obj->bc.buffer[a]) == OP_SETVAL &&
-           gettype(obj->bc.buffer[tmp]) == OP_CLEAR && bc_before(obj, a) >= 0) {
-          end = bc_before(obj, a);
+           gettype(obj->bc.buffer[tmp]) == OP_CLEAR && bc_before(a) >= 0) {
+          end = bc_before(a);
           break;
         }
-        if(((c = bc_before(obj, a)) >= 0) &&
+        if(((c = bc_before(a)) >= 0) &&
            ((((int8_t)getval(node->a) < 0 && gettype(obj->bc.buffer[a]) != OP_PUSH)) ||
            gettype(obj->bc.buffer[a]) == OP_JMP ||
            gettype(obj->bc.buffer[a]) == OP_TEST ||
@@ -2006,7 +2006,7 @@ static void bc_assign_slots(struct rules_t *obj) {
           ) {
           end = a;
           break;
-        } else if((c = bc_before(obj, a)) >= 0 &&
+        } else if((c = bc_before(a)) >= 0 &&
           gettype(obj->bc.buffer[a]) == OP_SETVAL && gettype(obj->bc.buffer[c]) == OP_GETVAL) {
           end = a;
           break;
@@ -2040,7 +2040,7 @@ static void bc_assign_slots(struct rules_t *obj) {
       }
 
 
-      int32_t e = bc_before(obj, a);
+      int32_t e = bc_before(a);
       struct vm_top_t *z = NULL;
       if(e >= 0) {
         z = (struct vm_top_t *)&obj->bc.buffer[e];
@@ -2113,7 +2113,7 @@ static void bc_assign_slots(struct rules_t *obj) {
      * Reassign NULL slots to heap slots
      */
     uint8_t offset = 0, first = 1;
-    int16_t e = 0;
+    int32_t e = 0;
     for(a=start;a<=end;a = bc_next(obj, a)) {
       if(a == -1) {
         break;
@@ -2141,8 +2141,8 @@ static void bc_assign_slots(struct rules_t *obj) {
            gettype(obj->bc.buffer[tmp]) != OP_CLEAR) {
           offset++;
         } else if(gettype(obj->bc.buffer[a]) != OP_PUSH) {
-          int8_t b = vm_val_pos((int8_t)getval(x->b));
-          int8_t c = vm_val_pos((int8_t)getval(x->c));
+          int16_t b = vm_val_pos((int8_t)getval(x->b));
+          int16_t c = vm_val_pos((int8_t)getval(x->c));
 
           /*
            * If NULL was meant as a variable,
@@ -2204,7 +2204,7 @@ static void bc_assign_slots(struct rules_t *obj) {
 static int16_t bc_find_math_dep(struct rules_t *obj, uint16_t start, uint16_t a) {
   struct vm_top_t *tmp = NULL;
   int32_t pos = start;
-  while((pos = bc_before(obj, pos)) != -1) {
+  while((pos = bc_before(pos)) != -1) {
     tmp = (struct vm_top_t *)&obj->bc.buffer[pos];
     if(a == getval(tmp->a)) {
       break;
@@ -2215,7 +2215,7 @@ static int16_t bc_find_math_dep(struct rules_t *obj, uint16_t start, uint16_t a)
 
 static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
   int16_t tmp1 = -1, tmp1B = -1, tmp1C = -1;
-  uint16_t nrbytes = bc_before(obj, getval(obj->bc.nrbytes));
+  uint16_t nrbytes = bc_before(getval(obj->bc.nrbytes));
 
   while(nrbytes > limit) {
     struct vm_top_t *x = (struct vm_top_t *)&obj->bc.buffer[nrbytes];
@@ -2226,7 +2226,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
 
       if(getval(x->a) >= 0) {
         tmp1B = tmp1;
-        while((tmp1B = bc_before(obj, tmp1B)) != -1 && tmp1B >= limit) {
+        while((tmp1B = bc_before(tmp1B)) != -1 && tmp1B >= limit) {
           struct vm_top_t *xB = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
           if(gettype(xB->type) == OP_GETVAL || gettype(xB->type) == OP_CALL) {
             continue;
@@ -2293,7 +2293,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
 
       if(getval(x->a) >= 0) {
         tmp1B = tmp1;
-        while((tmp1B = bc_before(obj, tmp1B)) != -1 && tmp1B >= limit) {
+        while((tmp1B = bc_before(tmp1B)) != -1 && tmp1B >= limit) {
           struct vm_top_t *xB = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
           if(gettype(xB->type) == OP_GETVAL || gettype(xB->type) == OP_CALL) {
             continue;
@@ -2360,7 +2360,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
       tmp1C = -1;
       if(getval(x->c) >= 0) {
         tmp1C = tmp1;
-        while((tmp1C = bc_before(obj, tmp1C)) != -1) {
+        while((tmp1C = bc_before(tmp1C)) != -1) {
           struct vm_top_t *xC = (struct vm_top_t *)&obj->bc.buffer[tmp1C];
 
           if(getval(x->c) == getval(xC->a)) {
@@ -2438,7 +2438,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
 
       if(getval(x->b) >= 0) {
         tmp1B = tmp1;
-        while((tmp1B = bc_before(obj, tmp1B)) != -1) {
+        while((tmp1B = bc_before(tmp1B)) != -1) {
           struct vm_top_t *xB = (struct vm_top_t *)&obj->bc.buffer[tmp1B];
           if(getval(x->b) == getval(xB->a)) {
             break;
@@ -2508,7 +2508,7 @@ static void bc_math_move_closest(struct rules_t *obj, int16_t limit) {
       }
     }
 
-    nrbytes = bc_before(obj, nrbytes);
+    nrbytes = bc_before(nrbytes);
   }
 }
 
@@ -2646,7 +2646,7 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
         limit = nrbytes;
         break;
       }
-      nrbytes = bc_before(obj, nrbytes);
+      nrbytes = bc_before(nrbytes);
     }
 
     if(step >= 0 && bc_in >= 0 && bc_in >= first && step >= first) {
@@ -2681,7 +2681,7 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
           if(a_a == 1) {
             tmp1 = step, tmp2 = step;
 
-            tmp1 = bc_before(obj, tmp2);
+            tmp1 = bc_before(tmp2);
             while(tmp2 >= limit && tmp1 >= limit) {
 
               struct vm_top_t *x = (struct vm_top_t *)&obj->bc.buffer[tmp2];
@@ -2743,11 +2743,11 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
               } else {
                 tmp2 = tmp1;
               }
-              tmp1 = bc_before(obj, tmp2);
+              tmp1 = bc_before(tmp2);
             }
           } else {
             tmp1 = step, tmp2 = step;
-            tmp1 = bc_before(obj, tmp2);
+            tmp1 = bc_before(tmp2);
             while(tmp2 >= limit && tmp1 >= limit) {
               struct vm_top_t *x = (struct vm_top_t *)&obj->bc.buffer[tmp2];
 
@@ -2766,7 +2766,7 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
                   tmp2B = bc_find_math_dep(obj, tmp2, getval(x->b));
                   if(tmp2B == -1) {
                     tmp2 = tmp1;
-                    tmp1 = bc_before(obj, tmp2);
+                    tmp1 = bc_before(tmp2);
                     continue;
                   }
 
@@ -2774,7 +2774,7 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
 
                   if(get_group(obj->bc.buffer[tmp2B]) != 0) {
                     tmp2 = tmp1;
-                    tmp1 = bc_before(obj, tmp2);
+                    tmp1 = bc_before(tmp2);
                     continue;
                   }
 
@@ -2797,7 +2797,7 @@ static int32_t bc_parse_math_order(char **text, struct rules_t *obj, uint16_t *p
               } else {
                 tmp2 = tmp1;
               }
-              tmp1 = bc_before(obj, tmp2);
+              tmp1 = bc_before(tmp2);
             }
           }
         }
@@ -2942,7 +2942,7 @@ uint16_t lexer_clear(struct rules_t *obj, char **text, uint16_t start, uint16_t 
   }
 
   {
-    int32_t tmp = bc_before(obj, getval(obj->bc.nrbytes));
+    int32_t tmp = bc_before(getval(obj->bc.nrbytes));
     if(tmp >= 0) {
       /*
        * This is the only way to store a VPTR
@@ -3036,7 +3036,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           if(lastjmp > 0) {
             struct vm_top_t *jmp = NULL;
 
-            while((lastjmp = bc_before(obj, lastjmp))) {
+            while((lastjmp = bc_before(lastjmp))) {
               if(gettype(obj->bc.buffer[lastjmp]) == OP_JMP) {
                 jmp = (struct vm_top_t *)&obj->bc.buffer[lastjmp];
                 if((int8_t)getval(jmp->b) == depth) {
@@ -3163,7 +3163,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           uint16_t tmp = pos-1;
 
           uint8_t a = 0;
-          while(tmp >= 0 && lexer_peek(text, tmp, &a, &start, &len) > 0 && a != TIF && a != TEND && a != TTHEN && tmp > 0) {
+          while(tmp > 0 && lexer_peek(text, tmp, &a, &start, &len) > 0 && a != TIF && a != TEND && a != TTHEN) {
             tmp--;
           }
           if(a == TIF) {
@@ -3196,7 +3196,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
         uint16_t tmp = pos;
         if(type != TSEMICOLON) {
           paren[0] = getval(obj->bc.nrbytes);
-          int32_t pos1 = bc_whatfirst(obj, text, pos, TTHEN);
+          int32_t pos1 = bc_whatfirst(text, pos, TTHEN);
           if(pos1 == -1) {
             return -1;
           } else {
@@ -3427,7 +3427,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
         go = ret;
         ret = TNUMBER;
 
-        uint16_t a = 0;
+        int32_t a = 0;
         if(in_child > -1) {
           if(lexer_peek(text, in_child, &type, &start, &len) < 0) {
             /* LCOV_EXCL_START*/
@@ -3449,7 +3449,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           if(type == TVAR) {
             uint16_t c = varstack_add(text, start+1, len, 1);
             uint16_t d = bc_parent(obj, OP_SETVAL, c/sizeof(struct vm_vchar_t), 0, 0);
-            int32_t e = bc_before(obj, d);
+            int32_t e = bc_before(d);
             if(e >= 0 && gettype(obj->bc.buffer[e]) != OP_GETVAL) {
               mathcnt = 0;
             }
@@ -3504,7 +3504,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
       case TASSIGN: {
         uint16_t tmp = pos;
         paren[0] = getval(obj->bc.nrbytes);
-        int32_t pos1 = bc_whatfirst(obj, text, pos, TSEMICOLON);
+        int32_t pos1 = bc_whatfirst(text, pos, TSEMICOLON);
         if(pos1 == -1) {
           return -1;
         } else {
@@ -3613,7 +3613,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
             uint16_t a = varstack_add(text, start+1, len, 1);
 
             uint16_t b = bc_parent(obj, OP_SETVAL, a/sizeof(struct vm_vchar_t), val, 0);
-            int32_t c = bc_before(obj, b);
+            int32_t c = bc_before(b);
             if(c >= 0 && gettype(obj->bc.buffer[c]) != OP_GETVAL) {
               mathcnt = 0;
             }
@@ -3655,7 +3655,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
             }
             in_child = pos;
             paren[0] = getval(obj->bc.nrbytes);
-            int32_t pos1 = bc_whatfirst(obj, text, pos, TSEMICOLON);
+            int32_t pos1 = bc_whatfirst(text, pos, TSEMICOLON);
             if(pos1 == -1) {
               return -1;
             } else {
@@ -4098,7 +4098,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           int16_t step = getval(obj->bc.nrbytes);
           struct vm_top_t *jmp = NULL;
 
-          while((lastjmp = bc_before(obj, lastjmp))) {
+          while((lastjmp = bc_before(lastjmp))) {
             if(gettype(obj->bc.buffer[lastjmp]) == OP_JMP) {
               jmp = (struct vm_top_t *)&obj->bc.buffer[lastjmp];
               if((int8_t)getval(jmp->b) == depth) {
@@ -4211,9 +4211,9 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*****************/
   STEP_OP_MATH: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
-    uint8_t a = vm_val_pos((int8_t)getval(node->a));
-    uint8_t b = vm_val_pos((int8_t)getval(node->b));
-    uint8_t c = vm_val_pos((int8_t)getval(node->c));
+    int16_t a = vm_val_pos((int8_t)getval(node->a));
+    int16_t b = vm_val_pos((int8_t)getval(node->b));
+    int16_t c = vm_val_pos((int8_t)getval(node->c));
 
 #if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->a) >= 0) {
@@ -4539,7 +4539,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*****************/
   STEP_TEST: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
-    uint8_t a = vm_val_pos((int8_t)getval(node->a));
+    int16_t a = vm_val_pos((int8_t)getval(node->a));
 
     float x = 0;
     uint8_t x_type = gettype(obj->heap->buffer[a]);
@@ -4596,7 +4596,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
 
     uint16_t b = (int8_t)getval(node->b)*sizeof(struct vm_vchar_t);
-    uint16_t a = vm_val_pos(getval(node->a));
+    int16_t a = vm_val_pos(getval(node->a));
 
 #if defined(DEBUG) || defined(COVERALLS)
     if((int8_t)getval(node->b) < 0) {
@@ -4613,26 +4613,26 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
     }
 #endif
 
-    vm_stack_push(obj, b, &varstack->buffer[b]);
+    vm_stack_push(b, &varstack->buffer[b]);
 
     rule_options.vm_value_get(obj);
 
 #if defined(DEBUG) || defined(COVERALLS)
     /* LCOV_EXCL_START*/
-    if(rules_gettop(obj) < 2) {
+    if(rules_gettop() < 2) {
       logprintf_P(F("FATAL: Internal error in %s #%d"), __FUNCTION__, __LINE__);
       return -1;
     }
 #endif
 
     /* LCOV_EXCL_STOP*/
-    switch(rules_type(obj, -1)) {
+    switch(rules_type(-1)) {
       case VNULL: {
         struct vm_vnull_t *upd = (struct vm_vnull_t *)&obj->heap->buffer[a];
         setval(upd->type, VNULL);
       } break;
       case VINTEGER: {
-        int32_t x = rules_tointeger(obj, -1);
+        int32_t x = rules_tointeger(-1);
         struct vm_vinteger_t *upd = (struct vm_vinteger_t *)&obj->heap->buffer[a];
         setval(upd->type, VINTEGER);
         setval(upd->value[0], ((uint32_t)x >> 16) & 0xFF);
@@ -4658,7 +4658,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         }
       } break;
       case VFLOAT: {
-        float f = rules_tofloat(obj, -1);
+        float f = rules_tofloat(-1);
         uint32_t x = 0;
         float2uint32(f, &x);
 
@@ -4678,8 +4678,8 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       /* LCOV_EXCL_STOP*/
     }
 
-    rules_remove(obj, -1);
-    rules_remove(obj, -1);
+    rules_remove(-1);
+    rules_remove(-1);
 
     pos += sizeof(struct vm_top_t);
 
@@ -4704,7 +4704,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
     if((int8_t)getval(node->b) < 0) {
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
-      uint16_t b = vm_val_pos((int8_t)getval(node->b));
+      int16_t b = vm_val_pos((int8_t)getval(node->b));
 
 #if defined(DEBUG) || defined(COVERALLS)
       if(b > getval(obj->heap->nrbytes)) {
@@ -4736,13 +4736,13 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
         } break;
       }
 #endif
-      vm_stack_push(obj, a, &varstack->buffer[a]);
-      vm_stack_push(obj, b, &obj->heap->buffer[b]);
+      vm_stack_push(a, &varstack->buffer[a]);
+      vm_stack_push(b, &obj->heap->buffer[b]);
 
       rule_options.vm_value_set(obj);
 
-      rules_remove(obj, -1);
-      rules_remove(obj, -1);
+      rules_remove(-1);
+      rules_remove(-1);
 
       memset(stack->buffer, 0, getval(stack->bufsize));
       setval(stack->nrbytes, 4);
@@ -4757,13 +4757,13 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       }
 #endif
 
-      vm_stack_push(obj, a, &varstack->buffer[a]);
-      vm_stack_push(obj, b, &varstack->buffer[b]);
+      vm_stack_push(a, &varstack->buffer[a]);
+      vm_stack_push(b, &varstack->buffer[b]);
 
       rule_options.vm_value_set(obj);
 
-      rules_remove(obj, -1);
-      rules_remove(obj, -1);
+      rules_remove(-1);
+      rules_remove(-1);
 
       memset(stack->buffer, 0, getval(stack->bufsize));
       setval(stack->nrbytes, 4);
@@ -4771,19 +4771,19 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       uint16_t a = (int8_t)getval(node->a)*sizeof(struct vm_vchar_t);
       uint16_t b = ((int8_t)getval(node->b)+1)*rule_max_var_bytes();
 
-      if(rules_gettop(obj) >= 1) {
-        vm_stack_push(obj, a, &varstack->buffer[a]);
-        vm_stack_push(obj, b, &stack->buffer[b]);
-        rules_remove(obj, (int8_t)getval(node->b)+1);
+      if(rules_gettop() >= 1) {
+        vm_stack_push(a, &varstack->buffer[a]);
+        vm_stack_push(b, &stack->buffer[b]);
+        rules_remove((int8_t)getval(node->b)+1);
       } else {
-        vm_stack_push(obj, a, &varstack->buffer[a]);
-        rules_pushnil(obj);
+        vm_stack_push(a, &varstack->buffer[a]);
+        rules_pushnil();
       }
 
       rule_options.vm_value_set(obj);
 
-      rules_remove(obj, -1);
-      rules_remove(obj, -1);
+      rules_remove(-1);
+      rules_remove(-1);
     }
     pos += sizeof(struct vm_top_t);
 
@@ -4793,7 +4793,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
   STEP_PUSH: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
     if((int8_t)getval(node->a) < 0) {
-      uint16_t a = vm_val_pos((int8_t)getval(node->a));
+      int16_t a = vm_val_pos((int8_t)getval(node->a));
 
 #if defined(DEBUG) || defined(COVERALLS)
       if(a > getval(obj->heap->nrbytes)) {
@@ -4802,7 +4802,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       }
 #endif
 
-      vm_stack_push(obj, a, &obj->heap->buffer[a]);
+      vm_stack_push(a, &obj->heap->buffer[a]);
     } else {
       uint16_t a = (uint8_t)(getval(node->a)-1)*sizeof(struct vm_vchar_t);
 
@@ -4813,7 +4813,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       }
 #endif
 
-      vm_stack_push(obj, a, &varstack->buffer[a]);
+      vm_stack_push(a, &varstack->buffer[a]);
     }
 
     pos += sizeof(struct vm_top_t);
@@ -4825,7 +4825,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 /*****************/
   STEP_CALL: {
     struct vm_top_t *node = (struct vm_top_t *)&obj->bc.buffer[pos];
-    uint16_t a = vm_val_pos((int8_t)getval(node->a));
+    int16_t a = vm_val_pos((int8_t)getval(node->a));
     uint16_t b = (int8_t)getval(node->b);
     uint16_t c = (int8_t)getval(node->c);
 
@@ -4849,20 +4849,20 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 #endif
 
     if(c == 0) {
-      if(rule_functions[b].callback(obj) != 0) {
+      if(rule_functions[b].callback() != 0) {
         /* LCOV_EXCL_START*/
         logprintf_P(F("FATAL: function call '%s' failed"), rule_functions[b].name);
         return -1;
         /* LCOV_EXCL_STOP*/
       }
-      if(rules_gettop(obj) == 1) {
-        switch(rules_type(obj, -1)) {
+      if(rules_gettop() == 1) {
+        switch(rules_type(-1)) {
           case VNULL: {
             struct vm_vnull_t *upd = (struct vm_vnull_t *)&obj->heap->buffer[a];
             setval(upd->type, VNULL);
           } break;
           case VINTEGER: {
-            int32_t x = rules_tointeger(obj, -1);
+            int32_t x = rules_tointeger(-1);
             struct vm_vinteger_t *upd = (struct vm_vinteger_t *)&obj->heap->buffer[a];
             setval(upd->type, VINTEGER);
             setval(upd->value[0], ((uint32_t)x >> 16) & 0xFF);
@@ -4887,7 +4887,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
             }
           } break;
           case VFLOAT: {
-            float f = rules_tofloat(obj, -1);
+            float f = rules_tofloat(-1);
             uint32_t x = 0;
             float2uint32(f, &x);
 
@@ -4906,7 +4906,7 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
           /* LCOV_EXCL_STOP*/
         }
 
-        rules_remove(obj, -1);
+        rules_remove(-1);
       }
     } else {
       struct vm_vchar_t *var = (struct vm_vchar_t *)&varstack->buffer[b*sizeof(struct vm_vchar_t)];
@@ -4923,8 +4923,8 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
 
         goto BEGIN;
       } else {
-        while(rules_gettop(obj) > 0) {
-          rules_remove(obj, 1);
+        while(rules_gettop() > 0) {
+          rules_remove(1);
         }
       }
     }
