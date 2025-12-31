@@ -509,6 +509,11 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
   uint16_t a = varstack->nrbytes;
   int32_t i = -1;
 
+  /* uint8_t range exceeded*/
+  if(a/sizeof(struct vm_vchat_t *)/2 > 127) {
+    return 0;
+  }
+
   struct vm_vchar_t *value = (struct vm_vchar_t *)&varstack->buffer[a];
 
   i = varstack_find(text, start, len);
@@ -3013,6 +3018,11 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
 #ifdef DEBUG
     printf("%s %d %d %d %d %s\n", __FUNCTION__, __LINE__, depth, pos, getval(obj->bc.nrbytes), token_names[go].name);
 #endif
+
+    if(varstack->nrbytes/sizeof(vm_vchar_t *)/2 >= 128) {
+      logprintf_P(F("ERROR: maximum number of 127 variables reached"));
+      return -1;
+    }
 
     switch(go) {
       case TTHEN:
