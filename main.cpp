@@ -211,25 +211,25 @@ struct unittest_t {
   { "if 3 == 3 then $a = 'foo bar'; $b = concat($a, ' ', 'foo'); $b = concat($a, ' ', $a); $c = concat($a, ' ', 'test'); end", { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 336 } }, { { "[1]$a = foo bar[1]$b = foo bar foo bar[1]$c = foo bar test", 336 } }, 0 },
   { "if 3 == 3 then $a = 1; $b = concat('{zone1:{heat:{target:{high:', $a + 1, ',low:', $a + 1, '}}}}'); end", { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, { { "[1]$a = 1[1]$b = {zone1:{heat:{target:{high:2,low:2}}}}", 281 } }, 0 },
   { "if 3 == 3 then $a = 27; $b = 1; $c = concat('{zone1:{heat:{target:{high:', $a + $b, ',low:', $a + $b, '}}}}'); end", { { "[1]$a = 27[1]$b = 1[1]$c = {zone1:{heat:{target:{high:28,low:28}}}}", 324 } }, { { "[1]$a = 27[1]$b = 1[1]$c = {zone1:{heat:{target:{high:28,low:28}}}}", 324 } }, 0 },
-  { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
-  { "if 1 == 1 then $a = \"foo	bar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
-  { "if 1 == 1 then $a = \"foo\\tbar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } } }, // TAB
-  { "if 1 == 1 then $a = \"foo\\\tbar\"; end", { { "[1]$a = foo\\\tbar", 128 } }, { { "[1]$a = foo\\\tbar", 128 } } },
+  { "if 1 == 1 then $a = 'foo	bar'; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } }, 0}, // TAB
+  { "if 1 == 1 then $a = \"foo	bar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } }, 0 }, // TAB
+  { "if 1 == 1 then $a = \"foo\\tbar\"; end", { { "[1]$a = foo	bar", 127 } }, { { "[1]$a = foo	bar", 127 } }, 0 }, // TAB
+  { "if 1 == 1 then $a = \"foo\\\tbar\"; end", { { "[1]$a = foo\\\tbar", 128 } }, { { "[1]$a = foo\\\tbar", 128 } }, 0 },
   { "if 1 == 1 then $a = \"foo\n\
 bar\"; end", { { "[1]$a = foo\n\
 bar", 127 } }, { { "[1]$a = foo\n\
-bar", 127 } } }, // Newline
+bar", 127 } }, 0 }, // Newline
   // Just the character sequence '\n'
-  { "if 1 == 1 then $a = \"foo\\\\nbar\"; end", { { "[1]$a = foo\\nbar", 128 } }, { { "[1]$a = foo\\nbar", 128 } } },
+  { "if 1 == 1 then $a = \"foo\\\\nbar\"; end", { { "[1]$a = foo\\nbar", 128 } }, { { "[1]$a = foo\\nbar", 128 } }, 0 },
   // Just the character sequence '\t'
-  { "if 1 == 1 then $a = \"foo\\\\tbar\"; end", { { "[1]$a = foo\\tbar", 128 } }, { { "[1]$a = foo\\tbar", 128 } } },
-  { "if 1 == 1 then $a = 'foo bar'; end", { { "[1]$a = foo bar", 127 } }, { { "[1]$a = foo bar", 127 } } },
-  { "if 1 == 1 then $a = 'f\\\\'oo'; end", { { "[1]$a = f\\'oo", 125 } }, { { "[1]$a = f\\'oo", 125 } } },
-  { "if 1 == 1 then $a = \"f\\\\\"oo\"; end", { { "[1]$a = f\\\"oo", 125 } }, { { "[1]$a = f\\\"oo", 125 } } },
-  { "if 1 == 1 then $a = 'f\\'oo'; end", { { "[1]$a = f'oo", 124 } }, { { "[1]$a = f'oo", 124 } } },
-  { "if 1 == 1 then $a = \"f\\\"oo\"; end", { { "[1]$a = f\"oo", 124 } }, { { "[1]$a = f\"oo", 124 } } },
-  { "if 1 == 1 then $a = 'foo'; end", { { "[1]$a = foo", 123 } }, { { "[1]$a = foo", 123 } } },
-  { "if 1 == 1 then $a = \"foo\"; end", { { "[1]$a = foo", 123 } }, { { "[1]$a = foo", 123 } } },
+  { "if 1 == 1 then $a = \"foo\\\\tbar\"; end", { { "[1]$a = foo\\tbar", 128 } }, { { "[1]$a = foo\\tbar", 128 } }, 0 },
+  { "if 1 == 1 then $a = 'foo bar'; end", { { "[1]$a = foo bar", 127 } }, { { "[1]$a = foo bar", 127 } }, 0 },
+  { "if 1 == 1 then $a = 'f\\\\'oo'; end", { { "[1]$a = f\\'oo", 125 } }, { { "[1]$a = f\\'oo", 125 } }, 0 },
+  { "if 1 == 1 then $a = \"f\\\\\"oo\"; end", { { "[1]$a = f\\\"oo", 125 } }, { { "[1]$a = f\\\"oo", 125 } }, 0 },
+  { "if 1 == 1 then $a = 'f\\'oo'; end", { { "[1]$a = f'oo", 124 } }, { { "[1]$a = f'oo", 124 } }, 0 },
+  { "if 1 == 1 then $a = \"f\\\"oo\"; end", { { "[1]$a = f\"oo", 124 } }, { { "[1]$a = f\"oo", 124 } }, 0 },
+  { "if 1 == 1 then $a = 'foo'; end", { { "[1]$a = foo", 123 } }, { { "[1]$a = foo", 123 } }, 0 },
+  { "if 1 == 1 then $a = \"foo\"; end", { { "[1]$a = foo", 123 } }, { { "[1]$a = foo", 123 } }, 0 },
   { "if 3 == 3 then $a = 'foo'; $a = 1; end", { { "[1]$a = 1", 131 } }, { { "[1]$a = 1", 131 } }, 0 },
   { "if 3 == 3 then $a = 'foo'; $a = 1.2; end", { { "[1]$a = 1.2", 131 } }, { { "[1]$a = 1.2", 131 } }, 0 },
   { "if 3 == 3 then $a = 'foo'; $a = NULL; end", { { "[1]$a = NULL", 131 } }, { { "[1]$a = NULL", 131 } }, 0 },
@@ -553,7 +553,7 @@ bar", 127 } } }, // Newline
   { "on foo then $a = 6; end if 3 == 3 then foo(1, 2); $b = 3; end  ", { { "[1]$a = 6", 111 }, { "[1]$a = 6[2]$b = 3", 206 } }, { { "[1]$a = 6", 111 }, { "[1]$a = 6[2]$b = 3", 147 } }, 0 },
   { "on foo then $a = coalesce($b, 0); end  ", { { "[1]$a = 2", 154 } }, { { "[1]$a = 2", 154 } }, 0 }, // FIXME
   { "on foo then if 1 == 2 then $a = 1; elseif 2 == 2 then $a = 3; else $a = 2; end end", { "[1]$a = 2", 155 }, { "[1]$a = 3", 139 }, 0 },
-  { "on foo then if 2 == 2 then $c = 1; elseif 3 == 3 then $b = max(1); end end", { "[1]$c = 1[1]$b = 1", 178 }, { "[1]$c = 1", 139 } },
+  { "on foo then if 2 == 2 then $c = 1; elseif 3 == 3 then $b = max(1); end end", { "[1]$c = 1[1]$b = 1", 178 }, { "[1]$c = 1", 139 }, 0 },
   { "on foo then if 3 == 3 then $a = 6; elseif 3 == 3 then $b = 1; end end on bar then if 3 == 3 then $b = 3; end end", { { "[1]$a = 6[1]$b = 1", 166 }, { "[2]$b = 3", 202 } }, { { "[1]$a = 6", 147 }, { "[2]$b = 3", 147 } }, 0 },
   { "on foo then if 1 == 1 then $a = 1; $b = 1.25; $c = 10; $d = 100; else $a = 1; end end on bar then $e = NULL; $f = max(1, 2); $g = 1 + 1.25; foo(); end", { { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100", 212 }, { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100[2]$e = NULL[2]$f = 2[2]$g = 2.25", 341 } }, { { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100", 147 }, { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100[2]$e = NULL[2]$f = 2[2]$g = 2.25", 147 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then if 1 == 1 then foo(); end if 1 == 1 then foo(); end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1", 199 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 147 } }, 0 },
@@ -656,7 +656,6 @@ bar", 127 } } }, // Newline
   { "if 1 == 1 then if 1 < 2 then elseif 1 == 1 then $a = 1; end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "if 1 == 1 then if 1 < 2 then end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
   { "on foo then $a = \"1\"; if $a == \"1\" then $b = \"2\"; end end", { { NULL, 0 } }, { { NULL, 0 } }, -1 },
-
 };
 
 static int8_t is_variable(char *text, uint16_t size) {
