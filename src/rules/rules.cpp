@@ -542,12 +542,11 @@ static uint16_t varstack_add(char **text, uint16_t start, uint16_t len, uint8_t 
   uint16_t a = varstack->nrbytes;
   int32_t i = -1;
 
-  /* uint8_t range exceeded*/
-  if(a/sizeof(struct vm_vchat_t *)/2 > 127) {
-    return 0;
-  }
-
   struct vm_vchar_t *value = (struct vm_vchar_t *)&varstack->buffer[a];
+
+#ifdef DEBUG
+  assert(a/sizeof(struct vm_vchat_t *)/2 <= 127);
+#endif
 
   i = varstack_find(text, start, len);
 
@@ -755,6 +754,10 @@ static int8_t rule_prepare(char **text,
       }
       uint16_t newlen = 0;
       lexer_parse_number(&(*text)[pos], *len-pos, &newlen);
+
+#if defined(DEBUG)
+      assert(pos + newlen <= *len);
+#endif
 
       char tmp = 0;
       float var = 0;
