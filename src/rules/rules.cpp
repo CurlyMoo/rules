@@ -760,12 +760,16 @@ static int8_t rule_prepare(char **text,
       float var = 0;
       tmp = getval((*text)[pos+newlen]);
       setval((*text)[pos+newlen], 0);
-      char cpy[newlen+1];
-      memset(&cpy, 0, newlen+1);
+      char *cpy = (char *)MALLOC(newlen+1);
+      if(cpy == NULL) {
+        OUT_OF_MEMORY;
+      }
+      memset(cpy, 0, newlen+1);
       for(uint16_t x=0;x<newlen;x++) {
         cpy[x] = getval((*text)[pos+x]);
       }
       var = atof(cpy);
+      FREE(cpy);
 
       float nr = 0;
       {
@@ -1152,8 +1156,11 @@ static int8_t rule_prepare(char **text,
           break;
         }
       }
-      char cpy[b+1];
-      memset(&cpy, 0, b+1);
+      char *cpy = (char *)MALLOC(b+1);
+      if(cpy == NULL) {
+        OUT_OF_MEMORY;
+      }
+      memset(cpy, 0, b+1);
       for(a=0;a<b;a++) {
         cpy[a] = getval((*text)[pos+a]);
       }
@@ -1195,7 +1202,7 @@ static int8_t rule_prepare(char **text,
 
         setval((*text)[tpos], TOPERATOR); tpos++;
         setval((*text)[tpos], len1); tpos++;
-      } else if(rule_options.is_variable_cb != NULL && (len1 = rule_options.is_variable_cb((char *)&cpy, b)) > -1) {
+      } else if(rule_options.is_variable_cb != NULL && (len1 = rule_options.is_variable_cb(cpy, b)) > -1) {
         /*
          * Check for double vars
          */
@@ -1361,8 +1368,10 @@ static int8_t rule_prepare(char **text,
         } else {
           logprintf_P(F("ERROR: unknown token '%.5s'"), &(*text)[pos]);
         }
+        FREE(cpy);
         return -1;
       }
+      FREE(cpy);
     }
 
     if(nrblocks == 0) {
@@ -1725,12 +1734,16 @@ static int32_t vm_heap_push(struct rules_t *obj, uint8_t type, char **text, uint
       float var = 0;
       tmp = getval((*text)[start+1+len]);
       setval((*text)[start+1+len], 0);
-      char cpy[len+1];
-      memset(&cpy, 0, len+1);
+      char *cpy = (char *)MALLOC(len+1);
+      if(cpy == NULL) {
+        OUT_OF_MEMORY;
+      }
+      memset(cpy, 0, len+1);
       for(uint16_t x=0;x<len;x++) {
-        cpy[x] = getval((*text)[start+1+x]);
+        cpy[x] = (char)getval((*text)[start+1+x]);
       }
       var = atof(cpy);
+      FREE(cpy);
       setval((*text)[start+1+len], tmp);
 
       float nr = 0;
