@@ -258,7 +258,7 @@ static int32_t is_function(char *text, uint16_t *pos, uint16_t size) {
       uint16_t x = 0;
       for(x=0;x<len;x++) {
         char cpy = getval(text[*pos+x]);
-        if(tolower(cpy) != tolower(rule_functions[i].name[x])) {
+        if(tolower((unsigned char)cpy) != tolower((unsigned char)rule_functions[i].name[x])) {
           break;
         }
       }
@@ -279,7 +279,7 @@ static int32_t is_operator(char *text, uint16_t *pos, uint16_t size) {
       uint16_t x = 0;
       for(x=0;x<len;x++) {
         char cpy = getval(text[*pos+x]);
-        if(tolower(cpy) != tolower(rule_operators[i].name[x])) {
+        if(tolower((unsigned char)cpy) != tolower((unsigned char)rule_operators[i].name[x])) {
           break;
         }
       }
@@ -296,14 +296,14 @@ static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
   uint16_t i = 0, nrdot = 0;
   char current = getval(text[*pos]);
 
-  if(isdigit(current) || current == '-') {
+  if(isdigit((unsigned char)current) || current == '-') {
     /*
      * The dot cannot be the first character
      * and we cannot have more than 1 dot
      */
     while(*pos < len &&
         (
-          isdigit(current) ||
+          isdigit((unsigned char)current) ||
           (i == 0 && current == '-') ||
           (i > 0 && nrdot == 0 && current == '.')
         )
