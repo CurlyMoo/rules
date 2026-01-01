@@ -5321,8 +5321,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 /*LCOV_EXCL_STOP*/
 
   if(rule_prepare((char **)&input->payload, &bcsize, &heapsize, &varsize, &memsize, &newlen) == -1 ||
-    (varsize/sizeof(struct vm_vchar_t *)/2) >= 128) {
-    if(varsize/sizeof(vm_vchar_t *)/2 >= 128) {
+    (varsize/sizeof(struct vm_vchar_t)/2) > INT8_MAX) {
+    if(varsize/sizeof(struct vm_vchar_t)/2 > INT8_MAX) {
       logprintf_P(F("ERROR: maximum number of 127 variables reached"));
     }
     if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
