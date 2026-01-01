@@ -250,7 +250,7 @@ int8_t rule_by_name(struct rules_t **rules, uint8_t nrrules, char *name) {
   return -1;
 }
 
-static int8_t is_function(char *text, uint16_t *pos, uint16_t size) {
+static int32_t is_function(char *text, uint16_t *pos, uint16_t size) {
   uint16_t i = 0, len = 0;
   for(i=0;i<nr_rule_functions;i++) {
     len = strlen(rule_functions[i].name);
@@ -271,7 +271,7 @@ static int8_t is_function(char *text, uint16_t *pos, uint16_t size) {
   return -1;
 }
 
-static int8_t is_operator(char *text, uint16_t *pos, uint16_t size) {
+static int32_t is_operator(char *text, uint16_t *pos, uint16_t size) {
   uint16_t i = 0, len = 0;
   for(i=0;i<nr_rule_operators;i++) {
     len = strlen(rule_operators[i].name);
