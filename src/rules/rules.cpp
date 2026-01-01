@@ -221,13 +221,13 @@ static uint8_t group = 1;
 // Veltkamp-Dekker algorithm
 static float float32to27(float f) {
   uint8_t bits = 5; // remove 8 bits
-  float factor = pow(2, bits) + 1;
+  float factor = (float)((1u << bits) + 1u);
   float c = factor * f;
   return (c-(c-f));
 }
 
 const char *rule_by_nr(struct rules_t **rules, uint8_t nrrules, uint8_t nr) {
-  if(nr > nrrules) {
+  if(nr >= nrrules) {
     return NULL;
   }
   struct rules_t *obj = rules[nr];
