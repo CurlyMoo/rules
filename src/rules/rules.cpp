@@ -32,8 +32,6 @@
 
 #include "../common/mem.h"
 #include "../common/log.h"
-#include "../common/mem.h"
-#include "../common/log.h"
 #include "../common/uint32float.h"
 #include "../common/strnicmp.h"
 #include "rules.h"
