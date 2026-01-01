@@ -818,12 +818,16 @@ static int8_t rule_prepare(char **text,
                 float var1 = 0;
                 tmp = getval((*text)[start+1+len]);
                 setval((*text)[start+1+len], 0);
-                char cpy[len+1];
-                memset(&cpy, 0, len+1);
+                char *cpy = (char *)MALLOC(len + 1);
+                if(cpy == NULL) {
+                  OUT_OF_MEMORY;
+                }
+                memset(cpy, 0, len+1);
                 for(uint16_t x=0;x<len;x++) {
                   cpy[x] = getval((*text)[start+1+x]);
                 }
                 var1 = atof(cpy);
+                FREE(cpy);
                 setval((*text)[start+1+len], tmp);
 
                 if(modff(var1, &nr) == 0) {
@@ -1507,15 +1511,24 @@ uint8_t rules_type(int8_t pos) {
 }
 
 void rules_pushnil(void) {
-  unsigned char val[rule_max_var_bytes()] = { '\0' };
+  unsigned char *val = (unsigned char *)MALLOC(rule_max_var_bytes());
+  if(val == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(val, 0, rule_max_var_bytes());
   struct vm_vnull_t *node = (struct vm_vnull_t *)val;
   node->type = VNULL;
 
   vm_stack_push(0, val);
+  FREE(val);
 }
 
 void rules_pushinteger(int nr) {
-  unsigned char val[rule_max_var_bytes()] = { '\0' };
+  unsigned char *val = (unsigned char *)MALLOC(rule_max_var_bytes());
+  if(val == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(val, 0, rule_max_var_bytes());
   struct vm_vinteger_t *node = (struct vm_vinteger_t *)val;
   node->type = VINTEGER;
   setval(node->value[0], ((uint32_t)nr >> 16) & 0xFF);
@@ -1523,6 +1536,7 @@ void rules_pushinteger(int nr) {
   setval(node->value[2], ((uint32_t)nr) & 0xFF);
 
   vm_stack_push(0, val);
+  FREE(val);
 }
 
 void rules_pushfloat(float nr) {
@@ -1530,7 +1544,11 @@ void rules_pushfloat(float nr) {
   uint32_t x = 0;
   float2uint32(f, &x);
 
-  unsigned char val[rule_max_var_bytes()] = { '\0' };
+  unsigned char *val = (unsigned char *)MALLOC(rule_max_var_bytes());
+  if(val == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(val, 0, rule_max_var_bytes());
   struct vm_vfloat_t *node = (struct vm_vfloat_t *)val;
 
   setval(node->type, VFLOAT | ((((uint32_t)x >> 29) & 0x7) << 5));
@@ -1539,19 +1557,25 @@ void rules_pushfloat(float nr) {
   setval(node->value[2], ((uint32_t)x >> 5) & 0xFF);
 
   vm_stack_push(0, val);
+  FREE(val);
 }
 
 void rules_pushstring(char *str) {
   uint16_t c = varstack_add(&str, 0, strlen(str), 0);
   assert(c >= 0);
 
-  unsigned char val[rule_max_var_bytes()] = { '\0' };
+  unsigned char *val = (unsigned char *)MALLOC(rule_max_var_bytes());
+  if(val == NULL) {
+    OUT_OF_MEMORY
+  }
+  memset(val, 0, rule_max_var_bytes());
   struct vm_vptr_t *node = (struct vm_vptr_t *)val;
 
   setval(node->type, VPTR);
   setval(node->value, c/sizeof(struct vm_top_t));
 
   vm_stack_push(0, val);
+  FREE(val);
 }
 
 void rules_ref(const char *str) {
