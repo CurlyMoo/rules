@@ -920,28 +920,8 @@ static int8_t rule_prepare(char **text,
         setval((*text)[tpos], x & 0xFF); tpos++;
       }
 
-      if(tmp == ' ' || tmp == '\n' || tmp != '\t' || tmp != '\r') {
-        setval((*text)[pos+newlen], tmp);
-        pos += newlen;
-      } else {
-        uint16_t x = 0;
-        while(tmp != ' ' && tmp != '\n'  && tmp != '\t' && tmp != '\r') {
-          char tmp1 = 0;
-          tmp = getval((*text)[pos+newlen+1]);
-          setval((*text)[pos+newlen+1], tmp);
-
-          tmp = tmp1;
-          newlen += 1;
-          x++;
-        }
-
-        char cpy = getval((*text)[pos+newlen]);
-
-        if(cpy == ' ' || cpy == '\t' || cpy == '\r' || cpy == '\n') {
-          setval((*text)[pos+newlen], tmp);
-        }
-        pos += newlen-x+1;
-      }
+      setval((*text)[pos+newlen], tmp);
+      pos += newlen;
 /*    } else if(tolower(current) == 's' && tolower(next) == 'y' &&
               pos+5 < *len &&
               (
