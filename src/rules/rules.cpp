@@ -294,6 +294,11 @@ static int32_t is_operator(char *text, uint16_t *pos, uint16_t size) {
 
 static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
   uint16_t i = 0, nrdot = 0;
+
+  if(*pos >= len) {
+    return -1;
+  }
+
   char current = getval(text[*pos]);
 
   if(isdigit((unsigned char)current) || current == '-') {
@@ -323,6 +328,10 @@ static int8_t lexer_parse_number(char *text, uint16_t len, uint16_t *pos) {
 }
 
 static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
+  if(*pos >= len) {
+    return 0;
+  }
+
   char current = getval(text[*pos]);
 
   while(*pos < len &&
@@ -332,6 +341,9 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
       current != '(' &&
       current != ')')) {
     (*pos)++;
+    if(*pos >= len) {
+      break;
+    }
     current = getval(text[*pos]);
   }
 
@@ -341,13 +353,28 @@ static uint16_t lexer_parse_string(char *text, uint16_t len, uint16_t *pos) {
 static int8_t lexer_parse_quoted_string(char *text, uint16_t len, uint16_t *pos) {
   uint8_t start = 0;
   unsigned char current = 0;
+
+  if(*pos >= len) {
+    return -1;
+  }
+
   current = getval(text[*pos]);
 
   while(*pos < len) {
     if((current < 9 || current > 10) && (current < 32 || current > 127)) {
       return -2;
-    } else if(current == '\\' && getval(text[(*pos+1)]) == start) {
-      (*pos)+=2;
+    } else if(current == '\\') {
+      if((*pos + 1) >= len) {
+        return -1;
+      }
+      if(getval(text[(*pos+1)]) == start) {
+        (*pos)+=2;
+        if(*pos >= len) {
+          break;
+        }
+        current = getval(text[*pos]);
+        continue;
+      }
     } else if(start == current) {
       (*pos)--;
       break;
@@ -366,6 +393,10 @@ static int8_t lexer_parse_quoted_string(char *text, uint16_t len, uint16_t *pos)
 }
 
 static int8_t lexer_parse_skip_characters(char *text, uint16_t len, uint16_t *pos) {
+  if(*pos >= len) {
+    return 0;
+  }
+
   char current = getval(text[*pos]);
 
   while(*pos < len &&
@@ -375,6 +406,10 @@ static int8_t lexer_parse_skip_characters(char *text, uint16_t len, uint16_t *po
       current == '\r')) {
 
     (*pos)++;
+
+    if(*pos >= len) {
+      break;
+    }
     current = getval(text[*pos]);
   }
 
