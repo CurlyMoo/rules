@@ -805,7 +805,7 @@ static int8_t rule_prepare(char **text,
                 } else if(type == VFLOAT) {
                   float var1 = 0;
                   uint322float(val, &var1);
-                  if(fabs(var-var1) < EPSILON) {
+                  if(fabsf(var-var1) < EPSILON) {
                     match = 1;
                   }
                 }
@@ -831,7 +831,7 @@ static int8_t rule_prepare(char **text,
                     match = 1;
                   }
                 } else {
-                  if(fabs(var-var1) < EPSILON) {
+                  if(fabsf(var-var1) < EPSILON) {
                     match = 1;
                   }
                 }
@@ -4429,10 +4429,10 @@ int8_t rule_run(struct rules_t *obj, uint8_t validate) {
       var = fmodf(x, y);
       goto STEP_MATH_RESULT;
     STEP_OP_EQ:
-      t = var = (fabs(x-y) < EPSILON);
+      t = var = (fabsf(x - y) < EPSILON);
       goto STEP_OP_RESULT;
     STEP_OP_NE:
-      t = var = (fabs(x-y) >= EPSILON);
+      t = var = (fabsf(x - y) >= EPSILON);
       goto STEP_OP_RESULT;
     STEP_OP_OR:
       t = var = (x > 0 || y > 0);
