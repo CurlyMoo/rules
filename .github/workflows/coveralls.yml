@@ -41,8 +41,8 @@ jobs:
           gem install coveralls-lcov
           lcov -c -d CMakeFiles/start.dir -o coverage.info --rc geninfo_unexecuted_blocks=1
           lcov -r coverage.info '/usr/include/*' '*log.cpp' '*main.cpp' -o coverage-filtered.info
-#          lcov --list and genhtml are broken in lcov 2.0
-#
-#          lcov --list coverage-filtered.info
-#          genhtml coverage-filtered.info
+          : # lcov --list and genhtml are broken in lcov 2.0
+          : #
+          : # lcov --list coverage-filtered.info
+          : # genhtml coverage-filtered.info
           coveralls-lcov --repo-token ${{ secrets.COVERALLS }} coverage.info
