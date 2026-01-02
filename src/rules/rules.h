@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include "stack.h"
 
-#ifndef ESP8266
+#if !defined(ESP8266) && !defined(ESP32)
   #define F
   #define MEMPOOL_SIZE 16000
   typedef struct pbuf {
@@ -41,7 +41,11 @@
 #else
   #include <Arduino.h>
   #include "lwip/pbuf.h"
-  #define MEMPOOL_SIZE 4096
+  #ifdef ESP8266
+    #define MEMPOOL_SIZE 4096
+  #else
+    #define MEMPOOL_SIZE 32*1024
+  #endif
 #endif
 
 #define MAX(a,b) \
