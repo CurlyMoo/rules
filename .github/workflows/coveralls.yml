@@ -45,4 +45,4 @@ jobs:
           : #
           : # lcov --list coverage-filtered.info
           : # genhtml coverage-filtered.info
-          coveralls-lcov --repo-token ${{ secrets.COVERALLS }} coverage.info
+          coveralls-lcov --repo-token ${{ secrets.COVERALLS }} coverage-filtered.info
