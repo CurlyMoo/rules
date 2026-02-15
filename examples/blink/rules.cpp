@@ -3542,9 +3542,14 @@ int rule_run(struct rules_t *obj, int validate) {
     printf("AST bufsize is %d bytes, local bufsize is %d bytes\n", obj->ast.bufsize, obj->varstack.bufsize);
 
     {
-      char out[1024];
-      valprint(obj, (char *)&out, 1024);
+      char *out = (char *)MALLOC(1024);
+      if(out == NULL) {
+        OUT_OF_MEMORY
+      }
+      memset(out, 0, 1024);
+      valprint(obj, out, 1024);
       printf("%s\n", out);
+      FREE(out);
     }
 #endif
 /*LCOV_EXCL_STOP*/

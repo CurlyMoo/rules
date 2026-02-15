@@ -424,6 +424,7 @@ bar", 127 } }, 0 }, // Newline
   { "if 3 == 3 then $a = max(max(1, 2), (1 * max(1, 3) ^ 2)); end", { "[1]$a = 9", 163 }, { "[1]$a = 9", 163 }, 0 },
   { "if 3 == 3 then $b = 1; $a = max($b + 1); end", { "[1]$b = 1[1]$a = 2", 146 }, { "[1]$b = 1[1]$a = 2", 146 }, 0 },
   { "if 3 == 3 then $b = 1; $a = max($b + 1) * 3; end", { "[1]$b = 1[1]$a = 6", 150 }, { "[1]$b = 1[1]$a = 6", 150 }, 0 },
+  { "if 1 == 1 then $a = max(ceil(3), 3 * 4); end", { "[1]$a = 12", 143 }, { "[1]$a = 12", 143 }, 0 },
   { "if NULL then $a = 1; end", { "[1]$a = 1", 103 }, { "", 103 }, 0 },
   { "if 0 then $a = 1; end", { "[1]$a = 1", 103 }, { "", 103 }, 0 },
   { "if 1 then $a = 1; end", { "[1]$a = 1", 99 }, { "[1]$a = 1", 99 }, 0 },
@@ -570,6 +571,9 @@ bar", 127 } }, 0 }, // Newline
   { "on foo then print($a); $b = 1; end", { "[1]$b = 1", 150 }, { "[1]$b = 1", 150 }, 0 },
   { "on sub2($a) then print($a); $b = $a; end if 1 == 1 then print($a); sub2(2); end", { { "[1]$a = NULL[1]$b = NULL", 159 }, { "[1]$a = 2[1]$b = 2", 215 } }, { { "[1]$a = NULL[1]$b = NULL", 128 },{ "[1]$a = 2[1]$b = 2", 215 } }, 0 },
   { "on sub2($a) then print($a); $c = $a + 1; end on sub1($a) then print($a); sub2($a + 1); $b = $a - 1; end if 1 == 1 then sub1(1); end", { { "[1]$a = NULL[1]$c = NULL", 167 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 271 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 271 } }, { { "[1]$a = NULL[1]$c = NULL", 128 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 196 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 196 } }, 0 },
+  { "if 1 == 1 then $a = 1; $b = 1; $c = 1; $d = 1; $e = 1; $f = 1; $g = 1; $h = 1; $i = 1; $j = 1; $k = 1; $l = 1; $m = 1; $n = 1; $o = 1; $p = 1; $q = 1; $r = 1; $s = 1; $t = 1; $u = 1; $v = 1; $w = 1; $x = 1; $y = 1; $z = 1; $aa = 1; $ab = 1; $ac = 1; $ad = 1; $ae = 1; $af = 1; $ag = 1; $ah = 1; $aj = 1; $aj = 1; $ak = 1; $al = 1; $am = 1; $an = 1; $ao = 1; $ap = 1; $aq = 1; $ar = 1; $as = 1; $at = 1; $au = 1; $av = 1; $aw = 1; $ax = 1; $ay = 1; $az = 1; $ba = 1; $bb = 1; $bc = 1; $bd = 1; $be = 1; $bf = 1; $bg = 1; $bh = 1; $bj = 1; $bj = 1; $bk = 1; $bl = 1; $bm = 1; $bn = 1; $bo = 1; $bp = 1; $bq = 1; $br = 1; $bs = 1; $bt = 1; $bu = 1; $bv = 1; $bw = 1; $bx = 1; $by = 1; $bz = 1; $ca = 1; $cb = 1; $cc = 1; $cd = 1; $ce = 1; $cf = 1; $cg = 1; $ch = 1; $cj = 1; $cj = 1; $ck = 1; $cl = 1; $cm = 1; $cn = 1; $co = 1; $cp = 1; $cq = 1; $cr = 1; $cs = 1; $ct = 1; $cu = 1; $cv = 1; $cw = 1; $cx = 1; $cy = 1; $cz = 1; $da = 1; $db = 1; $dc = 1; $dd = 1; $de = 1; $df = 1; $dg = 1; $dh = 1; $dj = 1; end", { { "[1]$de = 1[1]$df = 1[1]$dg = 1[1]$dh = 1[1]$dj = 1", 2706 } }, { { "[1]$de = 1[1]$df = 1[1]$dg = 1[1]$dh = 1[1]$dj = 1", 0 } }, 0 },
+
+
   /*
    * Invalid rules
    */
@@ -749,7 +753,7 @@ static int8_t vm_value_set(struct rules_t *obj) {
       array->type = VFLOAT;
 
 #ifdef DEBUG
-      printf("%s %s = %g\n", __FUNCTION__, array->key, array->val.f);
+      printf("%s %s = %g\n", __FUNCTION__, array->key, (double)array->val.f);
 #endif
     } break;
     case VCHAR: {
@@ -836,7 +840,7 @@ static int8_t vm_value_get(struct rules_t *obj) {
           rules_pushfloat(array->val.f);
 
 #ifdef DEBUG
-          printf("%s %s = %g\n", __FUNCTION__, array->key, array->val.f);
+          printf("%s %s = %g\n", __FUNCTION__, array->key, (double)array->val.f);
 #endif
         } break;
         case VCHAR: {
@@ -1009,7 +1013,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
               x += snprintf(&out[x], 255-x, "[%d]%s = %d", y+1, array->key, array->val.i);
             } break;
             case VFLOAT: {
-              x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, array->val.f);
+              x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, (double)array->val.f);
             } break;
             case VCHAR: {
               x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
@@ -1042,7 +1046,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
 #endif
     }
 
-#ifndef ESP8266
+#if !defined(ESP8266) && defined(DEBUG)
     /*LCOV_EXCL_START*/
     if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittest.validate[rules[nrrules-1]->nr-1].bytes) {
       printf("Expected: %d\n", unittest.validate[rules[nrrules-1]->nr-1].bytes);
@@ -1072,7 +1076,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       printf("bytecode is %d bytes\n", rules[nrrules-1]->bc.nrbytes + rules[nrrules-1]->heap->nrbytes);
 #endif
 
-#ifndef ESP8266
+#if !defined(ESP8266) && defined(DEBUG)
       /*LCOV_EXCL_START*/
       if((uint16_t)(rules[nrrules-1]->bc.nrbytes + (rules[nrrules-1]->heap->nrbytes) + rules_memused()) != unittest.validate[rules[nrrules-1]->nr-1].bytes) {
         printf("Expected: %d\n", unittest.validate[rules[nrrules-1]->nr-1].bytes);
@@ -1095,7 +1099,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
                 x += snprintf(&out[x], 255-x, "[%d]%s = %d", y+1, array->key, array->val.i);
               } break;
               case VFLOAT: {
-                x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, array->val.f);
+                x += snprintf(&out[x], 255-x, "[%d]%s = %g", y+1, array->key, (double)array->val.f);
               } break;
               case VCHAR: {
                 x += snprintf(&out[x], 255-x, "[%d]%s = %s", y+1, array->key, array->val.s);
