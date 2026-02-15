@@ -128,7 +128,12 @@ typedef struct rules_t {
     struct rules_t *go;
     struct rules_t *ret;
   } __attribute__((aligned(4))) ctx;
+
+#ifndef NON32XFER_HANDLER
+  uint32_t nr;
+#else
   uint8_t nr;
+#endif
 
   const char *name;
 
