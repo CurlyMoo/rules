@@ -3246,6 +3246,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
           case TSEMICOLON:
           case TTHEN:
           case TFUNCTION:
+          case TEVENT:
           case TVAR: {
           } break;
           default: {
@@ -3273,6 +3274,7 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
             /* LCOV_EXCL_STOP*/
           }
           switch(type) {
+            case TEVENT:
             case TFUNCTION:
             case LPAREN: {
               go = type;
