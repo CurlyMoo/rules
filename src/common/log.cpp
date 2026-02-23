@@ -13,7 +13,7 @@
 #include <stdarg.h>
 #include <string.h>
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   #include <Arduino.h>
 #else
   #define strcpy_P strcpy
