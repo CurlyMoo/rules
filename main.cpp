@@ -34,7 +34,7 @@
   #include <Arduino.h>
 #endif
 
-#if !defined(ESP8266)
+#if defined(ESP32)
 /*LCOV_EXCL_START*/
 static uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
 static uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
