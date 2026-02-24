@@ -6,7 +6,7 @@
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 */
 
-#ifdef ESP8266
+#if defined(ESP8266) || defined(ESP32)
   #include <Arduino.h>
 #endif
 
@@ -30,8 +30,17 @@
 #include "src/rules/rules.h"
 #include "src/rules/stack.h"
 
-#ifdef ESP8266
-#include <Arduino.h>
+#if defined(ESP8266) || defined(ESP32)
+  #include <Arduino.h>
+#endif
+
+#if !defined(ESP8266)
+/*LCOV_EXCL_START*/
+static uint8_t mmu_set_uint8(void *ptr, uint8_t src) { *(uint8_t *)ptr = src; return src; }
+static uint8_t mmu_get_uint8(void *ptr) { return *(uint8_t *)ptr; }
+static uint16_t mmu_set_uint16(void *ptr, uint16_t src) { *(uint16_t *)ptr = src; return src; }
+static uint16_t mmu_get_uint16(void *ptr) { return (*(uint16_t *)ptr); }
+/*LCOV_EXCL_STOP*/
 #endif
 
 #define OUTPUT_SIZE 512
@@ -55,10 +64,10 @@ static struct rules_t **rules = NULL;
 static uint8_t nrrules = 0;
 static char out[OUTPUT_SIZE];
 
-#ifndef ESP8266
+#if !defined(ESP8266) && !defined(ESP32)
 struct serial_t Serial;
-void *MMU_SEC_HEAP = NULL;
 #endif
+void *MMU_SEC_HEAP = NULL;
 
 struct rule_options_t rule_options;
 

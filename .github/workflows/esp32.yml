@@ -1,0 +1,33 @@
+name: ESP32
+
+on: [push, pull_request]
+
+env:
+  ARDUINO_BOARD_MANAGER_ADDITIONAL_URLS: https://dl.espressif.com/dl/package_esp32_index.json
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v1.1.1
+
+      - name: Install platform
+        run:  |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32
+
+      # Finally, we compile the sketch, using the FQBN that was set
+      # in the build matrix.
+      - name: Compile Sketch
+        run: arduino-cli compile --output-dir . --fqbn=esp32:esp32:esp32s3:CDCOnBoot=cdc,PSRAM=enabled,PartitionScheme=min_spiffs --warnings=all,extra,sign-compare --verbose rules.ino
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rules.ino.bin
+          path: C:\\Users\\runneradmin\\AppData\\Local\\Temp\\arduino\\sketch-*/*.ino.bin

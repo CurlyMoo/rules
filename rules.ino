@@ -47,28 +47,43 @@ void setup() {
     exit(-1);
   }
 
+#if defined(ESP8266)
   rst_info *resetInfo = ESP.getResetInfoPtr();
   Serial.printf(PSTR("Reset reason: %d, exception cause: %d\n"), resetInfo->reason, resetInfo->exccause);
 
   if(resetInfo->reason > 0 && resetInfo->reason <= 4) {
+#elif defined(ESP32)
+  esp_reset_reason_t reset_reason = esp_reset_reason();
+  Serial.printf(PSTR("Reset reason: %d\n"), reset_reason);
+
+  if(reset_reason > 3 && reset_reason < 12) {
+#endif
     Serial.println("Unittests failed");
     fail = 1;
   }
+
 }
 
 void loop() {
   if(fail == 0) {
+#ifdef ESP8266
     ESP.wdtFeed();
+#endif
     if(millis() > nexttime) {
+#ifdef ESP8266
       ESP.wdtFeed();
+#endif
       nexttime = millis() + (100 * 1);
 
+#ifdef ESP8266
       ESP.wdtFeed();
+#endif
 
 #ifdef MMU_SEC_HEAP
       if(testnr >= 0) {
         if(heap == 0) {
 #endif
+          Serial.println();
           Serial.println(F("Running from 1st heap"));
           memset(mempool, 0, MEMPOOL_SIZE);
           if(testnr >= 0) {
@@ -76,6 +91,7 @@ void loop() {
           }
 #ifdef MMU_SEC_HEAP
         } else {
+          Serial.println();
           Serial.println(F("Running from 2nd heap"));
           memset((unsigned char *)MMU_SEC_HEAP, 0, MMU_SEC_HEAP_SIZE);
           if(testnr >= 0) {
