@@ -67,7 +67,9 @@ static char out[OUTPUT_SIZE];
 #if !defined(ESP8266) && !defined(ESP32)
 struct serial_t Serial;
 #endif
+#ifndef ESP8266
 void *MMU_SEC_HEAP = NULL;
+#endif
 
 struct rule_options_t rule_options;
 
