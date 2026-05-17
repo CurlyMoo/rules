@@ -394,11 +394,10 @@ bar", 127 } }, 0 }, // Newline
   { "if 1 == 1 then $a = 3; end", { "[1]$a = 3", 107 }, { "[1]$a = 3", 107 }, 0 },
   { "if 1 == 1 then $a = 3.1; $b = $a; end", { "[1]$a = 3.1[1]$b = 3.1", 134 }, { "[1]$a = 3.1[1]$b = 3.1", 134 }, 0 },
   { "if 1 == 1 then $a = $a + 1; end", { "[1]$a = 2", 111 }, { "[1]$a = 2", 111 }, 0 },
-  { "if 1 == 1 then $a = 1; print($a); end", { "[1]$a = 1", 119 }, { "[1]$a = 1", 119 }, 0 },
+  { "if 1 == 1 then $a = 1; print($a); end", { "[1]$a = 1", 123 }, { "[1]$a = 1", 123 }, 0 },
   { "if 1 == 1 then $a = 1; $b = 1.2; print($a, '-', $b, '-', $c); end", { "[1]$a = 1[1]$b = 1.2", 231 }, { "[1]$a = 1[1]$b = 1.2", 231 }, 0 },
-  { "if 1 == 1 then $a = 1; max($a); end", { "[1]$a = 1", 119 }, { "[1]$a = 1", 119 }, 0 },
+  { "if 1 == 1 then $a = 1; max($a); end", { "[1]$a = 1", 123 }, { "[1]$a = 1", 123 }, 0 },
   { "if 1 == 1 then $a = max(foo#bar); end", { "[1]$a = 3", 139 }, { "[1]$a = 3", 139 }, 0 },
-  { "if 1 == 1 then $a = max(foo#bar, 4); end", { "[1]$a = 4", 151 }, { "[1]$a = 4", 151 }, 0 },
   { "if 1 == 1 then $a = max(foo#bar, 4); end", { "[1]$a = 4", 151 }, { "[1]$a = 4", 151 }, 0 },
   { "if 1 == 1 then $a = max(foo#bar, 4, 5.5); end", { "[1]$a = 5.5", 159 }, { "[1]$a = 5.5", 159 }, 0 },
   { "if 1 == 1 then $a = min(foo#bar, 4, 1.5); end", { "[1]$a = 1.5", 159 }, { "[1]$a = 1.5", 159 }, 0 },
@@ -427,9 +426,9 @@ bar", 127 } }, 0 }, // Newline
   { "if 3 == 3 then $a = max(1, 4, 5, 3, 2); end", { "[1]$a = 5", 147 }, { "[1]$a = 5", 147 }, 0 },
   { "if 3 == 3 then $a = max(max(1, 4), 2); end", { "[1]$a = 4", 147 }, { "[1]$a = 4", 147 }, 0 },
   { "if 3 == 3 then max(max(1, 4), 2); end", { "", 128 }, { "", 128 }, 0 },
-  { "if 3 == 3 then max(2); min(2); end", { "", 112 }, { "", 112 }, 0 },
-  { "if 3 == 3 then max(2); min(2); max(3); end", { "", 128 }, { "", 128 }, 0 },
-  { "if 3 == 3 then max($a, 4, 2); $b = max(1, 3); end", { "[1]$b = 3", 178 }, { "[1]$b = 3", 178 }, 0 },
+  { "if 3 == 3 then max(2); min(2); end", { "", 108 }, { "", 108 }, 0 },
+  { "if 3 == 3 then max(2); min(2); max(3); end", { "", 120 }, { "", 120 }, 0 },
+  { "if 3 == 3 then max($a, 4, 2); $b = max(1, 3); end", { "[1]$b = 3", 174 }, { "[1]$b = 3", 174 }, 0 },
   { "if 3 == 3 then $a = max(1, 2) * 3; end", { "[1]$a = 6", 131 }, { "[1]$a = 6", 131 }, 0 },
   { "if 3 == 3 then $a = max(1, 2) * max(3, 4); end", { "[1]$a = 8", 151 }, { "[1]$a = 8", 151 }, 0 },
   { "if 3 == 3 then $a = max(max(1, 2), (1 * max(1, 3) ^ 2)); end", { "[1]$a = 9", 163 }, { "[1]$a = 9", 163 }, 0 },
@@ -542,9 +541,9 @@ bar", 127 } }, 0 }, // Newline
   { "if 3 == 3 then $a = 1; foo($a, 2); end", { { "[1]$a = 1", 155 }, { "[1]$a = 1", 155 } }, { { "[1]$a = 1", 155 }, { "[1]$x = 1[1]$y = 2[1]$z = 3", 202 } }, 0 },
   { "on foo($b, $c) then $a = $b + $c; end if 3 == 3 then $a = 1; $b = 2; foo($a, $b); end  ", { { "[1]$b = NULL[1]$c = NULL[1]$a = NULL", 173 }, { "[1]$b = 1[1]$c = 2[1]$a = 3[2]$a = 1[2]$b = 2", 241 } }, { { "[1]$b = NULL[1]$c = NULL[1]$a = NULL", 202 }, { "[1]$b = 1[1]$c = 2[1]$a = 3[2]$a = 1[2]$b = 2", 202 } }, 0 },
   { "on foo($a, $b) then $a = $b; end if 3 == 3 then foo(1, 5); $b = 3; end  ", { { "[1]$a = NULL[1]$b = NULL", 142 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 206 } }, { { "[1]$a = NULL[1]$b = NULL", 202 }, { "[1]$a = 5[1]$b = 5[2]$b = 3", 202 } }, 0 },
-  { "on foo then max(1, 2); end", { "", 112 }, { "", 112 }, 0 },
-  { "on foo then max(1, 2); end if 3 == 3 then max(1); foo(1); end", { { "", 112 }, { "", 172 } }, { { "", 16 }, { "", 131 } }, 0 },
-  { "on foo then max(1, 2); end if 3 == 3 then if 1 == 1 then $a = 1; end foo(1); end", { { "", 112 }, { "[2]$a = 1", 187 } }, { { "", 16 }, { "[2]$a = 1", 147 } }, 0 },
+  { "on foo then max(1, 2); end", { "", 108 }, { "", 108 }, 0 },
+  { "on foo then max(1, 2); end if 3 == 3 then max(1); foo(1); end", { { "", 108 }, { "", 168 } }, { { "", 16 }, { "", 131 } }, 0 },
+  { "on foo then max(1, 2); end if 3 == 3 then if 1 == 1 then $a = 1; end foo(1); end", { { "", 108 }, { "[2]$a = 1", 187 } }, { { "", 16 }, { "[2]$a = 1", 147 } }, 0 },
   { "on foo then $a = 6; $b = 3; end", { "[1]$a = 6[1]$b = 3", 138 }, { "[1]$a = 6[1]$b = 3", 138 }, 0 },
   { "on foo then $a = 1 + 2; end", { { "[1]$a = 3", 123 } }, { { "[1]$a = 3", 107 } }, 0 },
   { "on foo then if $a == 1 then max(2, 900); end end", { "", 147 }, { "", 166 }, 0 },
@@ -555,7 +554,7 @@ bar", 127 } }, 0 }, // Newline
   { "on foo then if 5 == 6 then $a = 1; end if 1 == 3 then $b = 3; end $a = 2; end", { "[1]$a = 2[1]$b = 3", 174 }, { "[1]$a = 2", 174 }, 0 },
   { "if 1 == 1 then $a = 1; else $a = min(1, 2, 3); end", { "[1]$a = 1", 139 }, { "[1]$a = 1", 139 }, 0 },
   { "if 1 == 1 then $a = 1; else $a = min(max(1, 2), 2, 3); end", { "[1]$a = 2", 155 }, { "[1]$a = 1", 155 }, 0 },
-  { "on bar then $a = 1; end on foo then $b = max(1, 2); bar(); end if 3 == 3 then foo(); $a = min(1, 2); end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$b = 2", 222 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 274 } }, { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$b = 2", 16 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 16 } }, 0 },
+  { "on bar then $a = 1; end on foo then $b = max(1, 2); bar(); end if 3 == 3 then foo(); $a = min(1, 2); end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$b = 2", 226 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 274 } }, { { "[1]$a = 1", 16 }, { "[1]$a = 1[2]$b = 2", 16 }, { "[1]$a = 1[2]$b = 2[3]$a = 1", 16 } }, 0 },
   { "on foo then if max(1) == max(1) then $a = 1; end end", { "[1]$a = 1", 143 }, { "[1]$a = 1", 143 }, 0 },
   { "on foo then if max($c) == 3 && max($a) then $a = 1; end end", { "[1]$a = 1", 178 }, { "[1]$a = 1", 178 }, 0 },
   { "on foo then $a = 6; end if 3 == 3 then $b = 3; end  ", { { "[1]$a = 6", 111 }, { "[2]$b = 3", 182 } }, { { "[1]$a = 6", 111 }, { "[2]$b = 3", 111 } }, 0 },
@@ -568,21 +567,21 @@ bar", 127 } }, 0 }, // Newline
   { "on foo then if 2 == 2 then $c = 1; elseif 3 == 3 then $b = max(1); end end", { "[1]$c = 1[1]$b = 1", 178 }, { "[1]$c = 1", 139 }, 0 },
   { "on foo then if 3 == 3 then $a = 6; elseif 3 == 3 then $b = 1; end end on bar then if 3 == 3 then $b = 3; end end", { { "[1]$a = 6[1]$b = 1", 166 }, { "[2]$b = 3", 202 } }, { { "[1]$a = 6", 147 }, { "[2]$b = 3", 147 } }, 0 },
   { "on foo then if 1 == 1 then $a = 1; $b = 1.25; $c = 10; $d = 100; else $a = 1; end end on bar then $e = NULL; $f = max(1, 2); $g = 1 + 1.25; foo(); end", { { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100", 212 }, { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100[2]$e = NULL[2]$f = 2[2]$g = 2.25", 341 } }, { { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100", 147 }, { "[1]$a = 1[1]$b = 1.25[1]$c = 10[1]$d = 100[2]$e = NULL[2]$f = 2[2]$g = 2.25", 147 } }, 0 },
-  { "on foo then $a = 1; end if 3 == 3 then if 1 == 1 then foo(); end if 1 == 1 then foo(); end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1", 199 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 147 } }, 0 },
+  { "on foo then $a = 1; end if 3 == 3 then if 1 == 1 then foo(); end if 1 == 1 then foo(); end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1", 195 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 147 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then if $a == 1 then foo(); end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1", 183 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 202 } }, 0 },
   { "if 3 == 3 then if (1 + 2) >= 3 && (1 + 2) <= $a then $a = 1; end end", { "[1]$a = 1", 143 }, { "", 139 }, 0 },
-  { "on foo then $a = 1; end if 3 == 3 then foo(); if 1 == 1 then $a = 1; end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 187 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1[2]$a = 1", 147 } }, 0 },
+  { "on foo then $a = 1; end if 3 == 3 then foo(); if 1 == 1 then $a = 1; end end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 183 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1[2]$a = 1", 147 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then foo(); else $a = 1; end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 179 } }, { { "[1]$a = 1", 119 }, { "[1]$a = 1", 119 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then foo(); elseif 1 == 1 then $a = 1; end", { { "[1]$a = 1", 111 }, { "[1]$a = 1[2]$a = 1", 187 } }, { { "[1]$a = 1", 147 }, { "[1]$a = 1", 147 } }, 0 },
   { "on foo then $a = 1; end if 3 == 3 then $a = 'foo'; end", { { "[1]$a = 1", 111 }, { "[2]$a = foo", 163 } }, { { "[1]$a = 1", 111 }, { "[2]$a = foo", 202 } }, 0 },
   { "if 1 == 1 then $a = 1; $b = 2; $aa = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.1; $bb = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.2; $cc = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.3; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.4; $dd = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.5; $ee = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.6; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.7; $ff = round($a / (($b * 230) + 50) * 10) / 10; $b = 2.8; $gg = round($a / (($b * 230) + 50) * 10) / 10; end", { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, { "[1]$a = 1[1]$b = 2.8[1]$aa = 0[1]$bb = 0[1]$cc = 0[1]$dd = 0[1]$ee = 0[1]$ff = 0[1]$gg = 0", 710 }, 0 },
   { "on foo then coalesce(10, 5); $a = 1; $b = 2; if $c == 12 && $d == 0 then $e = 1; end", { "[1]$a = 1[1]$b = 2[1]$e = 1", 263 }, { "[1]$a = 1[1]$b = 2", 263 }, 0 },
-  { "on foo($a, $b) then print($a); $b = 1; end", { "[1]$a = NULL[1]$b = 1", 158 }, { "[1]$a = NULL[1]$b = 1", 158 }, 0 },
-  { "on foo then print($a); $b = 1; end", { "[1]$b = 1", 150 }, { "[1]$b = 1", 150 }, 0 },
+  { "on foo($a, $b) then print($a); $b = 1; end", { "[1]$a = NULL[1]$b = 1", 162 }, { "[1]$a = NULL[1]$b = 1", 158 }, 0 },
+  { "on foo then print($a); $b = 1; end", { "[1]$b = 1", 154 }, { "[1]$b = 1", 150 }, 0 },
   { "on sub2($a) then print($a); $b = $a; end if 1 == 1 then print($a); sub2(2); end", { { "[1]$a = NULL[1]$b = NULL", 159 }, { "[1]$a = 2[1]$b = 2", 215 } }, { { "[1]$a = NULL[1]$b = NULL", 128 },{ "[1]$a = 2[1]$b = 2", 215 } }, 0 },
   { "on sub2($a) then print($a); $c = $a + 1; end on sub1($a) then print($a); sub2($a + 1); $b = $a - 1; end if 1 == 1 then sub1(1); end", { { "[1]$a = NULL[1]$c = NULL", 167 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 271 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 271 } }, { { "[1]$a = NULL[1]$c = NULL", 128 }, { "[1]$a = NULL[1]$c = NULL[2]$a = NULL[2]$b = NULL", 196 }, { "[1]$a = 2[1]$c = 3[2]$a = 1[2]$b = 0", 196 } }, 0 },
   { "if 1 == 1 then $a = 1; $b = 1; $c = 1; $d = 1; $e = 1; $f = 1; $g = 1; $h = 1; $i = 1; $j = 1; $k = 1; $l = 1; $m = 1; $n = 1; $o = 1; $p = 1; $q = 1; $r = 1; $s = 1; $t = 1; $u = 1; $v = 1; $w = 1; $x = 1; $y = 1; $z = 1; $aa = 1; $ab = 1; $ac = 1; $ad = 1; $ae = 1; $af = 1; $ag = 1; $ah = 1; $aj = 1; $aj = 1; $ak = 1; $al = 1; $am = 1; $an = 1; $ao = 1; $ap = 1; $aq = 1; $ar = 1; $as = 1; $at = 1; $au = 1; $av = 1; $aw = 1; $ax = 1; $ay = 1; $az = 1; $ba = 1; $bb = 1; $bc = 1; $bd = 1; $be = 1; $bf = 1; $bg = 1; $bh = 1; $bj = 1; $bj = 1; $bk = 1; $bl = 1; $bm = 1; $bn = 1; $bo = 1; $bp = 1; $bq = 1; $br = 1; $bs = 1; $bt = 1; $bu = 1; $bv = 1; $bw = 1; $bx = 1; $by = 1; $bz = 1; $ca = 1; $cb = 1; $cc = 1; $cd = 1; $ce = 1; $cf = 1; $cg = 1; $ch = 1; $cj = 1; $cj = 1; $ck = 1; $cl = 1; $cm = 1; $cn = 1; $co = 1; $cp = 1; $cq = 1; $cr = 1; $cs = 1; $ct = 1; $cu = 1; $cv = 1; $cw = 1; $cx = 1; $cy = 1; $cz = 1; $da = 1; $db = 1; $dc = 1; $dd = 1; $de = 1; $df = 1; $dg = 1; $dh = 1; $dj = 1; end", { { "[1]$de = 1[1]$df = 1[1]$dg = 1[1]$dh = 1[1]$dj = 1", 2706 } }, { { "[1]$de = 1[1]$df = 1[1]$dg = 1[1]$dh = 1[1]$dj = 1", 0 } }, 0 },
-  { "on sub2 then sub1(1); end on sub1($a) then print($a); end on sub3 then sub2(); end", { { "", 126 }, { "[2]$a = NULL", 189 }, { "[2]$a = 1", 238 } }, { { "", 128 },{ "[2]$a = NULL", 215 }, { "[2]$a = 1", 238 } }, 0 },
+  { "on sub2 then sub1(1); end on sub1($a) then print($a); end on sub3 then sub2(); end", { { "", 122 }, { "[2]$a = NULL", 193 }, { "[2]$a = 1", 234 } }, { { "", 128 },{ "[2]$a = NULL", 215 }, { "[2]$a = 1", 233 } }, 0 },
 
   /*
    * Invalid rules
@@ -1040,7 +1039,7 @@ void run_test(int *i, unsigned char *mempool, uint16_t size) {
       }
     }
 
-    if(unittest.dofail == 0 && strcmp(out, unittest.validate[rule_nr-1].output) != 0) {
+    if(unittest.dofail == 0 && unittest.validate[rule_nr-1].output != NULL && strcmp(out, unittest.validate[rule_nr-1].output) != 0) {
 #ifdef ESP8266
       char str[OUTPUT_SIZE];
       memset(&str, 0, OUTPUT_SIZE);
