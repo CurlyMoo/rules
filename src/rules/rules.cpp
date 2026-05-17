@@ -2102,6 +2102,9 @@ static void bc_assign_slots(struct rules_t *obj) {
       if(gettype(obj->bc.buffer[a]) == OP_CALL && getval(x->a) == 0) {
         continue;
       }
+      if(gettype(obj->bc.buffer[a]) == OP_SETVAL) {
+        continue;
+      }
 
       int32_t e = bc_before(a);
       struct vm_top_t *z = NULL;
