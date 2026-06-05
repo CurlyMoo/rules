@@ -5535,7 +5535,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     timestamp.second = micros();
 
     logprintf_P(F("rule #%d bytecode was created in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
-    logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
+    logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %d/127"),
       getval(obj->bc.nrbytes),
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
@@ -5543,7 +5543,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((stack == NULL) ? 0 : getval(stack->nrbytes)),
       ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-      (varstack->bufsize)
+      (varstack->bufsize),
+      varstack->nrbytes / sizeof(struct vm_vchar_t)
     );
 #else
     clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
@@ -5611,7 +5612,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   timestamp.second = micros();
 
   logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
-  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
+  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %d/127"),
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
@@ -5619,7 +5620,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((stack == NULL) ? 0 : getval(stack->nrbytes)),
     ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-    (varstack->bufsize)
+    (varstack->bufsize),
+    varstack->nrbytes / sizeof(struct vm_vchar_t)
   );
 #else
   clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
