@@ -3363,6 +3363,14 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
               case TEVENT:
               case TFUNCTION:
               case LPAREN: {
+                /*
+                 * A call/expression statement is followed by a sibling
+                 * statement (nested if, event, or function call) rather
+                 * than closing the block. Reset mathcnt here too, for the
+                 * same reason as the TEND case below (#894): otherwise it
+                 * leaks into the next statement's slot allocation.
+                 */
+                mathcnt = 0;
                 go = type;
                 ret = TIF;
                 continue;
