@@ -2024,6 +2024,7 @@ static void bc_assign_slots(struct rules_t *obj) {
       }
     }
     end = a;
+    start = end;
 
     for(a=end;a<getval(obj->bc.nrbytes);a = bc_next(obj, a)) {
       if(a == -1) {
@@ -2200,6 +2201,9 @@ static void bc_assign_slots(struct rules_t *obj) {
         continue;
       }
       if(gettype(obj->bc.buffer[a]) == OP_CLEAR) {
+        continue;
+      }
+      if(gettype(obj->bc.buffer[a]) == OP_CALL && getval(x->a) == 0) {
         continue;
       }
       if(d >= min) {
@@ -3359,6 +3363,14 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
               case TEVENT:
               case TFUNCTION:
               case LPAREN: {
+                /*
+                 * A call/expression statement is followed by a sibling
+                 * statement (nested if, event, or function call) rather
+                 * than closing the block. Reset mathcnt here too, for the
+                 * same reason as the TEND case below (#894): otherwise it
+                 * leaks into the next statement's slot allocation.
+                 */
+                mathcnt = 0;
                 go = type;
                 ret = TIF;
                 continue;
@@ -3376,6 +3388,14 @@ static int16_t rule_create(char **text, struct rules_t *obj) {
                   return -1;
                   /* LCOV_EXCL_STOP*/
                 }
+                /*
+                 * A call/expression statement closes this if-block. Reset the
+                 * temporary slot counter so a following sibling if-condition
+                 * starts fresh. Otherwise mathcnt leaks across the block and
+                 * bc_parse_math_order's backward slot search overshoots into
+                 * this block, relocating its trailing logical operator (#894).
+                 */
+                mathcnt = 0;
                 go = TEND;
                 ret = TIF;
                 continue;
@@ -5386,8 +5406,12 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
 /*LCOV_EXCL_STOP*/
 
   if(rule_prepare((char **)&input->payload, &bcsize, &heapsize, &varsize, &memsize, &newlen) == -1 ||
-    (varsize/sizeof(struct vm_vchar_t)) > INT8_MAX) {
+    (varsize/sizeof(struct vm_vchar_t)) > INT8_MAX ||
+    ((varstack->nrbytes + varsize) / sizeof(struct vm_vchar_t)) > INT8_MAX) {
     if(varsize/sizeof(struct vm_vchar_t) > INT8_MAX) {
+      logprintf_P(F("ERROR: maximum number of 127 variables reached"));
+    }
+    if((varstack->nrbytes + varsize) / sizeof(struct vm_vchar_t) > INT8_MAX) {
       logprintf_P(F("ERROR: maximum number of 127 variables reached"));
     }
     if((*rules = (struct rules_t **)REALLOC(*rules, sizeof(struct rules_t **)*((*nrrules)))) == NULL) {
@@ -5519,7 +5543,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     timestamp.second = micros();
 
     logprintf_P(F("rule #%d bytecode was created in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
-    logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
+    logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %d/127"),
       getval(obj->bc.nrbytes),
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
@@ -5527,7 +5551,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((stack == NULL) ? 0 : getval(stack->nrbytes)),
       ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-      (varstack->bufsize)
+      (varstack->bufsize),
+      varstack->nrbytes / sizeof(struct vm_vchar_t)
     );
 #else
     clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
@@ -5536,7 +5561,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
       ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
-    printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes\n",
+    printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %lu/127\n",
       getval(obj->bc.nrbytes),
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
@@ -5544,7 +5569,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((stack == NULL) ? 0 : getval(stack->nrbytes)),
       ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-      (varstack->bufsize)
+      (varstack->bufsize),
+      varstack->nrbytes / sizeof(struct vm_vchar_t)
     );
 #endif
 /*LCOV_EXCL_STOP*/
@@ -5595,7 +5621,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
   timestamp.second = micros();
 
   logprintf_P(F("rule #%d was executed in %d microseconds"), getval(obj->nr), timestamp.second - timestamp.first);
-  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes"),
+  logprintf_P(F("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %d/127"),
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
@@ -5603,7 +5629,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((stack == NULL) ? 0 : getval(stack->nrbytes)),
     ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-    (varstack->bufsize)
+    (varstack->bufsize),
+    varstack->nrbytes / sizeof(struct vm_vchar_t)
   );
 #else
   clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
@@ -5612,7 +5639,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
     ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
-  printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack %d/%d bytes\n",
+  printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %lu/127\n",
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
@@ -5620,7 +5647,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((stack == NULL) ? 0 : getval(stack->nrbytes)),
     ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-    (varstack->bufsize)
+    (varstack->bufsize),
+    varstack->nrbytes / sizeof(struct vm_vchar_t)
   );
 #endif
 /*LCOV_EXCL_STOP*/
