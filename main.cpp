@@ -584,6 +584,8 @@ bar", 127 } }, 0 }, // Newline
   { "on sub2 then sub1(1); end on sub1($a) then print($a); end on sub3 then sub2(); end", { { "", 122 }, { "[2]$a = NULL", 189 }, { "[2]$a = 1", 234 } }, { { "", 128 },{ "[2]$a = NULL", 215 }, { "[2]$a = 1", 233 } }, 0 },
   { "on System#Boot then max(10, 20); end on timer=10 then $Z = 3.5; $T = max(3 + 0.5); max(10, 2); if $T == $Z then $Z = 2; end end", { { "", 116 }, { "[2]$Z = 2[2]$T = 3.5", 291 } }, { { "", 134 }, { "[2]$Z = 2[2]$T = 3.5", 358 } }, 0 },
   { "on foo then $x = 1; end on bar then if $a == 1 then foo(); if $b >= 9 && $b < 18 then $c = 1; end end end", { { "[1]$x = 1", 111 }, { "[1]$x = 1[2]$c = 1", 292 } }, { { "[1]$x = 1", 0 }, { "[1]$x = 1", 0 } }, 0 },
+  { "on foo then max(1, 2); end on timer=1 then if $a > 0 then foo(); end max(1, 2); end", { { "", 108 }, { "", 219 } }, { { "", 167  }, { "", 151 } }, 0 },
+  { "if 1 == 1 then if 2 == 2 then foo(1); else foo(2); end end on foo($b) then $a = $b; end ", { { "", 156 }, { "[2]$b = NULL[2]$a = NULL", 194 } }, { { "", 167  }, { "[2]$b = NULL[2]$a = NULL", 151 } }, 0 },
 
   /*
    * Invalid rules
