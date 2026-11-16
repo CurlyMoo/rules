@@ -7,14 +7,14 @@ env:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
       - uses: ruby/setup-ruby@v1
         with:
-          ruby-version: 3.0.0
+          ruby-version: '3.0'
 
       - name: Install Packages
         run: |
@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCOVERALLS=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCOVERALLS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cd ..
 
       - name: Build
@@ -36,6 +36,8 @@ jobs:
           cd ..
 
       - name: Coveralls
+        env:
+          COVERALLS_TOKEN: ${{ secrets.COVERALLS }}
         run: |
           cd build
           gem install coveralls-lcov
@@ -45,4 +47,8 @@ jobs:
           : #
           : # lcov --list coverage-filtered.info
           : # genhtml coverage-filtered.info
-          coveralls-lcov --repo-token ${{ secrets.COVERALLS }} coverage-filtered.info
+          if [ -n "$COVERALLS_TOKEN" ]; then
+            coveralls-lcov --repo-token "$COVERALLS_TOKEN" coverage-filtered.info
+          else
+            echo "Coveralls token not configured; coverage generated locally, upload skipped."
+          fi
