@@ -25,7 +25,7 @@ jobs:
         run: |
           mkdir build
           cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DCOVERALLS=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DCOVERALLS=ON -DCMAKE_POLICY_VERSION_MINIMUM=3.5
           cd ..
 
       - name: Build
