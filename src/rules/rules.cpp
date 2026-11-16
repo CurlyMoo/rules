@@ -5578,7 +5578,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
       (varstack->bufsize),
-	  varstack->nrbytes / sizeof(struct vm_vchar_t)
+      varstack->nrbytes / sizeof(struct vm_vchar_t)
     );
 #else
     clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
@@ -5587,7 +5587,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
       ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
-    printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes\n",
+    printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %lu/255\n",
       getval(obj->bc.nrbytes),
       getval(obj->bc.bufsize),
       getval(obj->heap->nrbytes),
@@ -5595,7 +5595,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
       ((stack == NULL) ? 0 : getval(stack->nrbytes)),
       ((stack == NULL) ? 0 : getval(stack->bufsize)),
       ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-      (varstack->bufsize)
+      (varstack->bufsize),
+      varstack->nrbytes / sizeof(struct vm_vchar_t)
     );
 #endif
 /*LCOV_EXCL_STOP*/
@@ -5655,7 +5656,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
     (varstack->bufsize),
-	varstack->nrbytes / sizeof(struct vm_vchar_t)
+    varstack->nrbytes / sizeof(struct vm_vchar_t)
   );
 #else
   clock_gettime(CLOCK_MONOTONIC, &timestamp.second);
@@ -5664,7 +5665,7 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((double)timestamp.second.tv_sec + 1.0e-9*timestamp.second.tv_nsec) -
     ((double)timestamp.first.tv_sec + 1.0e-9*timestamp.first.tv_nsec));
 
-  printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack %d/%d bytes\n",
+  printf("bytecode: %d/%d, heap: %d/%d, stack: %d/%d bytes, varstack: %d/%d bytes, varstack slots: %lu/255\n",
     getval(obj->bc.nrbytes),
     getval(obj->bc.bufsize),
     getval(obj->heap->nrbytes),
@@ -5672,7 +5673,8 @@ int8_t rule_initialize(struct pbuf *input, struct rules_t ***rules, uint8_t *nrr
     ((stack == NULL) ? 0 : getval(stack->nrbytes)),
     ((stack == NULL) ? 0 : getval(stack->bufsize)),
     ((varstack->nrbytes == 0) ? 0 : varstack->nrbytes),
-    (varstack->bufsize)
+    (varstack->bufsize),
+    varstack->nrbytes / sizeof(struct vm_vchar_t)
   );
 #endif
 /*LCOV_EXCL_STOP*/
